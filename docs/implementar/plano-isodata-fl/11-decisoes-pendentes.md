@@ -283,6 +283,8 @@ Bipartição forçada no ponto estacionário, 200 sementes. O ruído `σ` vai de
 
 **Leitura:** as duas empatam em quase toda a faixa. Com ruído muito alto, as duas falham, e *complete* degrada de forma mais gradual. Nesse caso, um `γ_max` calibrado deveria recusar o split de qualquer forma.
 
+**Evidência posterior (2026-11-04, guia 3.10):** com `g(α) > 0`, as duas coincidem sempre; com `g(α) ≤ 0`, em matrizes sintéticas, *complete* acertou os grupos mais vezes (652 contra 447 de 1391), e *single* isolou um único cliente em 709 casos. O notebook do CFL agora usa o Algoritmo 1.
+
 **Recomendação.** *Single*, que é o que tem garantia e dispensa o `scikit-learn`, com *complete* de reserva quando um filho sair pequeno demais. E3 compara.
 
 **Se errar:** baixo, é uma função trocável.
@@ -449,7 +451,7 @@ O split continua funcionando, e até antes. O custo aparece no fim: o modelo fic
 | **Com modelo global** | Transferência entre clusters, e um modelo para clientes novos | Dobra o treino, e o melhor `μ` varia muito por cenário, de 0,05 a 10 |
 | **Só na fase final** | Combina os dois | Não testado, e acrescenta o momento de ligar |
 
-**Atenção ao portar:** o `gmodel` do código do StoCFL não é FedAvg, é treino encadeado (guia 4.12, item 12). Uma reimplementação fiel ao artigo não reproduz o código, e vice-versa.
+**Atenção ao portar:** o `gmodel` do código original do StoCFL não era FedAvg, e sim treino encadeado. Isso foi corrigido em 2026-11-04 (guia 4.12, item 12). O código atual segue o texto do artigo, e os resultados ficam abaixo das tabelas publicadas, que parecem ter vindo do código encadeado.
 
 **Recomendação.** Fora da v1, para isolar o efeito do split e do merge. E7 decide. **Se o seu cenário tiver rótulos muito desbalanceados entre clientes, esta decisão sobe de prioridade.**
 

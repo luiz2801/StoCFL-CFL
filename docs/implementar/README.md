@@ -5,6 +5,8 @@ Este diretório reúne os documentos de diagnóstico crítico da documentação 
 > **Status (2026-11-04): fase de planejamento. Nada do ISODATA-FL foi implementado.** O [guia técnico do ISODATA](guia-tecnico-isodata.md) descreve código existente e foi verificado contra ele e contra o artigo. Os demais documentos são propostas com problemas em aberto, listados na seção 5 da [especificação](especificacao-isodata-fl.md) e na seção 5 da [arquitetura](arquitetura-componentes-isodata-fl.md).
 >
 > **Proposta mais recente:** o [plano modular](plano-isodata-fl/README.md) (CFL como split, StoCFL como merge e calendário por rodadas) encaminha esses problemas, com recomendações ainda não aprovadas. Comece por ele.
+>
+> **Atenção (2026-11-04): o código do CFL e do StoCFL mudou depois deste plano.** A D-014 em [decisoes.md](../decisoes.md) corrigiu os dois para seguir o texto dos artigos. Onde este plano descreve o "notebook" ou o "código do StoCFL" (momentum, decaimento do lr, aquecimento, *complete linkage*, `obep`, modelo global encadeado), ele se refere ao código original, disponível até o commit `3159d55`. Para reproduzir aquele comportamento, use esse commit.
 
 ---
 

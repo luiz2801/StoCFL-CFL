@@ -101,27 +101,27 @@ Intuição: o FedAvg converge para um ponto que é ótimo "em média". Se ali a 
 
 | Função/método | Linha | O que faz |
 |---|---|---|
-| `device` | [fl_devices.py:7](clustered-federated-learning/fl_devices.py#L7) | `"cuda"` se disponível, senão `"cpu"` (global). |
-| `train_op(model, loader, optimizer, epochs)` | [fl_devices.py:9](clustered-federated-learning/fl_devices.py#L9) | Treino SGD padrão com `CrossEntropyLoss`. Retorna a loss média da **última** época. |
-| `eval_op(model, loader)` | [fl_devices.py:26](clustered-federated-learning/fl_devices.py#L26) | Acurácia no loader. ⚠️ Chama `model.train()` em vez de `model.eval()` (inofensivo para a `ConvNet`, que não tem dropout/BN). |
-| `copy(target, source)` | [fl_devices.py:44](clustered-federated-learning/fl_devices.py#L44) | `target[k].data = source[k].data.clone()` para cada parâmetro (in-place no modelo). |
-| `subtract_(target, minuend, subtrahend)` | [fl_devices.py:48](clustered-federated-learning/fl_devices.py#L48) | `target = minuend − subtrahend` (usado para `dW = W − W_old`). |
-| `reduce_add_average(targets, sources)` | [fl_devices.py:52](clustered-federated-learning/fl_devices.py#L52) | Para cada `target`: `target += média(sources)`. É a agregação FedAvg sobre atualizações. |
-| `flatten(source)` | [fl_devices.py:58](clustered-federated-learning/fl_devices.py#L58) | Concatena todos os tensores de um dict de parâmetros em um vetor 1-D. |
-| `pairwise_angles(sources)` | [fl_devices.py:62](clustered-federated-learning/fl_devices.py#L62) | Matriz N×N de **similaridade de cosseno** entre as atualizações (apesar do nome, não é ângulo). |
-| `FederatedTrainingDevice` | [fl_devices.py:74](clustered-federated-learning/fl_devices.py#L74) | Base: cria o modelo e `self.W` = dict `{nome: Parameter}` (referências **vivas** aos parâmetros do modelo). |
-| `Client.__init__` | [fl_devices.py:86](clustered-federated-learning/fl_devices.py#L86) | Cria otimizador, divide os dados em treino/validação (`train_frac`), cria `dW` e `W_old`. |
-| `Client.synchronize_with_server` | [fl_devices.py:103](clustered-federated-learning/fl_devices.py#L103) | `W ← W_servidor`. Usado só na rodada 1, para todos partirem da mesma inicialização. |
-| `Client.compute_weight_update` | [fl_devices.py:106](clustered-federated-learning/fl_devices.py#L106) | `W_old ← W`; treina; `dW ← W − W_old`. |
-| `Client.reset` | [fl_devices.py:113](clustered-federated-learning/fl_devices.py#L113) | `W ← W_old`. Desfaz o treino local; o efeito fica guardado só em `dW`. |
-| `Server.select_clients` | [fl_devices.py:123](clustered-federated-learning/fl_devices.py#L123) | Amostra `frac` dos clientes (o notebook usa `frac=1.0`). |
-| `Server.aggregate_weight_updates` | [fl_devices.py:126](clustered-federated-learning/fl_devices.py#L126) | ⚠️ **Quebrado e não usado**: passa `target=` em vez de `targets=`. |
-| `Server.compute_pairwise_similarities` | [fl_devices.py:129](clustered-federated-learning/fl_devices.py#L129) | `pairwise_angles` sobre os `dW` de todos os clientes. |
-| `Server.cluster_clients(S)` | [fl_devices.py:131](clustered-federated-learning/fl_devices.py#L131) | Algoritmo 1 do artigo: percorre os pares em ordem decrescente de similaridade e funde os grupos que os contêm até restarem 2. Retorna `c1, c2` como **posições dentro de S**, e não ids de cliente; o notebook os converte com `idc[c1]` e `idc[c2]`. |
-| `Server.aggregate_clusterwise` | [fl_devices.py:139](clustered-federated-learning/fl_devices.py#L139) | Para cada cluster: `W_i += média(dW_j, j ∈ cluster)` em todos os membros. |
-| `Server.compute_max_update_norm` | [fl_devices.py:145](clustered-federated-learning/fl_devices.py#L145) | `max_i ‖dW_i‖`. |
-| `Server.compute_mean_update_norm` | [fl_devices.py:149](clustered-federated-learning/fl_devices.py#L149) | `‖média_i dW_i‖`. |
-| `Server.cache_model` | [fl_devices.py:153](clustered-federated-learning/fl_devices.py#L153) | Guarda `(ids, cópia dos pesos, acurácias desses clientes)` em `server.model_cache`. |
+| `device` | [fl_devices.py:6](clustered-federated-learning/fl_devices.py#L6) | `"cuda"` se disponível, senão `"cpu"` (global). |
+| `train_op(model, loader, optimizer, epochs)` | [fl_devices.py:8](clustered-federated-learning/fl_devices.py#L8) | Treino SGD padrão com `CrossEntropyLoss`. Retorna a loss média da **última** época. |
+| `eval_op(model, loader)` | [fl_devices.py:25](clustered-federated-learning/fl_devices.py#L25) | Acurácia no loader. ⚠️ Chama `model.train()` em vez de `model.eval()` (inofensivo para a `ConvNet`, que não tem dropout/BN). |
+| `copy(target, source)` | [fl_devices.py:43](clustered-federated-learning/fl_devices.py#L43) | `target[k].data = source[k].data.clone()` para cada parâmetro (in-place no modelo). |
+| `subtract_(target, minuend, subtrahend)` | [fl_devices.py:47](clustered-federated-learning/fl_devices.py#L47) | `target = minuend − subtrahend` (usado para `dW = W − W_old`). |
+| `reduce_add_average(targets, sources)` | [fl_devices.py:51](clustered-federated-learning/fl_devices.py#L51) | Para cada `target`: `target += média(sources)`. É a agregação FedAvg sobre atualizações. |
+| `flatten(source)` | [fl_devices.py:57](clustered-federated-learning/fl_devices.py#L57) | Concatena todos os tensores de um dict de parâmetros em um vetor 1-D. |
+| `pairwise_angles(sources)` | [fl_devices.py:61](clustered-federated-learning/fl_devices.py#L61) | Matriz N×N de **similaridade de cosseno** entre as atualizações (apesar do nome, não é ângulo). |
+| `FederatedTrainingDevice` | [fl_devices.py:73](clustered-federated-learning/fl_devices.py#L73) | Base: cria o modelo e `self.W` = dict `{nome: Parameter}` (referências **vivas** aos parâmetros do modelo). |
+| `Client.__init__` | [fl_devices.py:85](clustered-federated-learning/fl_devices.py#L85) | Cria otimizador, divide os dados em treino/validação (`train_frac`), cria `dW` e `W_old`. |
+| `Client.synchronize_with_server` | [fl_devices.py:102](clustered-federated-learning/fl_devices.py#L102) | `W ← W_servidor`. Usado só na rodada 1, para todos partirem da mesma inicialização. |
+| `Client.compute_weight_update` | [fl_devices.py:105](clustered-federated-learning/fl_devices.py#L105) | `W_old ← W`; treina; `dW ← W − W_old`. |
+| `Client.reset` | [fl_devices.py:111](clustered-federated-learning/fl_devices.py#L111) | `W ← W_old`. Desfaz o treino local; o efeito fica guardado só em `dW`. |
+| `Server.select_clients` | [fl_devices.py:121](clustered-federated-learning/fl_devices.py#L121) | Amostra `frac` dos clientes (o notebook usa `frac=1.0`). |
+| `Server.aggregate_weight_updates` | [fl_devices.py:124](clustered-federated-learning/fl_devices.py#L124) | ⚠️ **Quebrado e não usado**: passa `target=` em vez de `targets=`. |
+| `Server.compute_pairwise_similarities` | [fl_devices.py:127](clustered-federated-learning/fl_devices.py#L127) | `pairwise_angles` sobre os `dW` de todos os clientes. |
+| `Server.cluster_clients(S)` | [fl_devices.py:130](clustered-federated-learning/fl_devices.py#L130) | Algoritmo 1 do artigo: percorre os pares em ordem decrescente de similaridade e funde os grupos que os contêm até restarem 2. Retorna `c1, c2` como **posições dentro de S**, e não ids de cliente; o notebook os converte com `idc[c1]` e `idc[c2]`. |
+| `Server.aggregate_clusterwise` | [fl_devices.py:144](clustered-federated-learning/fl_devices.py#L144) | Para cada cluster: `W_i += média(dW_j, j ∈ cluster)` em todos os membros. |
+| `Server.compute_max_update_norm` | [fl_devices.py:150](clustered-federated-learning/fl_devices.py#L150) | `max_i ‖dW_i‖`. |
+| `Server.compute_mean_update_norm` | [fl_devices.py:154](clustered-federated-learning/fl_devices.py#L154) | `‖média_i dW_i‖`. |
+| `Server.cache_model` | [fl_devices.py:158](clustered-federated-learning/fl_devices.py#L158) | Guarda `(ids, cópia dos pesos, acurácias desses clientes)` em `server.model_cache`. |
 
 O servidor **nunca atualiza o próprio `W`**. A agregação é aplicada diretamente nos `W` dos clientes. Como todos os membros de um cluster partem do mesmo `W` e recebem a mesma média, eles continuam idênticos ("modelo do cluster" = `W` de qualquer membro).
 
@@ -385,12 +385,12 @@ No notebook, `EPS_2 / EPS_1 = 4`, dentro dessa faixa. A regra de `ε1` daria 0.0
 
 ### 3.10 Mapa artigo ↔ notebook
 
-O notebook é uma implementação do **Algoritmo 5** com simplificações e acréscimos próprios. A tabela mostra onde ele segue o artigo e onde diverge.
+O notebook implementa o **Algoritmo 5**, sem a permutação opcional `P`. Até 2026-11-04 ele tinha simplificações e acréscimos próprios, corrigidos pela D-014 em [decisoes.md](decisoes.md). A tabela mostra onde ele segue o artigo e o que mudou.
 
 | Elemento | Artigo | Notebook / `fl_devices.py` | Consequência |
 |---|---|---|---|
 | Critério de divisão | `‖Δθ_c‖ < ε1` e `max‖Δθ_i‖ > ε2` e `γ_max < √((1−α_cross^max)/2)` | `mean_norm < EPS_1` e `max_norm > EPS_2` e `GAMMA_MAX < √((1−α_cross^max)/2)` (célula 9), mais `len(idc) > 1` | **Segue o artigo.** `len(idc) > 1` só garante que os dois lados da bipartição existam (Definição 1). O notebook original não tinha a checagem de `γ_max` e exigia `len(idc) > 2` e `c_round > 20`. |
-| Algoritmo de bipartição | Alg. 1: ordem decrescente de `α`, fundindo até restarem 2 (≡ *single linkage*; minimiza o maior `α` entre os lados) | `Server.cluster_clients` transcreve o Alg. 1 ([fl_devices.py:131](clustered-federated-learning/fl_devices.py#L131)) | **Segue o artigo.** Atinge o ótimo da Eq. 33 em todas as matrizes testadas. O notebook original usava *complete linkage*. Com `g(α) > 0` os dois dão o mesmo resultado, porque qualquer linkage acerta (Corolário 1). Com `g(α) ≤ 0` eles divergem, e a garantia do artigo não vale: em matrizes sintéticas, o *complete* acertou os grupos verdadeiros mais vezes (652 contra 447 de 1391), porque o Alg. 1 tende a isolar um único cliente. |
+| Algoritmo de bipartição | Alg. 1: ordem decrescente de `α`, fundindo até restarem 2 (≡ *single linkage*; minimiza o maior `α` entre os lados) | `Server.cluster_clients` transcreve o Alg. 1 ([fl_devices.py:130](clustered-federated-learning/fl_devices.py#L130)) | **Segue o artigo.** Atinge o ótimo da Eq. 33 em todas as matrizes testadas. O notebook original usava *complete linkage*. Com `g(α) > 0` os dois dão o mesmo resultado, porque qualquer linkage acerta (Corolário 1). Com `g(α) ≤ 0` eles divergem, e a garantia do artigo não vale: em matrizes sintéticas, o *complete* acertou os grupos verdadeiros mais vezes (652 contra 447 de 1391), porque o Alg. 1 tende a isolar um único cliente. |
 | Agregação | Alg. 2 pondera por `|D_i|/|D_c|`; Alg. 5 usa `1/|c|` | Média uniforme (`reduce_add_average`) | Consistente com o Alg. 5. |
 | Quando divide | Alg. 3: só depois do FL convergir. Alg. 5: checa a cada rodada. | Checa a cada rodada | **Segue o Alg. 5.** A proximidade do ponto estacionário depende só de `EPS_1`: com `EPS_2` baixo, as divisões podem sair cedo demais (nas rodadas 3 e 4, com `EPS_2 = 0.5`). |
 | Otimizador local | `SGD(θ, D)`: SGD com minilotes, função só de `θ` e `D` (Eq. 1); lr e momentum não informados | `SGD(lr=0.1)`, um otimizador por cliente, sem momentum e sem decaimento | **Segue o artigo.** O notebook original usava `momentum=0.9`, com buffers que persistiam entre rodadas (`dW` ~1,8× maior e cosseno ~0.86 com os buffers zerados), e decaimento ×0.99 por rodada, que levava `mean_norm` abaixo de `EPS_1` mais cedo. |
@@ -442,7 +442,7 @@ Ao longo das rodadas, clusters de clientes com a mesma distribuição vão se ju
 
 | Script | Propósito | Cenários | Estado |
 |---|---|---|---|
-| [StoCFL-FCC.py](StoCFL/StoCFL-FCC.py) | **FCC = Federated Client Clustering**: avaliar só a clusterização (`--train 0` por padrão). | `fskewed`, `lskewed`, `shifted`, `rotated` | Roda com `--train 0` em `shifted` e `fskewed`. `lskewed` e `rotated` têm problemas próprios (4.12 #2 e #3). |
+| [StoCFL-FCC.py](StoCFL/StoCFL-FCC.py) | **FCC = Federated Client Clustering**: avaliar só a clusterização (`--train 0` por padrão). | `fskewed`, `lskewed`, `shifted`, `rotated` | Roda com `--train 0` em `shifted`, `fskewed` e `lskewed` (este com `--process 0`, 4.12 #3). `rotated` não funciona neste script (4.12 #2). |
 | [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py) | Clusterização + treino bi-nível (`--train 1` por padrão). | Rotated MNIST (4 rotações) / Rotated CIFAR-10 (2 rotações) | **Script principal e mais consistente.** |
 | [StoCFL-FEMNIST.py](StoCFL/StoCFL-FEMNIST.py) | StoCFL em FEMNIST (particionamento natural por escritor, sem ground truth de cluster). | FEMNIST (LEAF) | Roda; fluxo testado com pickles LEAF falsos, sem o dataset real (4.12 #5). |
 
@@ -451,31 +451,31 @@ Os três definem **sua própria cópia** da classe `StandaloneServer` com a mesm
 ### 4.3 Grafo de chamadas (StoCFL-FCC+CFL.py)
 
 ```text
-__main__                                                    StoCFL-FCC+CFL.py:196
+__main__                                                    StoCFL-FCC+CFL.py:186
  ├─ argparse → args
- ├─ setup_seed(args.seed)                                   functional.py:169
+ ├─ setup_seed(args.seed)                                   functional.py:173
  ├─ args.root = ./datasets/{dataset}/ ; args.save_dir = ./datasets/rotated_{dataset}_{n}_{seed}/
  ├─ [--process 1] RotatedMNIST.pre_process(shards=n/4)      datasets.py:145
  │               RotatedCIFAR10Partitioner.pre_process(shards=n/2)  datasets.py:254
  ├─ model = SimpleLinear (mnist, k=4) | CNN_CIFAR10 (cifar, k=2)
- ├─ trainer = RotatedMNISTTrainer(model, args)              trainer.py:251  (serve para mnist E cifar)
+ ├─ trainer = RotatedMNISTTrainer(model, args)              trainer.py:231  (serve para mnist E cifar)
  ├─ os.mkdir(./logs/runs-rotated-...)  ; Logger
- └─ StandaloneServer(model, True, trainer, args).main()     StoCFL-FCC+CFL.py:53
+ └─ StandaloneServer(model, cuda, trainer, args).main()     StoCFL-FCC+CFL.py:52
       └─ para cada rodada:
           ├─ random.sample(clientes, num_per_round)
-          ├─ trainer.observe(não_observados, anchor)        trainer.py:278
-          │     ├─ dataset.get_data_loader(id, obbs)        trainer.py:281
+          ├─ trainer.observe(não_observados, anchor)        trainer.py:257
+          │     ├─ dataset.get_data_loader(id, obbs)        trainer.py:260
           │     └─ dataset_representation(self, anchor, loader)   trainer.py:21
           ├─ cluster_center (média dos ψ de todos os membros)   functional.py:86
-          ├─ inter_cluster_union                            StoCFL-FCC+CFL.py:121
+          ├─ inter_cluster_union                            StoCFL-FCC+CFL.py:111
           │     ├─ dt_matrix → cosine_sim                   functional.py:77, :54
-          │     ├─ parse_matrix (ordena pares)              functional.py:86
-          │     └─ unite(i, j)                              StoCFL-FCC+CFL.py:144
-          ├─ get_cluster (log + assert)                     StoCFL-FCC+CFL.py:183
+          │     ├─ parse_matrix (ordena pares)              functional.py:90
+          │     └─ unite(i, j)                              StoCFL-FCC+CFL.py:134
+          ├─ get_cluster (log + assert)                     StoCFL-FCC+CFL.py:173
           └─ [--train 1]
-                ├─ trainer.train(cids, modelos_cluster, gmodel)        trainer.py:263
-                │     ├─ train_alone_prox (cluster, com μ)  trainer.py:320
-                │     └─ _train_alone (global)              trainer.py:305
+                ├─ trainer.train(cids, modelos_cluster, gmodel)        trainer.py:243
+                │     ├─ train_alone_prox (cluster, com μ)  trainer.py:284
+                │     └─ _train_alone (global)              trainer.py:269
                 ├─ gmodel ← fedavg(gmodels)
                 ├─ modelo[k] ← fedavg(updates do cluster k)
                 └─ evaluate (fedlab) com trainer.get_test_dataloader(⌊cid·k/n⌋)
@@ -487,12 +487,12 @@ Linhas referentes a [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py); a lógica é 
 
 | Método | Linha | O que faz |
 |---|---|---|
-| `__init__` | [:30](StoCFL/StoCFL-FCC+CFL.py#L30) | Inicializa clusters unitários, `psi = {}`, `cluster_parameters = {}`, `gmodel` e `anchor` (= pesos iniciais). |
-| `main` | [:53](StoCFL/StoCFL-FCC+CFL.py#L53) | Loop de rodadas (fases 1–3 de 4.1) + logs/arquivos. |
-| `bucket(client_list, items)` | [:170](StoCFL/StoCFL-FCC+CFL.py#L170) | Agrupa `items` (os modelos treinados) pelo cluster atual de cada cliente. Retorna `(ids_de_cluster_presentes, listas)` em ordem crescente de id. |
-| `inter_cluster_union(clusters, direções)` | [:121](StoCFL/StoCFL-FCC+CFL.py#L121) | Calcula o cosseno entre pares, grava `cos_rec.log`, funde pares com `cos > τ` em ordem decrescente e para no primeiro que não passa de `τ`. Com ≤ 1 cluster amostrado não faz nada. |
-| `unite(i, j)` | [:144](StoCFL/StoCFL-FCC+CFL.py#L144) | Union-find com relabel imediato. (a) Se `i` já foi absorvido nesta rodada (`i ∉ conteúdo[i]`), redireciona para o cluster atual do cliente `i`; idem `j`. (b) Mantém o **menor id**. (c) **Modelo:** se `|C_i| < |C_j|` e `j` tem modelo, `i` herda o modelo de `j` (o cluster maior "vence"); caso contrário `i` mantém o seu. (d) Move membros, esvazia `j` e apaga o modelo de `j`. |
-| `get_cluster` | [:183](StoCFL/StoCFL-FCC+CFL.py#L183) | Reescreve `cluster_rec.log` com a partição atual e faz `assert` de que todos os clientes estão em exatamente um cluster. |
+| `__init__` | [:29](StoCFL/StoCFL-FCC+CFL.py#L29) | Inicializa clusters unitários, `psi = {}`, `cluster_parameters = {}`, `gmodel` e `anchor` (= pesos iniciais). |
+| `main` | [:52](StoCFL/StoCFL-FCC+CFL.py#L52) | Loop de rodadas (fases 1–3 de 4.1) + logs/arquivos. |
+| `bucket(client_list, items)` | [:160](StoCFL/StoCFL-FCC+CFL.py#L160) | Agrupa `items` (os modelos treinados) pelo cluster atual de cada cliente. Retorna `(ids_de_cluster_presentes, listas)` em ordem crescente de id. |
+| `inter_cluster_union(clusters, direções)` | [:111](StoCFL/StoCFL-FCC+CFL.py#L111) | Calcula o cosseno entre pares, grava `cos_rec.log`, funde pares com `cos > τ` em ordem decrescente e para no primeiro que não passa de `τ`. Com ≤ 1 cluster amostrado não faz nada. |
+| `unite(i, j)` | [:134](StoCFL/StoCFL-FCC+CFL.py#L134) | Union-find com relabel imediato. (a) Se `i` já foi absorvido nesta rodada (`i ∉ conteúdo[i]`), redireciona para o cluster atual do cliente `i`; idem `j`. (b) Mantém o **menor id**. (c) **Modelo:** se `|C_i| < |C_j|` e `j` tem modelo, `i` herda o modelo de `j` (o cluster maior "vence"); caso contrário `i` mantém o seu. (d) Move membros, esvazia `j` e apaga o modelo de `j`. |
+| `get_cluster` | [:173](StoCFL/StoCFL-FCC+CFL.py#L173) | Reescreve `cluster_rec.log` com a partição atual e faz `assert` de que todos os clientes estão em exatamente um cluster. |
 
 ### 4.5 Estado do servidor e invariantes
 
@@ -534,11 +534,11 @@ Todos usam `SGD(lr=args.lr)` **sem momentum** (`self.optimizer` compartilhado, s
 
 | Trainer | Linha | Cenário | Clientes | Ground truth (id → grupo) | Dados da observação | Batch de treino |
 |---|---|---|---|---|---|---|
-| `FEMNISTTrainer` | [trainer.py:21](StoCFL/trainer.py#L21) | FEMNIST (LEAF) | `--client_num` (3597) | não há | dataset inteiro, lote `obbs` | `batch_size` |
-| `ShiftedMNISTTrainer` | [trainer.py:120](StoCFL/trainer.py#L120) | MNIST com rótulo `(y+s) % 10`, `s ∈ {0,3,6,9}` | 400 (fixo) | `cid // 100` | 80% dos dados do cliente (`random_split`), lote cheio | **batch cheio** (ignora `batch_size`) |
-| `RotatedMNISTTrainer` | [trainer.py:251](StoCFL/trainer.py#L251) | Rotated MNIST **ou** CIFAR (via `args.dataset`) | `args.n` | `⌊cid·k/n⌋` | dataset inteiro, lote `obbs` | `batch_size` |
-| `LabelSkewMNISTTrainer` | [trainer.py:345](StoCFL/trainer.py#L345) | label skew: `k=4` grupos de classes `[0,1,2],[3,4],[5,6],[7,8,9]`; `k=10` um grupo por classe | ~400 (k=4) / ~1000 (k=10) | blocos contíguos de ~100 | dataset inteiro, lote `batch_size` | `batch_size` |
-| `FeatureSkewHybridMNISTTrainer` | [trainer.py:459](StoCFL/trainer.py#L459) | 100 clientes MNIST + 100 FashionMNIST | 200 (fixo) | `cid < 100` → MNIST | dataset inteiro, lote cheio | `batch_size` |
+| `FEMNISTTrainer` | [trainer.py:34](StoCFL/trainer.py#L34) | FEMNIST (LEAF) | `--client_num` (3597) | não há | dataset inteiro, lote `obbs` | `batch_size` |
+| `ShiftedMNISTTrainer` | [trainer.py:117](StoCFL/trainer.py#L117) | MNIST com rótulo `(y+s) % 10`, `s ∈ {0,3,6,9}` | 400 (fixo) | `cid // 100` | 80% dos dados do cliente (`random_split`), lote cheio | **batch cheio** (ignora `batch_size`) |
+| `RotatedMNISTTrainer` | [trainer.py:231](StoCFL/trainer.py#L231) | Rotated MNIST **ou** CIFAR (via `args.dataset`) | `args.n` | `⌊cid·k/n⌋` | dataset inteiro, lote `obbs` | `batch_size` |
+| `LabelSkewMNISTTrainer` | [trainer.py:309](StoCFL/trainer.py#L309) | label skew: `k=4` grupos de classes `[0,1,2],[3,4],[5,6],[7,8,9]`; `k=10` um grupo por classe | ~400 (k=4) / ~1000 (k=10) | blocos contíguos de ~100 | dataset inteiro, lote `batch_size` | `batch_size` |
+| `FeatureSkewHybridMNISTTrainer` | [trainer.py:407](StoCFL/trainer.py#L407) | 100 clientes MNIST + 100 FashionMNIST | 200 (fixo) | `cid < 100` → MNIST | dataset inteiro, lote cheio | `batch_size` |
 
 A observação é **um único gradiente** em todo o dataset do cliente, acumulado por lotes, então o tamanho do lote não muda o resultado (diferença de ~1e-8 no teste). O modelo fica em modo `eval`, para que o dropout do `CNN_FEMNIST` não torne `Ψ` aleatório: o artigo define `Ψ` como função de `D`, sem mencionar dropout.
 
@@ -560,7 +560,7 @@ Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que ro
 | Modelo | Arquivo | Arquitetura | Usado em |
 |---|---|---|---|
 | `SimpleLinear` | [models/linear.py](StoCFL/models/linear.py) | MLP 784→2048→10 + `log_softmax` (CE sobre log_softmax é equivalente) | MNIST (todos os cenários) |
-| `CNN_CIFAR10` | [models/cnn.py:85](StoCFL/models/cnn.py#L85) | conv5(6)→pool→conv5(16)→pool→120→10 | Rotated CIFAR |
+| `CNN_CIFAR10` | [models/cnn.py:83](StoCFL/models/cnn.py#L83) | conv5(6)→pool→conv5(16)→pool→120→10 | Rotated CIFAR |
 | `CNN_FEMNIST` | [models/cnn.py:13](StoCFL/models/cnn.py#L13) | conv3(32)→conv3(64)→pool→dropout(0.5)→9216→128→62 | FEMNIST |
 | `CNN_MNIST`, `AlexNet_CIFAR10` | models/cnn.py | importados, não usados | — |
 | `models/model.py` | — | duplicatas (ConvNet, MLP, ...) | não usado |
@@ -574,10 +574,10 @@ Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que ro
 | `dt(a, b)` | [functional.py:59](StoCFL/functional.py#L59) | Alternativa (norma mínima no segmento entre gradientes normalizados, estilo MGDA). Não usada. |
 | `cluster_center(psi, membros)` | [functional.py:86](StoCFL/functional.py#L86) | Centro do cluster: média dos `ψ` de todos os membros (Eq. 2). |
 | `parse_matrix(M, ids, descending)` | [functional.py:90](StoCFL/functional.py#L90) | Converte a matriz em `{"a,b": sim}` com os **ids de cluster** e devolve as chaves ordenadas. |
-| `setup_seed(seed)` | [functional.py:169](StoCFL/functional.py#L169) | Seeds de torch/cuda/numpy/random + `cudnn.deterministic`. |
+| `setup_seed(seed)` | [functional.py:173](StoCFL/functional.py#L173) | Seeds de torch/cuda/numpy/random + `cudnn.deterministic`. |
 | `quadprog`, `optim_lambdas` | :14, :28 | Resto de MGDA (cvxopt). Não usados, mas exigem `cvxopt` no import. |
-| `evaluate_personalization` | :99 | ⚠️ Quebrado (desempacota 4 listas em 2 variáveis; `range(lista)`). Não usado. |
-| `evaluate_fairness`, `MnistRotated` | :109, :118 | Não usados. |
+| `evaluate_personalization` | :103 | ⚠️ Quebrado (desempacota 4 listas em 2 variáveis; `range(lista)`). Não usado. |
+| `evaluate_fairness`, `MnistRotated` | :113, :122 | Não usados. |
 
 O `os` usado pelos scripts principais chega via `from functional import *`.
 
@@ -671,7 +671,7 @@ Observações de ambiente:
 2. **FCC.py, `--setting rotated`:** `RotatedMNISTTrainer` lê `args.dataset` (que é float), `args.root`, `args.save_dir`, `args.n` e `args.obbs`, nenhum deles definido nesse script. Use `StoCFL-FCC+CFL.py` para rotated.
 3. **FCC.py, `--setting lskewed` com `--process 1`** (default) quebra: `LabelSkewMNISTTrainer` não tem `.dataset`. Use `--process 0`. Ele também lê MNIST de `./dataset/mnist/` (sem "s") sem `download=True`.
 4. **FCC.py com `--train 1`:** em `ShiftedMNISTTrainer`, `get_test_dataloader` usa `client_id/5` (deveria ser `client_id // 100`; só existem 4 arquivos de teste) e `evaluate` faz `range(id_list)` com uma lista. `FeatureSkewHybridMNISTTrainer` e `LabelSkewMNISTTrainer` não têm `evaluate`/`get_test_dataloader`. Na prática FCC.py só funciona com `--train 0`.
-5. **FEMNIST:** "Global Model - Global Test" avalia `self._model` **sem** carregar o `gmodel` antes ([StoCFL-FEMNIST.py:89](StoCFL/StoCFL-FEMNIST.py#L89)). Os pickles são lidos de `./leaf/pickle_datasets/femnist/{train,test}/`; gere-os com `leaf/gen_pickle_dataset.sh femnist <data_root>` a partir de JSONs no formato LEAF. O README em `datasets/femnist/` descreve o formato FedScale (CSV), que é diferente.
+5. **FEMNIST:** "Global Model - Global Test" avalia `self._model` **sem** carregar o `gmodel` antes ([StoCFL-FEMNIST.py:84](StoCFL/StoCFL-FEMNIST.py#L84)). Os pickles são lidos de `./leaf/pickle_datasets/femnist/{train,test}/`; gere-os com `leaf/gen_pickle_dataset.sh femnist <data_root>` a partir de JSONs no formato LEAF. O README em `datasets/femnist/` descreve o formato FedScale (CSV), que é diferente.
 6. **`ShiftedMNISTTrainer._get_dataloader`** faz `random_split` 80/20 **a cada chamada**: o subconjunto de treino muda toda vez e a validação se sobrepõe ao treino entre chamadas.
 7. **Assinatura do `SerialTrainer` (verificada, não é bug):** as subclasses chamam `super().__init__(model, None|0, cuda, logger)` de forma posicional. No `fedlab==1.2.1`, a versão fixada em `requirements.txt`, a assinatura é `SerialTrainer(model, client_num, cuda=False, logger=None)` (conferido no código-fonte em 2026-11-04). Então `cuda` e `logger` chegam aos parâmetros certos e o trainer usa a GPU.
 8. **Corrigido em 2026-11-04.** Os centros de cluster usavam só os membros sorteados na rodada. Agora usam todos, como na Eq. 2 e na linha 9 do Alg. 1 do artigo (`cluster_center` em [functional.py](StoCFL/functional.py#L86)). Nenhum cluster sorteado tem membro sem `psi` (invariante 5 de 4.5).
@@ -914,9 +914,9 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 | Métrica | Acurácia média dos modelos de cluster nos testes dos respectivos clusters, e do modelo global em todos os testes | Cada cluster sorteado é testado no grupo do **primeiro membro**; resultado em `accuracy.pkl` (FCC+CFL) | Sem agregação por sementes e sem ARI/NMI. |
 | Modelo CIFAR | "Duas camadas conv + duas FC", sem informar os tamanhos | `CNN_CIFAR10`: duas conv + duas FC (120→10) | **Segue o artigo.** O código original tinha três FC (120→84→10). O tamanho 120 é uma escolha (D-016). |
 | Modelo FEMNIST | Duas conv, max pooling, duas FC, inicialização Xavier e dropout 0.5 **entre as camadas convolucionais e as FC** | `CNN_FEMNIST` ([models/cnn.py:13](StoCFL/models/cnn.py#L13)): dropout 0.5 logo após a convolução; Xavier | **Segue o artigo.** O código original tinha dropout 0.25 após a convolução e 0.5 entre as duas FC. |
-| Inicialização dos modelos de cluster | `ω₀ = θ₁ = ⋯ = θ_N`: todos os modelos de cluster começam em `ω₀` | `cluster_parameters` começa vazio, e um cluster sem modelo recebe `deepcopy(self.anchor)` na primeira vez que um membro é sorteado ([StoCFL-FCC+CFL.py:88](StoCFL/StoCFL-FCC+CFL.py#L88)) | **Segue o artigo**, com a cópia feita sob demanda. O código original usava o `gmodel` atual. O efeito foi desprezível em Rotated MNIST real (até 0.0001). |
+| Inicialização dos modelos de cluster | `ω₀ = θ₁ = ⋯ = θ_N`: todos os modelos de cluster começam em `ω₀` | `cluster_parameters` começa vazio, e um cluster sem modelo recebe `deepcopy(self.anchor)` na primeira vez que um membro é sorteado ([StoCFL-FCC+CFL.py:81](StoCFL/StoCFL-FCC+CFL.py#L81)) | **Segue o artigo**, com a cópia feita sob demanda. O código original usava o `gmodel` atual. O efeito foi desprezível em Rotated MNIST real (até 0.0001). |
 | Objetivo da Eq. 2 (Fig. 5) | Curva do nº de clusters e do valor da Eq. 2 por rodada | O código não calcula a Eq. 2. O nº de clusters sai de `cluster.pkl` (FCC+CFL) ou de `exp_*_logs.pkl` (FCC) | A Fig. 5 não é reproduzível só com os logs existentes. |
-| Sementes | 5 sementes | Um comentário em [StoCFL-FCC+CFL.py:224](StoCFL/StoCFL-FCC+CFL.py#L224) lista `[0, 42, 1998, 4421380, 789190]` | Provável conjunto usado nos experimentos. |
+| Sementes | 5 sementes | Um comentário em [StoCFL-FCC+CFL.py:213](StoCFL/StoCFL-FCC+CFL.py#L213) lista `[0, 42, 1998, 4421380, 789190]` | Provável conjunto usado nos experimentos. |
 
 ### 4.17 Reproduzindo os experimentos do artigo com este repositório
 
@@ -927,7 +927,7 @@ Os parâmetros abaixo são os do artigo; os comandos são **aproximados**, porqu
 | Rotated MNIST (Tab. 1) | `N ∈ {4800, 2400, 1200}`, 100 rodadas, 5 épocas, batch cheio, lr 0.1, τ 0.5, λ 0.05, 10% ou 100% | `python StoCFL-FCC+CFL.py --n 4800 --com_round 100 --num_per_round 480 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset mnist --process 1` | **Omita `--batch_size`** (= `None` = batch cheio). Memória: `psi` guarda um vetor de ~1,63 M parâmetros (6,5 MB) por cliente, então 4800 clientes ocupam **~31 GB**, e o script ainda grava `psi.pkl` inteiro a cada rodada. Para `N = 1200`, ~7,8 GB. `--process 1` gera `N` arquivos `.pkl`. |
 | Rotated CIFAR (Tab. 1) | `N = 200`, 200 rodadas, 5 épocas, batch 50, lr 0.1, τ 0.5, λ 0.05 | `python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset cifar --process 1` | Use `--num_per_round 200` para 100% de amostragem. |
 | Qualidade da clusterização (5.1) | 400 clientes (Hybrid: 200), 50 rodadas, τ 0.5, 10% por rodada, `--train 0` | `python StoCFL-FCC.py --setting shifted --k 4 --com_round 50 --num_per_round 40 --tau 0.5 --process 1` | Em `lskewed`, use também `--process 0` (4.12 #3). Hybrid (`fskewed`): `--num_per_round 20`. O artigo avalia por t-SNE e curva de nº de clusters; o repo só grava `cluster_rec_*.log` e `exp_*_logs.pkl`, sem t-SNE nem ARI/NMI. |
-| Shifted `N = 20` (Tab. 2) | 20 clientes, todos participam | **Não reproduzível sem editar o código** | `ShiftedMNISTTrainer` tem `client_num = 400` fixo. Há resquícios do cenário de 20 clientes: `int(client_id/5)  # 20clients` em `get_test_dataloader` ([trainer.py:184](StoCFL/trainer.py#L184)), e 80% de 60000/5 dá os 9600 da Tabela 2. Falta o particionador de Shifted CIFAR. |
+| Shifted `N = 20` (Tab. 2) | 20 clientes, todos participam | **Não reproduzível sem editar o código** | `ShiftedMNISTTrainer` tem `client_num = 400` fixo. Há resquícios do cenário de 20 clientes: `int(client_id/5)  # 20clients` em `get_test_dataloader` ([trainer.py:164](StoCFL/trainer.py#L164)), e 80% de 60000/5 dá os 9600 da Tabela 2. Falta o particionador de Shifted CIFAR. |
 | FEMNIST (Tab. 3) | 3.597 clientes, 100 rodadas, 5% por rodada, τ 0.55 ou 0.60 | `python StoCFL-FEMNIST.py --com_round 100 --client_num 3597 --num_per_round 180 --tau 0.55 --train 1 --seed 0 --batch_size <B> --lr <lr> --epochs <E> --mu <λ>` | O artigo não informa lr, épocas, batch nem λ do FEMNIST. Precisa dos pickles LEAF (`leaf/gen_pickle_dataset.sh femnist`). A linha "Global Model" do log está errada (4.12 #5). |
 | Ablação de λ (Tab. 4) | 50 rodadas, λ ∈ {0, 0.01, 0.05, 0.5, 1, 10} | `--mu <λ> --train 1` | O treino do `StoCFL-FCC.py` está quebrado (4.12 #4); use `StoCFL-FCC+CFL.py` com rotated. |
 | Clientes novos (Tab. 5), FedCelebA | — | **Não implementado** | Sem trainer de CelebA e sem inferência de clientes novos. |
@@ -950,7 +950,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Modelos | 1 por cluster + cache dos modelos ancestrais | 1 por cluster **+ 1 global**, com termo proximal μ (bi-nível) |
 | Escolha final do modelo | O cliente escolhe o melhor modelo do cache | Modelo do seu cluster |
 | Código | Notebook + PyTorch puro | Scripts CLI + FedLab 1.2.1 |
-| Garantias teóricas | **Teorema da Separação**: sob hipóteses sobre o ruído do gradiente (`γ`), a bipartição por cosseno é correta; o notebook não verifica a condição de `γ_max` | **Nenhuma**: só evidência empírica (t-SNE, curvas, tabelas) |
+| Garantias teóricas | **Teorema da Separação**: sob hipóteses sobre o ruído do gradiente (`γ`), a bipartição por cosseno é correta; o notebook verifica a condição de `γ_max` | **Nenhuma**: só evidência empírica (t-SNE, curvas, tabelas) |
 | Regra de escolha dos limiares | `ε1 ≈ max‖Δθ_c‖/10`, `ε2 ∈ [ε1, 10·ε1]` | Nenhuma para `τ` e `λ`; só ablações |
 | Clientes novos | Árvore de parâmetros (Alg. 4); **não implementada** no notebook | Regra do cosseno com `τ` (4.15.4); **não implementada** nos scripts |
 | Baselines nos experimentos | Só o FL | FedAvg, FedInit, FedProx, Ditto, IFCA, CFL, FedSEM (nenhum implementado no repo) |
@@ -971,7 +971,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Objetivo | Onde |
 |---|---|
 | Trocar a métrica de similaridade (StoCFL) | `functional.dt_matrix` ([functional.py:77](StoCFL/functional.py#L77)); a alternativa `dt` já existe. |
-| Trocar a métrica de similaridade (CFL) | `pairwise_angles` ([fl_devices.py:62](clustered-federated-learning/fl_devices.py#L62)). |
+| Trocar a métrica de similaridade (CFL) | `pairwise_angles` ([fl_devices.py:61](clustered-federated-learning/fl_devices.py#L61)). |
 | Mudar o critério de divisão do CFL | Condição `if mean_norm<EPS_1 and ...` na célula 9 do notebook. |
 | Mudar a regra de fusão (ex.: average linkage, recalcular similaridade após cada fusão) | `inter_cluster_union` + `unite` em cada script StoCFL. |
 | Mudar herança de modelo na fusão (ex.: média ponderada) | `unite`, bloco `# merge cluster model`. |
@@ -1042,7 +1042,7 @@ O que **não** foi verificado: treino real do StoCFL em label skew, shifted, hyb
 | CFL: notebook como está | 12 seeds, parâmetros do notebook | A seed 42 divide na rodada 33 (a figura salva mostra ~32), com os grupos corretos e acurácia de 0.62 para 0.74. A 1ª divisão saiu correta em 12 de 12. 7 seeds fizeram divisões extras, e 4 terminaram com partição inválida (3.7 #1). |
 | CFL: correção de índices | As 4 seeds inválidas | Acurácia final de 0.718, 0.708, 0.631 e 0.612 para 0.757, 0.718, 0.720 e 0.728. |
 | CFL: `γ_max = 0.75` (com os índices corrigidos) | 7 seeds com divisão extra; valor escolhido depois de ver os dados | 6 de 7 ficaram só com os 2 grupos; acurácia parecida. |
-| CFL: decaimento do lr, momentum, aquecimento, linkage | 3 seeds por variante | Ver 3.5 e 3.10. |
+| CFL: outras variantes | 3 seeds por variante | Sem decaimento do lr: 1ª divisão na rodada 53, na 80 ou nunca, contra 28 a 34 com ele. Buffers de momentum zerados: acurácia final de 0.737–0.742, contra 0.734–0.738. SGD puro com os limiares antigos: só 1 de 3 seeds dividiu. Sem o aquecimento de 20 rodadas: resultado idêntico. *Single* × *complete*: coincidem na 1ª divisão. |
 | StoCFL: operações do treino | MNIST real, 40 clientes | `train` real: cada cliente parte do resultado do anterior. `train_alone_prox` bate com a linha 21 do Alg. 1 (erro de 7e-9). Com `obep=1` e batch cheio, `ψ = η∇ℓ`. |
 | StoCFL: variantes, cenário da seção 5.1 | 400 clientes, 10%, 50 rodadas, τ=0.5, λ=0.05, 2 a 3 seeds | Código: global ~0.91, cluster ~0.94, ARI 1.0. Com FedAvg de verdade: global ~0.68, cluster ~0.90. Centro com todos os membros, `Ψ` do artigo e `θ` em `ω₀` não mudaram a partição nem a acurácia além de 0.0001. A Tabela 4 do artigo traz 92.65 e 95.86. |
 | StoCFL: Tabela 1 | 1200 clientes, `\|D\| = 200`, 10%, 100 rodadas, 1 seed | StoCFL 96.65 (artigo: 96.71). `gmodel` encadeado 95.00 (FedAvg no artigo: 94.96). FedAvg de verdade 78.04 e um único cluster com termo proximal sem encadear 77.98 (FedProx no artigo: 77.82). O artigo não informa o μ do FedProx. |

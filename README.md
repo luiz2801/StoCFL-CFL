@@ -24,8 +24,8 @@ cfl_stocfl/
 
 | Projeto | Algoritmo | Como executar | Situação |
 |---|---|---|---|
-| [clustered-federated-learning](projetos/clustered-federated-learning/) | CFL, divisivo, com PyTorch | Notebook `clustered_federated_learning.ipynb` | Funciona com correções (ver guia, seção 3.7) |
-| [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | Os três scripts rodam; `StoCFL-FCC.py` só com `--train 0` (ver guia, seção 4.12) |
+| [clustered-federated-learning](projetos/clustered-federated-learning/) | CFL, divisivo, com PyTorch | Notebook `clustered_federated_learning.ipynb` | Funciona; algoritmo corrigido para seguir o artigo (ver guia, seção 3.10) |
+| [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | Os três scripts rodam, e o algoritmo foi corrigido para seguir o artigo (ver guia, seção 4.16); `StoCFL-FCC.py` só com `--train 0` |
 | [ISODATA-python](projetos/ISODATA-python/) | ISODATA para imagens comuns (RGB ou cinza) | `python main.py --input ... --output ...` | Funcional, mas muito lento |
 
 ## Ambiente
@@ -46,7 +46,7 @@ Este repositório parte de trabalhos de outros autores, que aqui são estudados 
 | [isodata.pdf](isodata.pdf) | Geoffrey H. Ball e David J. Hall, *ISODATA, A Novel Method of Data Analysis and Pattern Classification*, relatório técnico, abril de 1965 | Algoritmo implementado em `ISODATA-python` | Artigo de terceiros, só para consulta. |
 
 - **Código de terceiros** incluído em `StoCFL/`: FedScale, LEAF (com o adaptador do FedLab) e o Faster R-CNN adaptado por Jianwei Yang. Os créditos e as licenças originais estão nos READMEs e cabeçalhos de cada pasta.
-- **Modificações neste repositório** (feitas por `luiz2801`, a partir de 2026-11-04): documentação em `docs/`, diagramas Mermaid de cada algoritmo, `CLAUDE.md`, a opção `--NROWS` e a reescrita do núcleo em `ISODATA-python`, e as mudanças que vierem nos algoritmos. O que não está listado aqui continua sendo obra dos autores originais.
+- **Modificações neste repositório** (feitas por `luiz2801`, a partir de 2026-11-04): documentação em `docs/`, diagramas Mermaid de cada algoritmo, `CLAUDE.md`, a opção `--NROWS` e a reescrita do núcleo em `ISODATA-python`, as correções do CFL e do StoCFL para seguir o texto dos artigos (D-014 em [docs/decisoes.md](docs/decisoes.md)) e as mudanças que vierem nos algoritmos. O que não está listado aqui continua sendo obra dos autores originais.
 
 ## Licença
 

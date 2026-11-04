@@ -15,7 +15,7 @@ Atualmente, o repositório contém três pilhas de software completamente distin
 ```mermaid
 graph TD
     subgraph Repo["cfl_stocfl/projetos/"]
-        P1["<b>clustered-federated-learning</b><br/>PyTorch Puro + Scikit-Learn<br/>Jupyter Notebook<br/>Tensores vivos em memória (Client.W)"]
+        P1["<b>clustered-federated-learning</b><br/>PyTorch Puro<br/>Jupyter Notebook<br/>Tensores vivos em memória (Client.W)"]
         P2["<b>StoCFL</b><br/>PyTorch + FedLab 1.2.1<br/>Scripts CLI (argparse)<br/>Vetores 1-D serializados (SerializationTool)"]
         P3["<b>ISODATA-python</b><br/>NumPy + Pillow puro<br/>Script imperativo (ISODATAKit.py)<br/>Pixels 2-D/3-D"]
     end
@@ -103,11 +103,11 @@ Mantém o estado dos clusters e aplica a lógica de Ball & Hall adaptada:
    * Implementar `ISODATAClusterManager` independente de PyTorch/FedLab (apenas manipulando dicionários de listas e tensores NumPy/Torch).
 3. **Fase 3 (Integração PyTorch Puro - CFL):**
    * Plugar o `ISODATAClusterManager` no loop do notebook `clustered_federated_learning.ipynb` ou script Python correspondente. Validar ganho de acurácia em EMNIST com rotações.
-   * Pré-requisitos: corrigir o bug de índices na segunda divisão ([guia, seção 3.7 item 1](../guia.md)) e os itens de compatibilidade (3.7 item 4); o notebook só suporta participação total (`frac=1.0`).
+   * Pré-requisito: o notebook só suporta participação total (`frac=1.0`).
    * O cenário citado (EMNIST com rotação 180° em 5 de 10 clientes, 2 clusters reais) **não exercita o merge**: o CFL já separa os dois grupos. Para validar o merge é preciso um cenário com sobre-divisão (por exemplo, `EPS_2` baixo) em que a fusão possa corrigir o erro.
 4. **Fase 4 (Integração FedLab - StoCFL):**
    * Adicionar flag `--algorithm isodata_fl` nos scripts CLI do StoCFL, permitindo fusão e divisão estocástica com participação parcial de clientes.
-   * Estado atual: **a flag `--algorithm` não existe** nos scripts. Apenas `StoCFL-FCC+CFL.py` importa; `StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importam ([guia, seção 4.12](../guia.md)). O `StandaloneServer` está triplicado nos três scripts, e o guia (seção 6) recomenda refatorar antes de mudar o algoritmo.
+   * Estado atual: **a flag `--algorithm` não existe** nos scripts. O `StandaloneServer` está triplicado nos três scripts, e o guia (seção 6) recomenda refatorar antes de mudar o algoritmo.
    * O split quebra invariantes do StoCFL (guia 4.5); ver problema 7 da especificação.
 
 ---
@@ -116,7 +116,7 @@ Mantém o estado dos clusters e aplica a lógica de Ball & Hall adaptada:
 
 Verificado em 2026-11-04:
 
-* O `.venv/` da raiz não tem `numpy`, `torch`, `scikit-learn` nem `fedlab` (README da raiz). O StoCFL funciona melhor com Python 3.8 a 3.10 e `fedlab==1.2.1` ([guia, seção 4.11](../guia.md)); o CFL usa `scikit-learn`, e a versão ≥ 1.4 remove `affinity`.
+* O `.venv/` da raiz não tem `numpy`, `torch`, `scikit-learn` nem `fedlab` (README da raiz). O CFL e o StoCFL foram testados com Python 3.12, PyTorch 2.15 e `fedlab==1.2.1` ([guia, seção 4.11](../guia.md)).
 * O repositório não tem testes automatizados. Só o StoCFL tem `requirements.txt`; o CFL não tem ([guia, seção 3.7 item 5](../guia.md)).
 * **`BaseFederatedServer` não tem correspondente no código.** O `Server` do CFL (`fl_devices.py`), com pesos vivos em `client.W`, e o `StandaloneServer` do StoCFL, com vetores 1-D, têm estruturas bem diferentes. Uma classe base comum é uma hipótese de design, não algo que o código atual sustente. A alternativa mais simples, funções ou uma classe pura sobre vetores 1-D, não foi avaliada.
 
@@ -124,7 +124,7 @@ Decisões que o usuário ainda precisa tomar antes da implementação (política
 
 1. Onde o pacote `isodata_fl/` ficará (novo subprojeto em `projetos/`, dentro de um dos existentes ou outro lugar). A [crítica](critica-documentacao-e-politicas.md), seção 2.2, já aponta essa lacuna.
 2. Se a base do gerenciador de clusters é NumPy ou PyTorch.
-3. Qual biblioteca fará a bipartição dos membros do cluster (`scikit-learn`, `scipy` ou implementação própria), considerando a incompatibilidade do `affinity` no `scikit-learn` ≥ 1.4.
+3. Como reaproveitar a bipartição do CFL, que hoje é o Algoritmo 1 do artigo em `Server.cluster_clients`, sem dependências externas.
 4. Qual algoritmo será o alvo primário: CFL, StoCFL ou ambos. O StoCFL já tem representação fixa (`ψ`) e participação parcial; o CFL assume participação total.
 5. Todos os problemas em aberto da seção 5 da especificação.
 

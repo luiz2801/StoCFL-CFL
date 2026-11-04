@@ -4,11 +4,13 @@ Plano modular para implementar o CFL e o StoCFL sobre o laço do ISODATA: o **CF
 
 > **Status (2026-11-04): planejamento. Nada foi implementado, e nenhuma das recomendações foi aprovada.** As decisões em aberto, com o dilema de cada uma, estão em [11-decisoes-pendentes.md](11-decisoes-pendentes.md). Os números vêm de um modelo de brinquedo (o [*toy*](anexo-a-simulacao.md)), que mostra mecanismos, mas não prevê acurácia em redes neurais.
 
+> **Atenção (2026-11-04): o código do CFL e do StoCFL mudou depois deste plano.** A D-014 em [decisoes.md](../../decisoes.md) corrigiu os dois para seguir o texto dos artigos. Onde este plano descreve o "notebook" ou o "código do StoCFL" (momentum, decaimento do lr, aquecimento, *complete linkage*, `obep`, modelo global encadeado), ele se refere ao código original, disponível até o commit `3159d55`. Para reproduzir aquele comportamento, use esse commit.
+
 ## O essencial
 
 1. **O calendário de primos não impede que um algoritmo desfaça o outro.** No toy, sem guardas, quase todo split é desfeito em qualquer calendário. Os primos só reduzem a frequência, de 112 para 25 oscilações. O motivo é o sinal: `ψ` nunca muda, então o merge dá sempre a mesma resposta. A regra dos primos pode ficar, por custo e simplicidade ([02](02-calendario.md)).
 
-2. **O que evita a oscilação são as guardas: cada operador prova o que afirma.** O split precisa passar pelo teste `γ_max`, que o artigo do CFL prevê e o notebook não implementa. O merge precisa mostrar que o modelo fundido não piora a perda dos membros. Nenhuma das duas guardas basta sozinha, e com as duas todos os calendários chegam à mesma partição ([05](05-estabilidade.md)).
+2. **O que evita a oscilação são as guardas: cada operador prova o que afirma.** O split precisa passar pelo teste `γ_max`, que o artigo do CFL prevê. O merge precisa mostrar que o modelo fundido não piora a perda dos membros. Nenhuma das duas guardas basta sozinha, e com as duas todos os calendários chegam à mesma partição ([05](05-estabilidade.md)).
 
 3. **O híbrido traz algo que os originais não têm, ao menos no toy.** Com as guardas, acerta a partição nos cinco cenários, o que nenhum dos dois algoritmos faz sozinho:
 
