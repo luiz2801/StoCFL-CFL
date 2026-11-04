@@ -57,6 +57,7 @@ sequenceDiagram
                 Note right of S: guarda o modelo do cluster pai, com as acurácias da rodada anterior
                 NB->>S: cluster_clients(S[idc][:,idc])
                 S-->>NB: c1, c2
+                Note over NB: c1 e c2 são posições em idc, e os novos clusters são idc[c1] e idc[c2]
                 NB->>L: log(split = c_round)
             else sem divisão
                 Note over NB: mantém idc em cluster_indices_new

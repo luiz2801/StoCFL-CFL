@@ -42,7 +42,7 @@ flowchart TD
         D2{"mean_norm #lt; ε₁ ∧ max_norm #gt; ε₂<br/>∧ len(idc) #gt; 2 ∧ c_round #gt; 20?"}:::split
         S1["cache_model<br/>guarda o modelo do cluster pai e acc_clients"]:::split
         S2["cluster_clients<br/>agrupamento hierárquico sobre −S → c1, c2"]:::split
-        S3["novos clusters: c1 e c2<br/>registrar o split no cfl_stats"]:::split
+        S3["novos clusters: idc[c1] e idc[c2]<br/>registrar o split no cfl_stats"]:::split
         N1["manter idc sem divisão<br/>cluster_indices_new += [idc]"]:::sv
     end
 
