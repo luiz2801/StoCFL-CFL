@@ -1,4 +1,7 @@
 fedlab==1.2.1
 torch
+torchvision
+tqdm
+scikit-learn
 cvxopt
 spacy

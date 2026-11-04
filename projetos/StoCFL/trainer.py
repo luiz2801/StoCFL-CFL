@@ -29,6 +29,7 @@ class FEMNISTTrainer(SerialTrainer):
 
     def _get_dataloader(self, client_id, batch_size):
         trainset = self.femnist.get_dataset_pickle("train", client_id)
+        batch_size = len(trainset) if batch_size is None else batch_size
         trainloader = trainloader = torch.utils.data.DataLoader(
                                         trainset,
                                         batch_size=batch_size,

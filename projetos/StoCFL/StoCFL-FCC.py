@@ -2,7 +2,6 @@ from copy import deepcopy
 from random import random
 from shutil import move
 import numpy as np
-from setuptools import setup
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -21,7 +20,7 @@ from models.cnn import CNN_MNIST, AlexNet_CIFAR10, CNN_FEMNIST
 from models.linear import SimpleLinear
 from fedlab.utils.functional import get_best_gpu, load_dict, evaluate
 
-from settings import mnist, cifar10, femnist
+from settings import mnist, cifar10
 from functional import *
 from trainer import FEMNISTTrainer, ShiftedMNISTTrainer, RotatedMNISTTrainer, LabelSkewMNISTTrainer, FeatureSkewHybridMNISTTrainer
 from datasets import BaseDataset
@@ -241,32 +240,32 @@ if __name__ == "__main__":
     # feature skewed
     if args.setting == "fskewed":
         model = SimpleLinear()
-        trainer = FeatureSkewHybridMNISTTrainer(deepcopy(model), args, cuda=True)
+        trainer = FeatureSkewHybridMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available())
         args.k=2
         
     # label skewed
     if args.setting == "lskewed":
         model = SimpleLinear()
-        trainer = LabelSkewMNISTTrainer(deepcopy(model), args, cuda=True, k=args.k)
+        trainer = LabelSkewMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available(), k=args.k)
 
     # feature same, label different
     if args.setting == "shifted":
         model = SimpleLinear()
-        trainer = ShiftedMNISTTrainer(deepcopy(model), args, cuda=True, k=args.k)
+        trainer = ShiftedMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available(), k=args.k)
         
     # label same, feature different
     if args.setting == "rotated":
         model = SimpleLinear()
-        trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=True, k=args.k)
+        trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available(), k=args.k)
 
     if args.process:
         trainer.dataset.pre_process()
 
     args.time_stamp = time.strftime('%m-%d-%H:%M', time.localtime())
     dir = "./logs/runs-{}-{}-{}".format(args.setting, args.k, args.time_stamp)
-    os.mkdir(dir)
+    os.makedirs(dir, exist_ok=True)
     args.exp_logger = Logger("StoCFL", "{}/{}-k{}-time-{}.log".format(dir, args.setting, args.k, args.time_stamp))
     args.exp_logger.info(str(args))
     args.dir = dir
-    server = StandaloneServer(deepcopy(model), True, trainer, args)
+    server = StandaloneServer(deepcopy(model), torch.cuda.is_available(), trainer, args)
     server.main()

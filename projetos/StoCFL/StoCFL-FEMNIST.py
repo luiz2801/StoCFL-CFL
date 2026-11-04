@@ -2,7 +2,6 @@ from copy import deepcopy
 from random import random
 from shutil import move
 import numpy as np
-from setuptools import setup
 import torch
 import torchvision
 import torchvision.transforms as transforms
@@ -21,7 +20,7 @@ from models.cnn import CNN_MNIST, AlexNet_CIFAR10, CNN_FEMNIST
 from models.linear import SimpleLinear
 from fedlab.utils.functional import get_best_gpu, load_dict, evaluate
 
-from settings import mnist, cifar10, femnist
+from settings import mnist, cifar10
 
 from functional import *
 from trainer import FEMNISTTrainer, ShiftedMNISTTrainer, RotatedMNISTTrainer, LabelSkewMNISTTrainer, FeatureSkewHybridMNISTTrainer
@@ -58,8 +57,7 @@ class StandaloneServer(ModelMaintainer):
             self.args.exp_logger.info("Starting round {}/{}, client id this round {}".format(round, self.args.com_round, cid_this_round))
 
             # anchor move
-            unobserved = [None if cid in self.psi.keys() else cid  for cid in cid_this_round]
-            unobserved = list(filter(None, unobserved))
+            unobserved = [cid for cid in cid_this_round if cid not in self.psi.keys()]
             movements = self.client_trainer.observe(unobserved, self.anchor)
             for cid, move in zip(unobserved, movements):
                 self.psi[cid] = move
@@ -220,13 +218,13 @@ if __name__ == "__main__":
     setup_seed(args.seed)
     
     model = CNN_FEMNIST()
-    trainer = FEMNISTTrainer(deepcopy(model), args, cuda=True)
+    trainer = FEMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available())
 
     args.time_stamp = time.strftime('%m-%d-%H:%M', time.localtime())
     dir = "./logs/runs-femnist-{}".format(args.time_stamp)
-    os.mkdir(dir)
+    os.makedirs(dir, exist_ok=True)
     args.exp_logger = Logger("StoCFL", "{}/femnist-seed{}-time-{}.log".format(dir, args.seed, args.time_stamp))
     args.exp_logger.info(str(args))
     args.dir = dir
-    server = StandaloneServer(deepcopy(model), True, trainer, args)
+    server = StandaloneServer(deepcopy(model), torch.cuda.is_available(), trainer, args)
     server.main()

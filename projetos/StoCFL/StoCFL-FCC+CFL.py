@@ -2,7 +2,6 @@ from copy import deepcopy
 from random import random
 from shutil import move
 import numpy as np
-from setuptools import setup
 from sklearn.metrics import accuracy_score
 import torch
 import torchvision
@@ -240,18 +239,18 @@ if __name__ == "__main__":
     if args.dataset == "mnist":
         args.k = 4
         model = SimpleLinear()
-        trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=True)
+        trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available())
 
     if args.dataset == "cifar":
         args.k = 2
         model = CNN_CIFAR10()
-        trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=True)
+        trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available())
     
     args.time_stamp = time.strftime('%m-%d-%H:%M', time.localtime())
     dir = "./logs/runs-rotated-{}-n{}-p{}-seed{}-lambda{}-time-{}".format(args.dataset, args.n, args.num_per_round,args.seed, args.mu, args.time_stamp)
-    os.mkdir(dir)
+    os.makedirs(dir, exist_ok=True)
     args.exp_logger = Logger("StoCFL", "{}/rotated_{}.log".format(dir, args.dataset))
     args.exp_logger.info(str(args))
     args.dir = dir
-    server = StandaloneServer(deepcopy(model), True, trainer, args)
+    server = StandaloneServer(deepcopy(model), torch.cuda.is_available(), trainer, args)
     server.main()

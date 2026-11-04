@@ -25,13 +25,13 @@ cfl_stocfl/
 | Projeto | Algoritmo | Como executar | Situação |
 |---|---|---|---|
 | [clustered-federated-learning](projetos/clustered-federated-learning/) | CFL, divisivo, com `scikit-learn` | Notebook `clustered_federated_learning.ipynb` | Funciona com correções (ver guia, seção 3.7) |
-| [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | `StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importam no estado atual |
+| [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | Os três scripts rodam; `StoCFL-FCC.py` só com `--train 0` (ver guia, seção 4.12) |
 | [ISODATA-python](projetos/ISODATA-python/) | ISODATA para imagens comuns (RGB ou cinza) | `python main.py --input ... --output ...` | Funcional, mas muito lento |
 
 ## Ambiente
 
 - O `.venv/` da raiz tem só o kernel Jupyter (Python 3.12). Não tem `torch`, `numpy`, `scikit-learn` nem `fedlab`, então não serve para rodar os projetos de aprendizado federado.
-- `projetos/StoCFL` funciona melhor com Python 3.8 a 3.10 e PyTorch até a série 2.5, por causa do `fedlab==1.2.1` (ver [guia, seção 4.11](docs/guia.md)).
+- Os projetos de aprendizado federado foram testados com Python 3.12, PyTorch 2.15 em CPU e `fedlab==1.2.1` (ver [guia, seção 4.11](docs/guia.md)).
 - A raiz é o único repositório git (branch `main`, sem remote). Os subprojetos `clustered-federated-learning`, `StoCFL` e `ISODATA-python` não têm `.git` próprio; o histórico original deles foi removido, e a autoria está nos créditos abaixo.
 
 ## Créditos

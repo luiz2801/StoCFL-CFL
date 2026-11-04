@@ -50,7 +50,7 @@ cfl_stocfl/
         ├── leaf/                           # adaptador LEAF do FedLab (usado só pelo FEMNIST)
         ├── fedscale/                       # cópia do FedScale, NÃO é importada por nenhum script
         ├── datasets/femnist/               # README + notebook de estatísticas
-        └── requirements.txt                # fedlab==1.2.1, torch, cvxopt, spacy
+        └── requirements.txt                # fedlab==1.2.1, torch, torchvision, tqdm, scikit-learn, cvxopt, spacy
 ```
 
 | Projeto | Linguagem/stack | Como roda | Framework FL |
@@ -443,9 +443,9 @@ Ao longo das rodadas, clusters de clientes com a mesma distribuição vão se ju
 
 | Script | Propósito | Cenários | Estado |
 |---|---|---|---|
-| [StoCFL-FCC.py](StoCFL/StoCFL-FCC.py) | **FCC = Federated Client Clustering**: avaliar só a clusterização (`--train 0` por padrão). | `fskewed`, `lskewed`, `shifted`, `rotated` | ⚠️ Não importa no estado atual (ver 4.9 #1). `rotated` também quebra. |
+| [StoCFL-FCC.py](StoCFL/StoCFL-FCC.py) | **FCC = Federated Client Clustering**: avaliar só a clusterização (`--train 0` por padrão). | `fskewed`, `lskewed`, `shifted`, `rotated` | Roda com `--train 0` em `shifted` e `fskewed`. `lskewed` e `rotated` têm problemas próprios (4.12 #2 e #3). |
 | [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py) | Clusterização + treino bi-nível (`--train 1` por padrão). | Rotated MNIST (4 rotações) / Rotated CIFAR-10 (2 rotações) | **Script principal e mais consistente.** |
-| [StoCFL-FEMNIST.py](StoCFL/StoCFL-FEMNIST.py) | StoCFL em FEMNIST (particionamento natural por escritor, sem ground truth de cluster). | FEMNIST (LEAF) | ⚠️ Mesmo problema de import + bugs (4.9). |
+| [StoCFL-FEMNIST.py](StoCFL/StoCFL-FEMNIST.py) | StoCFL em FEMNIST (particionamento natural por escritor, sem ground truth de cluster). | FEMNIST (LEAF) | Roda; fluxo testado com pickles LEAF falsos, sem o dataset real (4.12 #5). |
 
 Os três definem **sua própria cópia** da classe `StandaloneServer` com a mesma lógica de clusterização e pequenas diferenças de avaliação e log. Uma mudança no algoritmo precisa ser replicada nos três.
 
@@ -551,7 +551,7 @@ Os Partitioners geram, em `--process 1`, um arquivo `data{cid}.pkl` (um `BaseDat
 | Classe | Linha | Geração |
 |---|---|---|
 | `BaseDataset` | [datasets.py:11](StoCFL/datasets.py#L11) | Dataset trivial `(x, y)`. |
-| `RotatedMNIST` | [datasets.py:135](StoCFL/datasets.py#L135) | Para cada θ ∈ {0, 90, 180, 270}, faz `random_slicing` do MNIST inteiro em `shards` partes IID. Cliente `cid = índice_θ·shards + shard`. Teste: 1 arquivo por θ. ⚠️ não baixa o MNIST (`download` ausente). |
+| `RotatedMNIST` | [datasets.py:135](StoCFL/datasets.py#L135) | Para cada θ ∈ {0, 90, 180, 270}, faz `random_slicing` do MNIST inteiro em `shards` partes IID. Cliente `cid = índice_θ·shards + shard`. Teste: 1 arquivo por θ. |
 | `RotatedCIFAR10Partitioner` | [datasets.py:240](StoCFL/datasets.py#L240) | Igual, com θ ∈ {0, 180}, normalização `(0.5, 0.5, 0.5)`, baixa o CIFAR. |
 | `ShiftedMNISTPartitioner` | [datasets.py:186](StoCFL/datasets.py#L186) | Shifts {0,3,6,9} × `shards=100`. |
 | `HybridMNISTPartitioner` | [datasets.py:22](StoCFL/datasets.py#L22) | 100 partes IID do MNIST (ids 0–99) + 100 do FashionMNIST (ids 100–199); o teste usa os datasets torchvision originais. |
@@ -633,7 +633,7 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 
 ### 4.10 Saídas e logs
 
-Todos os scripts fazem `os.mkdir("./logs/runs-...")`. **O diretório `./logs` precisa existir** (`mkdir logs` dentro de `StoCFL/`); `os.mkdir` não cria diretórios intermediários.
+Todos os scripts criam `./logs/runs-.../` com `os.makedirs`.
 
 | Arquivo | Script | Conteúdo |
 |---|---|---|
@@ -651,12 +651,7 @@ Avaliação em FCC+CFL: cada cluster amostrado é testado no conjunto de teste d
 
 ```bash
 cd StoCFL
-pip install -r requirements.txt          # fedlab==1.2.1, torch, cvxopt, spacy
-pip install torchvision tqdm scikit-learn # também importados pelo código
-mkdir -p logs
-
-# Rotated MNIST: RotatedMNIST.pre_process NÃO baixa o MNIST, então baixe antes
-python -c "import torchvision; torchvision.datasets.MNIST('./datasets/mnist/', download=True)"
+pip install -r requirements.txt
 
 # 1ª execução: --process 1 gera ./datasets/rotated_{dataset}_{n}_{seed}/
 python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 \
@@ -666,20 +661,19 @@ python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size
 ```
 
 Observações de ambiente:
-- O exemplo do README tem `\ ` com espaços depois da barra (`--obbs 50 \ `), o que quebra a continuação de linha no shell.
 - `spacy` é obrigatório mesmo sem NLP: `trainer.py` importa `leaf.dataloader → leaf.pickle_dataset → leaf.nlp_utils.util → spacy`.
-- `torch ≥ 2.6` usa `torch.load(weights_only=True)` por padrão, e carregar os `BaseDataset` `.pkl` falha. Use `torch.load(..., weights_only=False)` nos `get_dataset` ou uma versão anterior do torch.
-- `fedlab==1.2.1` é de 2022. Prefira um ambiente com Python 3.8–3.10 e torch 1.x/2.0–2.5. O `.venv` atual (Python 3.12, sem pacotes de ML) não serve para rodar o projeto.
-- Chamadas com `cuda=True` exigem GPU.
+- `torch ≥ 2.6` usa `torch.load(weights_only=True)` por padrão. Os `get_dataset` passam `weights_only=False` para carregar os `BaseDataset`, o que exige `torch ≥ 1.13`.
+- Testado com Python 3.12, torch 2.15 em CPU, scikit-learn 1.9 e `fedlab==1.2.1`. O `.venv` da raiz não tem pacotes de ML e não serve para rodar o projeto.
+- Os scripts usam GPU se `torch.cuda.is_available()`, e CPU caso contrário.
 - Em `StoCFL-FCC+CFL.py`, `--batch_size` e `--obbs` omitidos valem `None`, e os loaders usam o dataset inteiro como um único batch. Os outros argumentos sem default (`--n`, `--com_round`, `--num_per_round`, `--seed`) são obrigatórios na prática.
 
 ### 4.12 Bugs e limitações conhecidos (StoCFL)
 
-1. **`StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importam:** `from settings import mnist, cifar10, femnist`, mas `femnist` está comentado em [settings.py:260](StoCFL/settings.py#L260). Remova `femnist` do import (ele não é usado).
+1. **Corrigido em 2026-11-04.** `StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importavam, porque pediam `femnist` de `settings.py`, onde ele está comentado.
 2. **FCC.py, `--setting rotated`:** `RotatedMNISTTrainer` lê `args.dataset` (que é float), `args.root`, `args.save_dir`, `args.n`, `args.obep` e `args.obbs`, nenhum deles definido nesse script. Use `StoCFL-FCC+CFL.py` para rotated.
 3. **FCC.py, `--setting lskewed` com `--process 1`** (default) quebra: `LabelSkewMNISTTrainer` não tem `.dataset`. Use `--process 0`. Ele também lê MNIST de `./dataset/mnist/` (sem "s") sem `download=True`.
 4. **FCC.py com `--train 1`:** em `ShiftedMNISTTrainer`, `get_test_dataloader` usa `client_id/5` (deveria ser `client_id // 100`; só existem 4 arquivos de teste) e `evaluate` faz `range(id_list)` com uma lista. `FeatureSkewHybridMNISTTrainer` e `LabelSkewMNISTTrainer` não têm `evaluate`/`get_test_dataloader`. Na prática FCC.py só funciona com `--train 0`.
-5. **FEMNIST:** `list(filter(None, unobserved))` descarta o cliente **0** (0 é falsy), o que dá `KeyError` em `self.psi[0]` quando ele é sorteado ([StoCFL-FEMNIST.py:62](StoCFL/StoCFL-FEMNIST.py#L62)). Além disso, "Global Model - Global Test" avalia `self._model` **sem** carregar o `gmodel` antes ([:91](StoCFL/StoCFL-FEMNIST.py#L91)). Os pickles são lidos de `./leaf/pickle_datasets/femnist/{train,test}/`; gere-os com `leaf/gen_pickle_dataset.sh femnist <data_root>` a partir de JSONs no formato LEAF. O README em `datasets/femnist/` descreve o formato FedScale (CSV), que é diferente.
+5. **FEMNIST:** "Global Model - Global Test" avalia `self._model` **sem** carregar o `gmodel` antes ([StoCFL-FEMNIST.py:89](StoCFL/StoCFL-FEMNIST.py#L89)). Os pickles são lidos de `./leaf/pickle_datasets/femnist/{train,test}/`; gere-os com `leaf/gen_pickle_dataset.sh femnist <data_root>` a partir de JSONs no formato LEAF. O README em `datasets/femnist/` descreve o formato FedScale (CSV), que é diferente.
 6. **`ShiftedMNISTTrainer._get_dataloader`** faz `random_split` 80/20 **a cada chamada**: o subconjunto de treino muda toda vez e a validação se sobrepõe ao treino entre chamadas.
 7. **Assinatura do `SerialTrainer` (verificada, não é bug):** as subclasses chamam `super().__init__(model, None|0, cuda, logger)` de forma posicional. No `fedlab==1.2.1`, a versão fixada em `requirements.txt`, a assinatura é `SerialTrainer(model, client_num, cuda=False, logger=None)` (conferido no código-fonte em 2026-11-04). Então `cuda` e `logger` chegam aos parâmetros certos e o trainer usa a GPU.
 8. Centros de cluster usam só os membros **sorteados na rodada** ([StoCFL-FCC+CFL.py:81](StoCFL/StoCFL-FCC+CFL.py#L81)). O artigo (Eq. 2 e Alg. 1, linha 9) usa **todos** os membros do cluster, com os `Ψ` já guardados. Isso é calculável sem tratar caso especial, porque nenhum cluster sorteado tem membro sem `psi` (invariante 5 de 4.5). A divergência é, portanto, evitável. O bloco comentado "reupdate center" ([:75-79](StoCFL/StoCFL-FCC+CFL.py#L75-L79)) calcula a versão do artigo, mas só descomentá-lo não muda nada, porque a linha 81 reatribui `cluster_movements` logo depois. Ver 4.16 e a seção 6.
@@ -934,9 +928,9 @@ Os parâmetros abaixo são os do artigo; os comandos são **aproximados**, porqu
 |---|---|---|---|
 | Rotated MNIST (Tab. 1) | `N ∈ {4800, 2400, 1200}`, 100 rodadas, 5 épocas, batch cheio, lr 0.1, τ 0.5, λ 0.05, 10% ou 100% | `python StoCFL-FCC+CFL.py --n 4800 --com_round 100 --num_per_round 480 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset mnist --process 1` | **Omita `--batch_size`** (= `None` = batch cheio). Memória: `psi` guarda um vetor de ~1,63 M parâmetros (6,5 MB) por cliente, então 4800 clientes ocupam **~31 GB**, e o script ainda grava `psi.pkl` inteiro a cada rodada. Para `N = 1200`, ~7,8 GB. `--process 1` gera `N` arquivos `.pkl`. |
 | Rotated CIFAR (Tab. 1) | `N = 200`, 200 rodadas, 5 épocas, batch 50, lr 0.1, τ 0.5, λ 0.05 | `python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset cifar --process 1 --obep 20 --obbs 50` | O README usa τ = 0.65, e o artigo, 0.5. Use `--num_per_round 200` para 100% de amostragem. |
-| Qualidade da clusterização (5.1) | 400 clientes (Hybrid: 200), 50 rodadas, τ 0.5, 10% por rodada, `--train 0` | `python StoCFL-FCC.py --setting shifted --k 4 --com_round 50 --num_per_round 40 --tau 0.5 --process 1` | Só funciona depois de corrigir o bug 4.12 #1 (import de `femnist`). Em `lskewed`, use também `--process 0` (4.12 #3). Hybrid (`fskewed`): `--num_per_round 20`. O artigo avalia por t-SNE e curva de nº de clusters; o repo só grava `cluster_rec_*.log` e `exp_*_logs.pkl`, sem t-SNE nem ARI/NMI. |
+| Qualidade da clusterização (5.1) | 400 clientes (Hybrid: 200), 50 rodadas, τ 0.5, 10% por rodada, `--train 0` | `python StoCFL-FCC.py --setting shifted --k 4 --com_round 50 --num_per_round 40 --tau 0.5 --process 1` | Em `lskewed`, use também `--process 0` (4.12 #3). Hybrid (`fskewed`): `--num_per_round 20`. O artigo avalia por t-SNE e curva de nº de clusters; o repo só grava `cluster_rec_*.log` e `exp_*_logs.pkl`, sem t-SNE nem ARI/NMI. |
 | Shifted `N = 20` (Tab. 2) | 20 clientes, todos participam | **Não reproduzível sem editar o código** | `ShiftedMNISTTrainer` tem `client_num = 400` fixo. Há resquícios do cenário de 20 clientes: `int(client_id/5)  # 20clients` em `get_test_dataloader` ([trainer.py:184](StoCFL/trainer.py#L184)), e 80% de 60000/5 dá os 9600 da Tabela 2. Falta o particionador de Shifted CIFAR. |
-| FEMNIST (Tab. 3) | 3.597 clientes, 100 rodadas, 5% por rodada, τ 0.55 ou 0.60 | `python StoCFL-FEMNIST.py --com_round 100 --client_num 3597 --num_per_round 180 --tau 0.55 --train 1 --seed 0 --batch_size <B> --lr <lr> --epochs <E> --mu <λ>` | O artigo não informa lr, épocas, batch nem λ do FEMNIST. Precisa dos pickles LEAF (`leaf/gen_pickle_dataset.sh femnist`) e do bug 4.12 #5 corrigido. |
+| FEMNIST (Tab. 3) | 3.597 clientes, 100 rodadas, 5% por rodada, τ 0.55 ou 0.60 | `python StoCFL-FEMNIST.py --com_round 100 --client_num 3597 --num_per_round 180 --tau 0.55 --train 1 --seed 0 --batch_size <B> --lr <lr> --epochs <E> --mu <λ>` | O artigo não informa lr, épocas, batch nem λ do FEMNIST. Precisa dos pickles LEAF (`leaf/gen_pickle_dataset.sh femnist`). A linha "Global Model" do log está errada (4.12 #5). |
 | Ablação de λ (Tab. 4) | 50 rodadas, λ ∈ {0, 0.01, 0.05, 0.5, 1, 10} | `--mu <λ> --train 1` | O treino do `StoCFL-FCC.py` está quebrado (4.12 #4); use `StoCFL-FCC+CFL.py` com rotated. |
 | Clientes novos (Tab. 5), FedCelebA | — | **Não implementado** | Sem trainer de CelebA e sem inferência de clientes novos. |
 
@@ -993,7 +987,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Tornar o `ψ` do StoCFL igual ao do artigo | `--obep 1` e `--obbs` omitido: com SGD sem momentum, `ψ = η·∇ℓ(âncora; D)`. Opcionalmente normalizar `ψ` (4.16). |
 | Implementar clientes novos no StoCFL | Calcular o `ψ` do cliente novo, comparar com os centros e aplicar a regra `≥ τ` ou criar cluster (4.15.4). |
 
-**Checklist para rodar o StoCFL sem surpresas:** `mkdir logs`; corrigir o import de `femnist` (FCC/FEMNIST); baixar o MNIST antes do `--process 1` no rotated; passar `--n --com_round --num_per_round --seed` (sem default; `--batch_size` e `--obbs` podem ser omitidos e valem batch cheio); usar `--process 1` só na primeira vez; ajustar `torch.load` se torch ≥ 2.6.
+**Checklist para rodar o StoCFL sem surpresas:** passar `--n --com_round --num_per_round --seed` (sem default; `--batch_size` e `--obbs` podem ser omitidos e valem batch cheio); usar `--process 1` só na primeira vez.
 
 **Checklist para o CFL:** corrigir `idc[c1], idc[c2]` (bug 3.7 #1); manter `frac=1.0`.
 

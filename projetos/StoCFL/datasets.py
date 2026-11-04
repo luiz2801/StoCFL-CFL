@@ -69,7 +69,7 @@ class HybridMNISTPartitioner():
             if id >= 100:
                 dataset = torchvision.datasets.FashionMNIST("./datasets/fmnist/", train=False, transform=transforms.ToTensor())
         else:
-            dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)))        
+            dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)), weights_only=False)        
         return dataset
 
     def get_data_loader(self, id, batch_size=None, type="train"):
@@ -123,7 +123,7 @@ class ComplexMNISTPartitioner():
             torch.save(dataset, os.path.join(self.dir, "train", "data{}.pkl".format(id+len(data_indices))))
 
     def get_dataset(self, id, type="train"):
-        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)))
+        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)), weights_only=False)
         return dataset
 
     def get_data_loader(self, id, batch_size=None, type="train"):
@@ -144,7 +144,7 @@ class RotatedMNIST():
         
     def pre_process(self, thetas = [0, 90, 180, 270], shards=100):
         # train
-        mnist = datasets.MNIST(self.root, train=True)
+        mnist = datasets.MNIST(self.root, train=True, download=True)
         cid = 0
         to_tensor = transforms.ToTensor()
         for theta in thetas:
@@ -174,7 +174,7 @@ class RotatedMNIST():
             torch.save(dataset, os.path.join(self.dir,"test", "data{}.pkl".format(i)))
 
     def get_dataset(self, id, type="train"):
-        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)))
+        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)), weights_only=False)
         return dataset
 
     def get_data_loader(self, id, batch_size=None, type="train"):
@@ -227,7 +227,7 @@ class ShiftedMNISTPartitioner():
             torch.save(dataset, os.path.join(self.dir,"test", "data{}.pkl".format(i)))
 
     def get_dataset(self, id, type="train"):
-        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)))
+        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)), weights_only=False)
         return dataset
 
     def get_data_loader(self, id, batch_size=None, type="train"):
@@ -279,7 +279,7 @@ class RotatedCIFAR10Partitioner():
             torch.save(dataset, os.path.join(self.dir,"test", "data{}.pkl".format(i)))
         
     def get_dataset(self, id, type="train"):
-        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)))
+        dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)), weights_only=False)
         return dataset
 
     def get_data_loader(self, id, batch_size=None, type="train"):
