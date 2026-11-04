@@ -61,15 +61,10 @@ class StandaloneServer(ModelMaintainer):
             movements = self.client_trainer.observe(unobserved, self.anchor)
             for cid, move in zip(unobserved, movements):
                 self.psi[cid] = move
-            movements = [self.psi[i] for i in cid_this_round]
             
             # cluster
-            cluster_movements = []
-            sampled_cluster, activated_bucket = self.bucket(cid_this_round, movements)
-            for clu_id, move_list in zip(sampled_cluster, activated_bucket):
-                # cid = self.find_cluster_content[clu_id]
-                # move_list = [self.psi[i] for i in cid]
-                cluster_movements.append(Aggregators.fedavg_aggregate(move_list))
+            sampled_cluster = sorted({self.find_client_cluster[i] for i in cid_this_round})
+            cluster_movements = [cluster_center(self.psi, self.find_cluster_content[clu_id]) for clu_id in sampled_cluster]
             self.inter_cluster_union(sampled_cluster, cluster_movements)
             self.get_cluster()
             

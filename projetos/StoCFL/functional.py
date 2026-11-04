@@ -83,6 +83,10 @@ def dt_matrix(grad_list):
             M[i][j] = cosine_sim(grada, gradb)
     return M
             
+def cluster_center(psi, members):
+    # Eq. 2 of the paper: average over all members of the cluster
+    return sum(psi[i] for i in members) / len(members)
+
 def parse_matrix(M, id_list, descending=True):
     content = {}
     for i in range(len(M)):
