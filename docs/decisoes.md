@@ -212,3 +212,20 @@ Para cada decisão, a entrada segue este modelo:
   - Renumerar ou remover o item 4.12 #7: descartada, para não quebrar referências.
   - Já alterar o código para seguir o artigo: descartada, fora do pedido e contra a política 4.
 
+## D-014: Corrigir o código do CFL e do StoCFL para seguir o texto dos artigos
+
+- **Data:** 2026-11-04
+- **Decidido por:** usuário ("as correções devem levar o algoritmo ao declarado nos papers"; "não agora, mas ponha num backlog"; "sim, em commit separado"). Claude escolheu o local do backlog (`docs/backlog.md`), por ser trivial e reversível.
+- **Situação:** vigente. Substitui a D-005 **só** para o código de `clustered-federated-learning` e `StoCFL`. A D-005 continua valendo para o ISODATA-FL, que segue em planejamento.
+- **Contexto:** a verificação por execução mostrou que o código diverge do texto dos artigos, e que no StoCFL o texto e os números publicados apontam para direções opostas: o modelo global encadeado contradiz o texto, mas é o que chega perto das tabelas (seção 8 do [guia](guia.md)).
+- **Decisão:**
+  - A referência é o **texto e os algoritmos** dos artigos, mesmo que os resultados se afastem das tabelas publicadas.
+  - Onde o artigo não declara uma regra (por exemplo, como fundir os modelos de dois clusters), o código fica como está, e a lacuna continua documentada.
+  - O cenário de demonstração do notebook (EMNIST, Dirichlet, rotação) não é algoritmo e não muda.
+  - Árvore de parâmetros, Alg. 4 e inferência de clientes novos vão para o [backlog](backlog.md).
+  - O que é preciso só para rodar (imports, versões) entra em commits separados, sem mudar o algoritmo.
+- **Alternativas consideradas:**
+  - Manter o modelo global encadeado para reproduzir os números: descartada pelo usuário, que escolheu o declarado nos artigos.
+  - Implementar já os recursos ausentes: descartada pelo usuário.
+  - Corrigir só o algoritmo, deixando os scripts sem rodar: descartada pelo usuário.
+
