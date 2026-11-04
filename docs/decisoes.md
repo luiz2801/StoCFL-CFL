@@ -136,7 +136,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-04
 - **Decidido por:** usuário ("O CFL tem licença do MIT. Esse projeto terá licença MIT também"). Claude escolheu o titular `luiz2801` e o ano 2026 no `LICENSE`, por serem triviais e reversíveis.
-- **Situação:** vigente
+- **Situação:** vigente, com uma ressalva factual de 2026-11-04: o repositório original do CFL não tem arquivo de licença, o README dele não menciona licença e o GitHub não reconhece nenhuma. A origem da informação "MIT" ainda precisa ser confirmada pelo usuário (DP-17 em [11-decisoes-pendentes.md](implementar/plano-isodata-fl/11-decisoes-pendentes.md)).
 - **Contexto:** o README dizia que o CFL não tinha licença no original, o que o usuário corrigiu. O repositório da raiz ainda não tinha licença.
 - **Decisão:**
   - Adicionar `LICENSE` (MIT) na raiz, Copyright (c) 2026 luiz2801.
