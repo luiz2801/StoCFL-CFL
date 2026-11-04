@@ -220,7 +220,7 @@ if __name__ == "__main__":
     parser.add_argument("--process", type=int, default=1) # preprocess data partition and augmentation
 
     # cluster
-    parser.add_argument("--tau", type=float, default=0.3)
+    parser.add_argument("--tau", type=float, default=0.5)
     parser.add_argument("--train", type=int, default=0) # set this to 0, only clustering no learning.
 
     # anchor

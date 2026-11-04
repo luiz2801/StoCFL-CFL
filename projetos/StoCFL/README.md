@@ -16,7 +16,7 @@ python StoCFL-FCC.py --com_round 100 \
                      --lr 0.1 \
                      --epochs 20 \
                      --mu 0.1 \
-                     --tau 0.2 \
+                     --tau 0.5 \
                      --setting fskewed \
                      --k 4 \
                      --process 1
@@ -32,7 +32,7 @@ python StoCFL-FCC+CFL.py --n 200 \
                          --lr 0.1 \
                          --epochs 5 \
                          --mu 0.05 \
-                         --tau 0.65 \
+                         --tau 0.5 \
                          --seed 0 \
                          --dataset cifar \
                          --process 1 

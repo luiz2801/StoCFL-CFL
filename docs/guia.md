@@ -597,7 +597,7 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 | `--batch_size` | Batch do treino local. Em `StoCFL-FCC+CFL.py` **omitir o argumento** (`None`) dá batch cheio, que é o que o artigo usa no Rotated MNIST. | Menos passos por época. | Mais passos e mais ruído. |
 | `--train` | `0` = só clusterização; `1` = também treina. | — | — |
 
-**Como escolher τ na prática:** rode com `--train 0` e veja `cos_rec*.log`, que lista os pares de clusters ordenados por similaridade. Escolha τ no "vão" entre as similaridades intragrupo (altas) e intergrupo (baixas). Valores de referência: README `0.2` (fskewed) e `0.65` (rotated CIFAR); artigo `0.5` (Rotated/Shifted/Hybrid), `0.55` e `0.60` (FEMNIST/FedCelebA). A ablação do artigo (cenário com 8 clusters reais, rotação × rótulos) mostra o efeito: `τ > 0.76` separa por feature **e** label, e `τ < 0.67` separa só por label e ignora a rotação. Um τ maior dá clusters mais finos (4.15.6).
+**Como escolher τ na prática:** rode com `--train 0` e veja `cos_rec*.log`, que lista os pares de clusters ordenados por similaridade. Escolha τ no "vão" entre as similaridades intragrupo (altas) e intergrupo (baixas). Valores do artigo: `0.5` (Rotated/Shifted/Hybrid), o padrão dos scripts, e `0.55` e `0.60` (FEMNIST/FedCelebA). A ablação do artigo (cenário com 8 clusters reais, rotação × rótulos) mostra o efeito: `τ > 0.76` separa por feature **e** label, e `τ < 0.67` separa só por label e ignora a rotação. Um τ maior dá clusters mais finos (4.15.6).
 
 #### Variáveis de cenário e infraestrutura
 
@@ -622,7 +622,7 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 | `lr` | 0.01 / 0.1 | 0.1 / 0.1 | — |
 | `epochs` | 5 / 20 | 5 / 5 | — |
 | `mu` | 0.1 / 0.1 | 0.05 / 0.05 | — |
-| `tau` | 0.3 / 0.2 | 0.3 / 0.65 | — |
+| `tau` | 0.5 / 0.5 | 0.5 / 0.5 | — |
 | `obbs` | n/a | None | None |
 | `train` | 0 | 1 | 0 |
 | `seed` | fixo 0 | — / 0 | — |
@@ -653,7 +653,7 @@ pip install -r requirements.txt
 
 # 1ª execução: --process 1 gera ./datasets/rotated_{dataset}_{n}_{seed}/
 python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 \
-    --lr 0.1 --epochs 5 --mu 0.05 --tau 0.65 --seed 0 \
+    --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 \
     --dataset cifar --process 1
 # execuções seguintes com o mesmo dataset/n/seed: --process 0
 ```
@@ -925,7 +925,7 @@ Os parâmetros abaixo são os do artigo; os comandos são **aproximados**, porqu
 | Experimento | Parâmetros do artigo | Comando aproximado | Cuidados |
 |---|---|---|---|
 | Rotated MNIST (Tab. 1) | `N ∈ {4800, 2400, 1200}`, 100 rodadas, 5 épocas, batch cheio, lr 0.1, τ 0.5, λ 0.05, 10% ou 100% | `python StoCFL-FCC+CFL.py --n 4800 --com_round 100 --num_per_round 480 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset mnist --process 1` | **Omita `--batch_size`** (= `None` = batch cheio). Memória: `psi` guarda um vetor de ~1,63 M parâmetros (6,5 MB) por cliente, então 4800 clientes ocupam **~31 GB**, e o script ainda grava `psi.pkl` inteiro a cada rodada. Para `N = 1200`, ~7,8 GB. `--process 1` gera `N` arquivos `.pkl`. |
-| Rotated CIFAR (Tab. 1) | `N = 200`, 200 rodadas, 5 épocas, batch 50, lr 0.1, τ 0.5, λ 0.05 | `python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset cifar --process 1` | O README usa τ = 0.65, e o artigo, 0.5. Use `--num_per_round 200` para 100% de amostragem. |
+| Rotated CIFAR (Tab. 1) | `N = 200`, 200 rodadas, 5 épocas, batch 50, lr 0.1, τ 0.5, λ 0.05 | `python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset cifar --process 1` | Use `--num_per_round 200` para 100% de amostragem. |
 | Qualidade da clusterização (5.1) | 400 clientes (Hybrid: 200), 50 rodadas, τ 0.5, 10% por rodada, `--train 0` | `python StoCFL-FCC.py --setting shifted --k 4 --com_round 50 --num_per_round 40 --tau 0.5 --process 1` | Em `lskewed`, use também `--process 0` (4.12 #3). Hybrid (`fskewed`): `--num_per_round 20`. O artigo avalia por t-SNE e curva de nº de clusters; o repo só grava `cluster_rec_*.log` e `exp_*_logs.pkl`, sem t-SNE nem ARI/NMI. |
 | Shifted `N = 20` (Tab. 2) | 20 clientes, todos participam | **Não reproduzível sem editar o código** | `ShiftedMNISTTrainer` tem `client_num = 400` fixo. Há resquícios do cenário de 20 clientes: `int(client_id/5)  # 20clients` em `get_test_dataloader` ([trainer.py:184](StoCFL/trainer.py#L184)), e 80% de 60000/5 dá os 9600 da Tabela 2. Falta o particionador de Shifted CIFAR. |
 | FEMNIST (Tab. 3) | 3.597 clientes, 100 rodadas, 5% por rodada, τ 0.55 ou 0.60 | `python StoCFL-FEMNIST.py --com_round 100 --client_num 3597 --num_per_round 180 --tau 0.55 --train 1 --seed 0 --batch_size <B> --lr <lr> --epochs <E> --mu <λ>` | O artigo não informa lr, épocas, batch nem λ do FEMNIST. Precisa dos pickles LEAF (`leaf/gen_pickle_dataset.sh femnist`). A linha "Global Model" do log está errada (4.12 #5). |
