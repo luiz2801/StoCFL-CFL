@@ -19,9 +19,9 @@ flowchart TD
     A1["Carregar EMNIST (byclass)<br/>sortear 10 mil índices de treino e 10 mil de teste"]:::nb
     A2["split_noniid: distribui o treino entre 10 clientes<br/>(Dirichlet, α=1.0)"]:::nb
     A3["Rotacionar 180° os dados dos clientes 0–4<br/>(induz dois grupos)"]:::nb
-    A4["Criar 10 Client (ConvNet, SGD lr=0.1, momentum=0.9)<br/>cada um com split 80% treino / 20% avaliação"]:::cl
+    A4["Criar 10 Client (ConvNet, SGD lr=0.1)<br/>cada um com split 80% treino / 20% avaliação"]:::cl
     A5["Criar Server (ConvNet)<br/>com o conjunto de teste"]:::sv
-    A6["cluster_indices = [todos os clientes]<br/>ε₁=0.4, ε₂=1.6, 80 rodadas<br/>criar ExperimentLogger"]:::nb
+    A6["cluster_indices = [todos os clientes]<br/>ε₁=0.2, ε₂=0.8, γ_max=0.5, 80 rodadas<br/>criar ExperimentLogger"]:::nb
 
     %% ---------- Rodada de comunicação ----------
     D1{"c_round == 1?"}:::ctl
@@ -29,7 +29,7 @@ flowchart TD
     B3["select_clients(frac=1.0)<br/>define os clientes participantes"]:::sv
 
     subgraph R1["para cada cliente participante"]
-        I1["W_old ← W; lr ← lr·0.99"]:::cl
+        I1["W_old ← W"]:::cl
         I2["train_op: 1 época de SGD"]:::cl
         I3["dW ← W − W_old"]:::cl
         I4["reset: W ← W_old"]:::cl

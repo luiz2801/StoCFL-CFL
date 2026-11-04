@@ -112,7 +112,7 @@ Intuição: o FedAvg converge para um ponto que é ótimo "em média". Se ali a 
 | `FederatedTrainingDevice` | [fl_devices.py:74](clustered-federated-learning/fl_devices.py#L74) | Base: cria o modelo e `self.W` = dict `{nome: Parameter}` (referências **vivas** aos parâmetros do modelo). |
 | `Client.__init__` | [fl_devices.py:86](clustered-federated-learning/fl_devices.py#L86) | Cria otimizador, divide os dados em treino/validação (`train_frac`), cria `dW` e `W_old`. |
 | `Client.synchronize_with_server` | [fl_devices.py:103](clustered-federated-learning/fl_devices.py#L103) | `W ← W_servidor`. Usado só na rodada 1, para todos partirem da mesma inicialização. |
-| `Client.compute_weight_update` | [fl_devices.py:106](clustered-federated-learning/fl_devices.py#L106) | `W_old ← W`; **decai o lr ×0.99**; treina; `dW ← W − W_old`. |
+| `Client.compute_weight_update` | [fl_devices.py:106](clustered-federated-learning/fl_devices.py#L106) | `W_old ← W`; treina; `dW ← W − W_old`. |
 | `Client.reset` | [fl_devices.py:113](clustered-federated-learning/fl_devices.py#L113) | `W ← W_old`. Desfaz o treino local; o efeito fica guardado só em `dW`. |
 | `Server.select_clients` | [fl_devices.py:123](clustered-federated-learning/fl_devices.py#L123) | Amostra `frac` dos clientes (o notebook usa `frac=1.0`). |
 | `Server.aggregate_weight_updates` | [fl_devices.py:126](clustered-federated-learning/fl_devices.py#L126) | ⚠️ **Quebrado e não usado**: passa `target=` em vez de `targets=`. |
@@ -149,7 +149,7 @@ O servidor **nunca atualiza o próprio `W`**. A agregação é aplicada diretame
 | 2 | Baixa EMNIST `byclass` (62 classes). Embaralha e pega 10.000 amostras de treino e 10.000 de teste. `split_noniid` divide o treino entre `N_CLIENTS` com `DIRICHLET_ALPHA`. |
 | 3 | Histograma da distribuição de rótulos por cliente. |
 | 5 | **Cria a estrutura de clusters real:** clientes `0–4` recebem `RandomRotation((180,180))` e clientes `5–9` não. O ground truth são 2 grupos. |
-| 6 | Cria `Client`s (`ConvNet`, `SGD(lr=0.1, momentum=0.9)`, batch 128, 80/20 treino/val) e o `Server`. |
+| 6 | Cria `Client`s (`ConvNet`, `SGD(lr=0.1)`, batch 128, 80/20 treino/val) e o `Server`. |
 | 7 | Mostra amostras dos clientes 0 e 5. |
 | 9 | **Loop principal do CFL** (pseudocódigo abaixo). |
 | 11–12 | Monta a tabela `clientes × modelos em cache` com acurácias e destaca o melhor modelo por cliente. |
@@ -162,7 +162,7 @@ for r in 1..COMMUNICATION_ROUNDS:
     if r == 1: todo cliente copia W do servidor        # mesma inicialização
     participating = server.select_clients(clients, frac=1.0)
     for c in participating:
-        c.compute_weight_update(epochs=1)              # W_old←W; lr*=0.99; treina; dW←W−W_old
+        c.compute_weight_update(epochs=1)              # W_old←W; treina; dW←W−W_old
         c.reset()                                      # W←W_old
     S = cos(dW_i, dW_j) para TODOS os clientes (N×N)
 
@@ -207,7 +207,7 @@ ao final: cache_model de cada cluster final
 |---|---|---|
 | `client.W` | `Client` | dict `nome → Parameter` (pesos vivos do modelo do cliente). |
 | `client.W_old` / `client.dW` | `Client` | pesos antes do treino local / atualização da rodada. |
-| `client.optimizer` | `Client` | SGD **por cliente**; buffers de momentum persistem entre rodadas mesmo com `reset`. |
+| `client.optimizer` | `Client` | SGD puro **por cliente**, sem estado entre rodadas. |
 | `cluster_indices` | notebook | lista de arrays de ids de cliente; define a partição atual. |
 | `client_clusters` | notebook | mesma partição, como listas de objetos `Client`. |
 | `server.model_cache` | `Server` | lista de `(ids, pesos, acurácias)`; a 1ª entrada costuma ser o modelo FL global. |
@@ -222,26 +222,24 @@ ao final: cache_model de cada cluster final
 | tamanho treino/teste | 10.000 / 10.000 | célula 2 | Menos dados por cliente geram `dW` mais ruidosos. O conjunto de teste do servidor **não é usado** no loop. |
 | rotação 180° em `i<5` | — | célula 5 | Define o ground truth (2 clusters). Trocar ou adicionar transformações cria outros cenários. |
 | `lr` | 0.1 | célula 6 | Escala diretamente `‖dW‖`; **EPS_1/EPS_2 precisam ser recalibrados** se mudar. |
-| `momentum` | 0.9 | célula 6 | Aumenta a norma dos updates; o momentum "vaza" entre rodadas. |
-| decaimento do lr | ×0.99 por chamada | [fl_devices.py:108](clustered-federated-learning/fl_devices.py#L108) | Após 80 rodadas lr ≈ 0.045. As normas caem com o tempo, então `max_norm > EPS_2` fica mais difícil. É também o que leva `mean_norm` abaixo de `EPS_1` no prazo: no notebook real, sem o decaimento a 1ª divisão veio na rodada 53, na 80 ou nunca (3 seeds), contra as rodadas 28 a 34 com ele. |
 | `batch_size` | 128 | `Client.__init__` | Menor batch dá mais passos por época, normas maiores e mais ruído. |
 | `train_frac` | 0.8 | `Client.__init__` | Fração para treino; o resto é a validação usada em `evaluate`. |
 | `epochs` | 1 | `compute_weight_update` | Mais épocas dão `dW` maiores e mais "específicos" do cliente (sinal mais forte, mas também mais deriva). |
 | `COMMUNICATION_ROUNDS` | 80 | célula 9 | Duração total. |
-| `EPS_1` | 0.4 | célula 9 | Limiar de "convergência" do cluster (`mean_norm < EPS_1`). **Maior** divide mais cedo, possivelmente antes do FL convergir, com similaridades ruidosas. **Menor** espera mais ou nunca divide. Regra do artigo: o mais pequeno que o tempo permitir, em torno de `max_t ‖média dW‖ / 10` (3.9.8). |
-| `EPS_2` | 1.6 | célula 9 | Limiar de "incongruência" (`max_norm > EPS_2`). **Menor** divide com mais facilidade (risco de dividir grupos homogêneos). **Maior** divide menos (risco de nunca separar). Regra do artigo: `EPS_2 ∈ [EPS_1, 10·EPS_1]`; aqui a razão é 4. |
+| `EPS_1` | 0.2 | célula 9 | Limiar de "convergência" do cluster (`mean_norm < EPS_1`). **Maior** divide mais cedo, possivelmente antes do FL convergir, com similaridades ruidosas. **Menor** espera mais ou nunca divide. Regra do artigo: o mais pequeno que o tempo permitir, em torno de `max_t ‖média dW‖ / 10` (3.9.8). Aqui a regra daria 0.03–0.04, que nunca dispara: o ruído do SGD mantém `mean_norm` em ~0.10–0.15 mesmo em 200 rodadas. Com `EPS_1 = 0.15`, 2 de 4 seeds não dividiram em 80 rodadas (D-015). |
+| `EPS_2` | 0.8 | célula 9 | Limiar de "incongruência" (`max_norm > EPS_2`). **Menor** divide com mais facilidade (risco de dividir grupos homogêneos): com 0.5, houve de 3 a 6 divisões extras por seed, algumas nas rodadas 3 e 4. **Maior** divide menos (risco de nunca separar). Regra do artigo: `EPS_2 ∈ [EPS_1, 10·EPS_1]`; aqui a razão é 4. |
 | `GAMMA_MAX` | 0.5 | célula 9 | Limite assumido para o erro relativo do gradiente empírico (`γ_max` do artigo, em `[0, 1)`, sem valor informado). A divisão só é aceita se `GAMMA_MAX < √((1−α_cross^max)/2)`, ou seja, com 0.5 são rejeitadas as bipartições em que os dois lados têm um par com cosseno acima de 0.5. **Maior** rejeita mais; 0 nunca rejeita. No cenário do notebook, nenhum valor separa as divisões corretas das extras: os limites se sobrepõem (corretas 0.712–0.766; extras 0.716 e 0.785, em 13 seeds). D-015. |
 | `frac` | 1.0 | célula 9 | ⚠️ Com `frac < 1`, quem não participou mantém o `dW` antigo, mas entra mesmo assim na similaridade e na agregação. O código assume participação total. |
 | seeds | 42 | célula 0 | Reprodutibilidade da partição e da inicialização. |
 
-Regra prática: `EPS_1` e `EPS_2` são valores **absolutos de norma** e dependem de lr, momentum, épocas, batch, tamanho dos dados e arquitetura. Para calibrar, rode sem divisões e observe as curvas `mean_norm`/`max_norm` no gráfico da direita. Aplicando a recomendação do artigo (3.9.8): escolha `EPS_1` perto de um décimo do valor máximo que `mean_norm` atingiu, e `EPS_2` entre `EPS_1` e `10·EPS_1`, abaixo do nível em que `max_norm` estaciona. Se `max_norm` cai a zero junto com `mean_norm`, os clientes são congruentes e **não** deve haver divisão.
+Regra prática: `EPS_1` e `EPS_2` são valores **absolutos de norma** e dependem de lr, épocas, batch, tamanho dos dados e arquitetura. Para calibrar, rode sem divisões e observe as curvas `mean_norm`/`max_norm` no gráfico da direita. Aplicando a recomendação do artigo (3.9.8): escolha `EPS_1` perto de um décimo do valor máximo que `mean_norm` atingiu, e `EPS_2` entre `EPS_1` e `10·EPS_1`, abaixo do nível em que `max_norm` estaciona. Se `max_norm` cai a zero junto com `mean_norm`, os clientes são congruentes e **não** deve haver divisão.
 
 ### 3.6 Saídas
 
 - Gráficos ao vivo (`display_train_stats`) a cada rodada.
 - `cfl_stats.split`: rodadas em que houve divisão (repetida se mais de um cluster dividiu na mesma rodada).
 - `cfl_stats.clusters[-1]`: partição final.
-- Tabela final (células 11–12): `results[cliente, modelo]` = acurácia do cliente com cada modelo do cache (0 se o cliente não pertencia àquele cluster). O máximo por cliente é destacado. O notebook relata ganho de ~10% de acurácia sobre o modelo FL.
+- Tabela final (células 11–12): `results[cliente, modelo]` = acurácia do cliente com cada modelo do cache (0 se o cliente não pertencia àquele cluster). O máximo por cliente é destacado. A coluna do modelo FL é a do momento da 1ª divisão, então parte do ganho vem das rodadas a mais: sem divisão, o FL chega a ~0.60 em 80 rodadas, e os modelos de cluster, a ~0.71.
 
 Obs.: `mean_norm`/`max_norm` registrados por rodada são os do **último** cluster iterado, não de todos.
 
@@ -366,7 +364,7 @@ O artigo **não informa**: lr, momentum, valores usados de `ε1`/`ε2`/`γ_max`,
 1. **`ε1`** deve ser "tão pequeno quanto as restrições de tempo permitirem", porque a qualidade da separação melhora monotonicamente perto do ponto estacionário. Regra prática: `ε1 ≈ (1/10)·max_t ‖Δθ_c‖`, um décimo da maior norma média de update observada.
 2. **`ε2`** deve refletir o número de clientes e/ou o conhecimento prévio sobre a heterogeneidade dos dados. Quanto menor, mais provável que a população seja dividida. O artigo obteve bons resultados com **`ε2 ∈ [ε1, 10·ε1]`**.
 
-No notebook, `EPS_2 / EPS_1 = 4`, dentro dessa faixa. Seguir a regra de `ε1` para `EPS_1 = 0.4` implicaria uma norma média máxima de ~4; confira no gráfico da direita. As normas dependem de lr, momentum, épocas e arquitetura, então os valores não são portáveis entre setups.
+No notebook, `EPS_2 / EPS_1 = 4`, dentro dessa faixa. A regra de `ε1` daria 0.03–0.04, abaixo do que o ruído do SGD permite atingir, então o notebook usa `EPS_1 = 0.2`, o menor valor testado que divide em todas as seeds dentro de 80 rodadas (D-015). As normas dependem de lr, épocas e arquitetura, então os valores não são portáveis entre setups.
 
 #### 3.9.9 Limitações (declaradas ou evidentes)
 
@@ -395,15 +393,14 @@ O notebook é uma implementação do **Algoritmo 5** com simplificações e acr�
 | Algoritmo de bipartição | Alg. 1: ordem decrescente de `α`, fundindo até restarem 2 (≡ *single linkage*; minimiza o maior `α` entre os lados) | `Server.cluster_clients` transcreve o Alg. 1 ([fl_devices.py:131](clustered-federated-learning/fl_devices.py#L131)) | **Segue o artigo.** Atinge o ótimo da Eq. 33 em todas as matrizes testadas. O notebook original usava *complete linkage*. Com `g(α) > 0` os dois dão o mesmo resultado, porque qualquer linkage acerta (Corolário 1). Com `g(α) ≤ 0` eles divergem, e a garantia do artigo não vale: em matrizes sintéticas, o *complete* acertou os grupos verdadeiros mais vezes (652 contra 447 de 1391), porque o Alg. 1 tende a isolar um único cliente. |
 | Agregação | Alg. 2 pondera por `|D_i|/|D_c|`; Alg. 5 usa `1/|c|` | Média uniforme (`reduce_add_average`) | Consistente com o Alg. 5. |
 | Quando divide | Alg. 3: só depois do FL convergir. Alg. 5: checa a cada rodada. | Checa a cada rodada | **Segue o Alg. 5.** A proximidade do ponto estacionário depende só de `EPS_1`: com `EPS_2` baixo, as divisões podem sair cedo demais (nas rodadas 3 e 4, com `EPS_2 = 0.5`). |
-| Decaimento do lr (×0.99 por rodada) | Não existe | [fl_devices.py:108](clustered-federated-learning/fl_devices.py#L108) | Faz as normas caírem com o tempo e altera o efeito de `EPS_1`/`EPS_2`. Sem ele, a 1ª divisão vem bem mais tarde ou não vem (3.5). |
-| Momentum 0.9 | Não informado | `SGD(lr=0.1, momentum=0.9)`, um otimizador por cliente | Os buffers de momentum **persistem** entre rodadas mesmo com `reset()`, que restaura só os pesos. Medido no notebook real: `dW` fica ~1,8× maior que com os buffers zerados, com cosseno ~0.86 entre os dois. Zerar os buffers não piorou a acurácia final (0.737–0.742, contra 0.734–0.738). Os limiares 0.4 e 1.6 dependem desse tamanho: com SGD puro, só 1 de 3 seeds dividiu. |
+| Otimizador local | `SGD(θ, D)`: SGD com minilotes, função só de `θ` e `D` (Eq. 1); lr e momentum não informados | `SGD(lr=0.1)`, um otimizador por cliente, sem momentum e sem decaimento | **Segue o artigo.** O notebook original usava `momentum=0.9`, com buffers que persistiam entre rodadas (`dW` ~1,8× maior e cosseno ~0.86 com os buffers zerados), e decaimento ×0.99 por rodada, que levava `mean_norm` abaixo de `EPS_1` mais cedo. |
 | Similaridade | Cosseno entre `Δθ` (Eq. 47) | `pairwise_angles` entre `dW` | OK. |
 | Árvore de parâmetros / Alg. 4 | Árvore com cache dos updates pré-divisão; novos clientes descem a árvore | `server.model_cache`: lista plana de `(ids, pesos, acurácias)`. **Sem árvore e sem clientes novos.** | Não há como atribuir um cliente novo a um cluster. Está no [backlog](backlog.md). |
 | Permutação de privacidade `P` | Opcional | Ausente | Sem proteção; irrelevante para simulação. |
 | Escolha do modelo final | Fallback para o FL se a divisão piorar | Células 11–12 escolhem, por cliente, o modelo de maior acurácia **na mesma validação usada para reportar** | Viés otimista leve nos ganhos reportados (~10%). Não é um procedimento do artigo. |
 | Participação | Todos os clientes do cluster em toda rodada | `frac = 1.0` | Consistente. |
 | Dados e setup | Label-swap/permutação em MNIST e CIFAR-10, AG News, `M = 20`, 3 épocas, batch 100 | **EMNIST** (62 classes), Dirichlet α = 1, rotação 180°, `M = 10`, 1 época, batch 128, 80 rodadas | O notebook **não reproduz nenhum experimento do artigo**; EMNIST, Dirichlet, rotação e 80 rodadas não aparecem lá. |
-| `ε1`, `ε2` | Regra: `ε1 ≈ max‖Δθ_c‖/10`, `ε2 ∈ [ε1, 10·ε1]` | 0.4 e 1.6 (razão 4) | Dentro da faixa recomendada; calibre pelo gráfico. |
+| `ε1`, `ε2` | Regra: `ε1 ≈ max‖Δθ_c‖/10`, `ε2 ∈ [ε1, 10·ε1]` | 0.2 e 0.8 (razão 4) | `ε2` dentro da faixa. `ε1` acima da regra de bolso, porque ela nunca dispara nesse cenário (3.9.8). |
 
 ---
 

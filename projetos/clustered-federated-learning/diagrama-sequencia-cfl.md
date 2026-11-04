@@ -14,7 +14,7 @@ sequenceDiagram
 
     Note over NB,L: Preparação
     NB->>NB: carregar EMNIST, split_noniid (Dirichlet α=1.0), rotacionar 180° os clientes 0–4
-    NB->>C: Client(ConvNet, SGD lr=0.1 momentum=0.9, dados, idnum)
+    NB->>C: Client(ConvNet, SGD lr=0.1, dados, idnum)
     Note right of C: cada cliente separa 80% treino e 20% avaliação
     NB->>S: Server(ConvNet, test_data)
     NB->>L: ExperimentLogger()
@@ -33,7 +33,7 @@ sequenceDiagram
 
         loop para cada cliente participante
             NB->>C: compute_weight_update(epochs=1)
-            C->>C: W_old ← W, lr ← lr·0.99
+            C->>C: W_old ← W
             C->>C: train_op, 1 época de SGD no train_loader
             C->>C: dW ← W − W_old
             C-->>NB: train_stats

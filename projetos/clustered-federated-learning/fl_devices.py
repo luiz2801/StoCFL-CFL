@@ -104,7 +104,6 @@ class Client(FederatedTrainingDevice):
     
     def compute_weight_update(self, epochs=1, loader=None):
         copy(target=self.W_old, source=self.W)
-        self.optimizer.param_groups[0]["lr"]*=0.99
         train_stats = train_op(self.model, self.train_loader if not loader else loader, self.optimizer, epochs)
         subtract_(target=self.dW, minuend=self.W, subtrahend=self.W_old)
         return train_stats  
