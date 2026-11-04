@@ -31,8 +31,6 @@ python StoCFL-FCC+CFL.py --n 200 \
                          --batch_size 50 \
                          --lr 0.1 \
                          --epochs 5 \
-                         --obbs 50 \
-                         --obep 20 \
                          --mu 0.05 \
                          --tau 0.65 \
                          --seed 0 \

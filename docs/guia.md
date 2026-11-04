@@ -418,10 +418,8 @@ O StoCFL é **aglomerativo (bottom-up)** e funciona com **participação parcial
 - `gmodel` (modelo global) = cópia da âncora.
 
 **Fase 1, representação do cliente (feita uma única vez por cliente).**
-Na primeira vez que um cliente é sorteado, ele parte da âncora, treina `obep` épocas localmente e devolve
-`ψ_i = anchor − θ_i_treinado`. Esse vetor ("movimento a partir da âncora") resume a distribuição de dados do cliente: clientes com a mesma distribuição produzem `ψ` quase paralelos. Como **todos partem do mesmo ponto fixo**, os `ψ` de clientes observados em rodadas diferentes continuam comparáveis. É isso que permite clusterizar com amostragem estocástica, diferente do CFL, que precisa de todos ao mesmo tempo.
-
-> Atenção: **isto é o que o código faz.** No artigo, a representação `Ψ` é o gradiente normalizado da perda no modelo âncora, sem treino. As duas coincidem (a menos de escala) com `--obep 1` e batch cheio; veja 4.16.
+Na primeira vez que um cliente é sorteado, ele calcula, no modelo âncora e sem treinar, o gradiente da perda em todo o seu dataset, e devolve o vetor normalizado
+`ψ_i = Normalize(∇ℓ(anchor; D_i))`, o `Ψ` do artigo. Esse vetor resume a distribuição de dados do cliente: clientes com a mesma distribuição produzem `ψ` quase paralelos. Como **todos usam o mesmo ponto fixo**, os `ψ` de clientes observados em rodadas diferentes continuam comparáveis. É isso que permite clusterizar com amostragem estocástica, diferente do CFL, que precisa de todos ao mesmo tempo.
 
 **Fase 2, clusterização estocástica (toda rodada).**
 1. Sorteia `S_r` (clientes da rodada) e agrupa esses clientes pelo cluster atual.
@@ -467,7 +465,7 @@ __main__                                                    StoCFL-FCC+CFL.py:19
           ├─ random.sample(clientes, num_per_round)
           ├─ trainer.observe(não_observados, anchor)        trainer.py:278
           │     ├─ dataset.get_data_loader(id, obbs)        trainer.py:281
-          │     └─ ob_train(anchor, loader)                 trainer.py:286
+          │     └─ dataset_representation(self, anchor, loader)   trainer.py:21
           ├─ cluster_center (média dos ψ de todos os membros)   functional.py:86
           ├─ inter_cluster_union                            StoCFL-FCC+CFL.py:121
           │     ├─ dt_matrix → cosine_sim                   functional.py:77, :54
@@ -524,7 +522,7 @@ Cada Trainer herda de `fedlab.SerialTrainer` e simula **todos os clientes** com 
 |---|---|
 | `client_num` | nº total de clientes |
 | `observe(ids, anchor) → [ψ]` | Fase 1 |
-| `ob_train(params, loader) → params − θ_treinado` | treino de observação |
+| `dataset_representation(trainer, anchor, loader) → Ψ` | função do módulo `trainer.py`, usada por todos os `observe`: gradiente normalizado na âncora, sem treino |
 | `train(ids, modelos_cluster, gmodel) → (modelos_cluster_treinados, globais_treinados)` | Fase 3 |
 | `train_alone_prox(params, gmodel, loader)` | treino com termo proximal `0.5·μ·‖w−w_g‖²` |
 | `_train_alone(params, loader)` | treino local simples |
@@ -534,15 +532,15 @@ Cada Trainer herda de `fedlab.SerialTrainer` e simula **todos os clientes** com 
 
 Todos usam `SGD(lr=args.lr)` **sem momentum** (`self.optimizer` compartilhado, sem estado, então compartilhar não causa problema).
 
-| Trainer | Linha | Cenário | Clientes | Ground truth (id → grupo) | Observação (`ob_train`) | Batch de treino |
+| Trainer | Linha | Cenário | Clientes | Ground truth (id → grupo) | Dados da observação | Batch de treino |
 |---|---|---|---|---|---|---|
-| `FEMNISTTrainer` | [trainer.py:21](StoCFL/trainer.py#L21) | FEMNIST (LEAF) | `--client_num` (3597) | não há | `obep` épocas, batch `obbs` | `batch_size` |
-| `ShiftedMNISTTrainer` | [trainer.py:120](StoCFL/trainer.py#L120) | MNIST com rótulo `(y+s) % 10`, `s ∈ {0,3,6,9}` | 400 (fixo) | `cid // 100` | **1 época, batch cheio** | **batch cheio** (ignora `batch_size`) |
-| `RotatedMNISTTrainer` | [trainer.py:251](StoCFL/trainer.py#L251) | Rotated MNIST **ou** CIFAR (via `args.dataset`) | `args.n` | `⌊cid·k/n⌋` | `obep` épocas, batch `obbs` | `batch_size` |
-| `LabelSkewMNISTTrainer` | [trainer.py:345](StoCFL/trainer.py#L345) | label skew: `k=4` grupos de classes `[0,1,2],[3,4],[5,6],[7,8,9]`; `k=10` um grupo por classe | ~400 (k=4) / ~1000 (k=10) | blocos contíguos de ~100 | 1 época, `batch_size` | `batch_size` |
-| `FeatureSkewHybridMNISTTrainer` | [trainer.py:459](StoCFL/trainer.py#L459) | 100 clientes MNIST + 100 FashionMNIST | 200 (fixo) | `cid < 100` → MNIST | **5 épocas, batch cheio** | `batch_size` |
+| `FEMNISTTrainer` | [trainer.py:21](StoCFL/trainer.py#L21) | FEMNIST (LEAF) | `--client_num` (3597) | não há | dataset inteiro, lote `obbs` | `batch_size` |
+| `ShiftedMNISTTrainer` | [trainer.py:120](StoCFL/trainer.py#L120) | MNIST com rótulo `(y+s) % 10`, `s ∈ {0,3,6,9}` | 400 (fixo) | `cid // 100` | 80% dos dados do cliente (`random_split`), lote cheio | **batch cheio** (ignora `batch_size`) |
+| `RotatedMNISTTrainer` | [trainer.py:251](StoCFL/trainer.py#L251) | Rotated MNIST **ou** CIFAR (via `args.dataset`) | `args.n` | `⌊cid·k/n⌋` | dataset inteiro, lote `obbs` | `batch_size` |
+| `LabelSkewMNISTTrainer` | [trainer.py:345](StoCFL/trainer.py#L345) | label skew: `k=4` grupos de classes `[0,1,2],[3,4],[5,6],[7,8,9]`; `k=10` um grupo por classe | ~400 (k=4) / ~1000 (k=10) | blocos contíguos de ~100 | dataset inteiro, lote `batch_size` | `batch_size` |
+| `FeatureSkewHybridMNISTTrainer` | [trainer.py:459](StoCFL/trainer.py#L459) | 100 clientes MNIST + 100 FashionMNIST | 200 (fixo) | `cid < 100` → MNIST | dataset inteiro, lote cheio | `batch_size` |
 
-O treino de observação tem épocas e batch **fixos no código** em alguns trainers. Mudar `--obep/--obbs` só tem efeito em `RotatedMNISTTrainer` e `FEMNISTTrainer`.
+A observação é **um único gradiente** em todo o dataset do cliente, acumulado por lotes, então o tamanho do lote não muda o resultado (diferença de ~1e-8 no teste). O modelo fica em modo `eval`, para que o dropout do `CNN_FEMNIST` não torne `Ψ` aleatório: o artigo define `Ψ` como função de `D`, sem mencionar dropout.
 
 ### 4.7 Dados (`datasets.py`) e modelos
 
@@ -593,11 +591,10 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 | `--mu` (μ/λ) | Peso do termo proximal `(μ/2)‖w_cluster − gmodel‖²`. | Modelos de cluster mais próximos do global: mais compartilhamento entre clusters, menos personalização. μ→∞ faz cluster = global. | Clusters mais independentes; μ=0 é o CFL convencional (FedAvg puro dentro de cada cluster). Bom quando os grupos são muito diferentes e têm dados suficientes. No artigo, o melhor μ depende do cenário (Tabela 4 em 4.15.6): 0.05 em Rotated/Shifted, e 10 no patológico, onde μ pequeno derruba a acurácia para 24–38%. |
 | `--num_per_round` | Clientes por rodada. | Mais clusters comparados por rodada: a clusterização converge mais rápido e as direções médias ficam menos ruidosas; custo maior. | Convergência lenta; um cluster só se funde quando membros dele e do outro são sorteados juntos. |
 | `--com_round` | Nº de rodadas. | Mais chances de observar todos os clientes e concluir as fusões; mais treino. | Pode terminar com clientes nunca observados (continuam como clusters unitários). |
-| `--obep` | Épocas de treino a partir da âncora para gerar ψ. | ψ mais "carregado" da distribuição do cliente (sinal mais forte), até saturar; mais custo inicial. | ψ mais ruidoso e similaridades menos separáveis. |
-| `--obbs` | Batch da observação (`None` = batch cheio, determinístico). | Menos ruído de SGD no ψ. | Mais passos e mais ruído. |
-| `--lr` | lr do SGD (observação **e** treino). | ψ maior (o cosseno não depende da escala, mas a trajetória não-linear muda). Treino mais rápido ou instável. | O inverso. |
+| `--obbs` | Lote usado só para acumular o gradiente de `Ψ` (`None` = dataset inteiro). Não muda o resultado; serve para caber na memória. | — | — |
+| `--lr` | lr do SGD de treino. | Treino mais rápido ou instável. | O inverso. |
 | `--epochs` | Épocas locais no treino do cluster e do global. | Mais progresso por rodada, mais *client drift*. | O inverso. |
-| `--batch_size` | Batch do treino local (e da observação em `lskewed`). Em `StoCFL-FCC+CFL.py` **omitir o argumento** (`None`) dá batch cheio, que é o que o artigo usa no Rotated MNIST. | Menos passos por época. | Mais passos e mais ruído. |
+| `--batch_size` | Batch do treino local. Em `StoCFL-FCC+CFL.py` **omitir o argumento** (`None`) dá batch cheio, que é o que o artigo usa no Rotated MNIST. | Menos passos por época. | Mais passos e mais ruído. |
 | `--train` | `0` = só clusterização; `1` = também treina. | — | — |
 
 **Como escolher τ na prática:** rode com `--train 0` e veja `cos_rec*.log`, que lista os pares de clusters ordenados por similaridade. Escolha τ no "vão" entre as similaridades intragrupo (altas) e intergrupo (baixas). Valores de referência: README `0.2` (fskewed) e `0.65` (rotated CIFAR); artigo `0.5` (Rotated/Shifted/Hybrid), `0.55` e `0.60` (FEMNIST/FedCelebA). A ablação do artigo (cenário com 8 clusters reais, rotação × rótulos) mostra o efeito: `τ > 0.76` separa por feature **e** label, e `τ < 0.67` separa só por label e ignora a rotação. Um τ maior dá clusters mais finos (4.15.6).
@@ -626,7 +623,7 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 | `epochs` | 5 / 20 | 5 / 5 | — |
 | `mu` | 0.1 / 0.1 | 0.05 / 0.05 | — |
 | `tau` | 0.3 / 0.2 | 0.3 / 0.65 | — |
-| `obep` / `obbs` | n/a | 10 / None (README 20 / 50) | 10 / None |
+| `obbs` | n/a | None | None |
 | `train` | 0 | 1 | 0 |
 | `seed` | fixo 0 | — / 0 | — |
 
@@ -656,7 +653,7 @@ pip install -r requirements.txt
 
 # 1ª execução: --process 1 gera ./datasets/rotated_{dataset}_{n}_{seed}/
 python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 \
-    --lr 0.1 --epochs 5 --obbs 50 --obep 20 --mu 0.05 --tau 0.65 --seed 0 \
+    --lr 0.1 --epochs 5 --mu 0.05 --tau 0.65 --seed 0 \
     --dataset cifar --process 1
 # execuções seguintes com o mesmo dataset/n/seed: --process 0
 ```
@@ -671,7 +668,7 @@ Observações de ambiente:
 ### 4.12 Bugs e limitações conhecidos (StoCFL)
 
 1. **Corrigido em 2026-11-04.** `StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importavam, porque pediam `femnist` de `settings.py`, onde ele está comentado.
-2. **FCC.py, `--setting rotated`:** `RotatedMNISTTrainer` lê `args.dataset` (que é float), `args.root`, `args.save_dir`, `args.n`, `args.obep` e `args.obbs`, nenhum deles definido nesse script. Use `StoCFL-FCC+CFL.py` para rotated.
+2. **FCC.py, `--setting rotated`:** `RotatedMNISTTrainer` lê `args.dataset` (que é float), `args.root`, `args.save_dir`, `args.n` e `args.obbs`, nenhum deles definido nesse script. Use `StoCFL-FCC+CFL.py` para rotated.
 3. **FCC.py, `--setting lskewed` com `--process 1`** (default) quebra: `LabelSkewMNISTTrainer` não tem `.dataset`. Use `--process 0`. Ele também lê MNIST de `./dataset/mnist/` (sem "s") sem `download=True`.
 4. **FCC.py com `--train 1`:** em `ShiftedMNISTTrainer`, `get_test_dataloader` usa `client_id/5` (deveria ser `client_id // 100`; só existem 4 arquivos de teste) e `evaluate` faz `range(id_list)` com uma lista. `FeatureSkewHybridMNISTTrainer` e `LabelSkewMNISTTrainer` não têm `evaluate`/`get_test_dataloader`. Na prática FCC.py só funciona com `--train 0`.
 5. **FEMNIST:** "Global Model - Global Test" avalia `self._model` **sem** carregar o `gmodel` antes ([StoCFL-FEMNIST.py:89](StoCFL/StoCFL-FEMNIST.py#L89)). Os pickles são lidos de `./leaf/pickle_datasets/femnist/{train,test}/`; gere-os com `leaf/gen_pickle_dataset.sh femnist <data_root>` a partir de JSONs no formato LEAF. O README em `datasets/femnist/` descreve o formato FedScale (CSV), que é diferente.
@@ -903,7 +900,7 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 
 | Elemento | Artigo | Código | Consequência |
 |---|---|---|---|
-| **Representação `Ψ`** | `Normalize(∇ℓ(ψ; D))`: **um gradiente** no modelo âncora, sem treino | `ψ_i = anchor − θ` depois de `obep` épocas de SGD a partir da âncora ([trainer.py:286](StoCFL/trainer.py#L286)), **sem normalizar** | Com 1 época e batch cheio, o SGD sem momentum dá `ψ = η·∇ℓ(âncora; D)`, igual ao artigo a menos de escala. É o caso do `ShiftedMNISTTrainer` (1 época, batch cheio). Com mais épocas ou batch menor, `ψ` é um deslocamento multi-passos, que acumula não-linearidade. O cosseno ignora a escala, mas a média por cluster pesa mais os clientes de maior norma. Medido em MNIST real: cosseno com `∇ℓ` de 0.96 com `obep=10` e de 0.50 com `obep=20`, lote 50 (config do README). A separação entre rotações continua boa nos dois casos, e a partição final foi a mesma. |
+| **Representação `Ψ`** | `Normalize(∇ℓ(ψ; D))`: **um gradiente** no modelo âncora, sem treino | `dataset_representation` ([trainer.py:21](StoCFL/trainer.py#L21)) | **Segue o artigo.** O código original usava `ψ_i = anchor − θ` depois de `obep` épocas de SGD, sem normalizar: em MNIST real, cosseno com `∇ℓ` de 0.96 com `obep=10` e de 0.50 com `obep=20`, lote 50. A partição final em Rotated MNIST foi a mesma. |
 | Centro do cluster | Eq. 2: média de `Ψ` sobre **todos os membros** do cluster (o Alg. 1, linha 9, escreve soma, o que dá o mesmo cosseno) | `cluster_center`: média dos `ψ` de todos os membros | **Segue o artigo.** O código original usava só os membros sorteados na rodada. Em Rotated MNIST real, a partição foi idêntica nas duas formas (2 seeds), porque as rotações se separam com folga (fim da seção 8). |
 | Limiar | Fusão com `M_ij > τ` | `result[key] >= self.tau` | Diferença irrelevante na prática. |
 | Ordem e regra das fusões | Não especificada | Pares em ordem decrescente de cosseno; para no primeiro abaixo de `τ`. A matriz é calculada **uma vez** por rodada. | Equivale a *single linkage* com corte em `τ`, com transitividade: `A~B` e `B~C` juntam `A,B,C` mesmo com `cos(A,C) < τ`. |
@@ -923,12 +920,12 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 
 ### 4.17 Reproduzindo os experimentos do artigo com este repositório
 
-Os parâmetros abaixo são os do artigo; os comandos são **aproximados**, porque o artigo não informa `obep`, `obbs` nem vários hiperparâmetros do FEMNIST.
+Os parâmetros abaixo são os do artigo; os comandos são **aproximados**, porque o artigo não informa vários hiperparâmetros do FEMNIST.
 
 | Experimento | Parâmetros do artigo | Comando aproximado | Cuidados |
 |---|---|---|---|
 | Rotated MNIST (Tab. 1) | `N ∈ {4800, 2400, 1200}`, 100 rodadas, 5 épocas, batch cheio, lr 0.1, τ 0.5, λ 0.05, 10% ou 100% | `python StoCFL-FCC+CFL.py --n 4800 --com_round 100 --num_per_round 480 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset mnist --process 1` | **Omita `--batch_size`** (= `None` = batch cheio). Memória: `psi` guarda um vetor de ~1,63 M parâmetros (6,5 MB) por cliente, então 4800 clientes ocupam **~31 GB**, e o script ainda grava `psi.pkl` inteiro a cada rodada. Para `N = 1200`, ~7,8 GB. `--process 1` gera `N` arquivos `.pkl`. |
-| Rotated CIFAR (Tab. 1) | `N = 200`, 200 rodadas, 5 épocas, batch 50, lr 0.1, τ 0.5, λ 0.05 | `python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset cifar --process 1 --obep 20 --obbs 50` | O README usa τ = 0.65, e o artigo, 0.5. Use `--num_per_round 200` para 100% de amostragem. |
+| Rotated CIFAR (Tab. 1) | `N = 200`, 200 rodadas, 5 épocas, batch 50, lr 0.1, τ 0.5, λ 0.05 | `python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size 50 --lr 0.1 --epochs 5 --mu 0.05 --tau 0.5 --seed 0 --dataset cifar --process 1` | O README usa τ = 0.65, e o artigo, 0.5. Use `--num_per_round 200` para 100% de amostragem. |
 | Qualidade da clusterização (5.1) | 400 clientes (Hybrid: 200), 50 rodadas, τ 0.5, 10% por rodada, `--train 0` | `python StoCFL-FCC.py --setting shifted --k 4 --com_round 50 --num_per_round 40 --tau 0.5 --process 1` | Em `lskewed`, use também `--process 0` (4.12 #3). Hybrid (`fskewed`): `--num_per_round 20`. O artigo avalia por t-SNE e curva de nº de clusters; o repo só grava `cluster_rec_*.log` e `exp_*_logs.pkl`, sem t-SNE nem ARI/NMI. |
 | Shifted `N = 20` (Tab. 2) | 20 clientes, todos participam | **Não reproduzível sem editar o código** | `ShiftedMNISTTrainer` tem `client_num = 400` fixo. Há resquícios do cenário de 20 clientes: `int(client_id/5)  # 20clients` em `get_test_dataloader` ([trainer.py:184](StoCFL/trainer.py#L184)), e 80% de 60000/5 dá os 9600 da Tabela 2. Falta o particionador de Shifted CIFAR. |
 | FEMNIST (Tab. 3) | 3.597 clientes, 100 rodadas, 5% por rodada, τ 0.55 ou 0.60 | `python StoCFL-FEMNIST.py --com_round 100 --client_num 3597 --num_per_round 180 --tau 0.55 --train 1 --seed 0 --batch_size <B> --lr <lr> --epochs <E> --mu <λ>` | O artigo não informa lr, épocas, batch nem λ do FEMNIST. Precisa dos pickles LEAF (`leaf/gen_pickle_dataset.sh femnist`). A linha "Global Model" do log está errada (4.12 #5). |
@@ -944,7 +941,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Aspecto | CFL | StoCFL |
 |---|---|---|
 | Direção | **Divisivo**: 1 cluster que se bipartiu | **Aglomerativo**: N clusters que se fundem |
-| Sinal de similaridade | `ΔW` da rodada atual, a partir do modelo do cluster (muda a cada rodada) | `Ψ` calculado **uma vez** a partir de uma âncora fixa: gradiente normalizado no artigo; `ψ = anchor − θ` após `obep` épocas no código |
+| Sinal de similaridade | `ΔW` da rodada atual, a partir do modelo do cluster (muda a cada rodada) | `Ψ`, o gradiente normalizado calculado **uma vez** em uma âncora fixa |
 | Participação | Assume **todos** os clientes em toda rodada | **Parcial** (`num_per_round`); ψ de rodadas diferentes são comparáveis |
 | Quando agrupa | Só depois que o FL converge (`mean_norm < EPS_1`, `max_norm > EPS_2`, `γ_max`) | Desde a 1ª rodada (independe do treino; dá para rodar com `--train 0`) |
 | Nº de clusters controlado por | `EPS_1`, `EPS_2` (normas absolutas, sensíveis a lr etc.) | `τ` (cosseno, invariante à escala) |
@@ -964,7 +961,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 ## 6. Orientações para agentes de IA e mantenedores
 
 **Antes de mudar algo:**
-- O `StandaloneServer` está **triplicado** (FCC, FCC+CFL, FEMNIST) e os métodos `ob_train`/`_train_alone`/`train_alone_prox` estão **repetidos em 5 Trainers**. Toda mudança de algoritmo precisa ser aplicada em todas as cópias, ou o código deve ser refatorado primeiro.
+- O `StandaloneServer` está **triplicado** (FCC, FCC+CFL, FEMNIST) e os métodos `_train_alone`/`train_alone_prox` estão **repetidos em 5 Trainers**. Toda mudança de algoritmo precisa ser aplicada em todas as cópias, ou o código deve ser refatorado primeiro.
 - No CFL, os pesos (`client.W`) são **referências vivas** aos `Parameter`s do modelo, e `copy()` altera o modelo in-place.
 - No StoCFL, modelos são vetores 1-D. Use `SerializationTool` para ir e voltar de `nn.Module`.
 - Preserve os invariantes de 4.5, especialmente "id do cluster = menor id de cliente membro".
@@ -982,7 +979,6 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Novo cenário de dados (StoCFL) | Criar um Partitioner (`pre_process`, `get_dataset`, `get_data_loader`) em `datasets.py` e um Trainer com a interface de 4.6; registrar em `__main__`. |
 | Novo cenário no CFL | Célula 5 (transformações por cliente) e/ou `split_noniid`. |
 | Medir a qualidade da clusterização | Comparar `cluster.pkl` / `exp_*_logs.pkl` com o ground truth de 4.6 (ex.: ARI/NMI do sklearn); hoje isso não é calculado. |
-| Tornar o `ψ` do StoCFL igual ao do artigo | `--obep 1` e `--obbs` omitido: com SGD sem momentum, `ψ = η·∇ℓ(âncora; D)`. Opcionalmente normalizar `ψ` (4.16). |
 | Implementar clientes novos no StoCFL | Calcular o `ψ` do cliente novo, comparar com os centros e aplicar a regra `≥ τ` ou criar cluster (4.15.4). |
 
 **Checklist para rodar o StoCFL sem surpresas:** passar `--n --com_round --num_per_round --seed` (sem default; `--batch_size` e `--obbs` podem ser omitidos e valem batch cheio); usar `--process 1` só na primeira vez.
@@ -997,8 +993,8 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 |---|---|
 | Rodada (*communication round*) | Ciclo servidor → clientes treinam → servidor agrega. |
 | `ΔW` / `dW` | Atualização de pesos de um cliente em uma rodada (CFL). |
-| Âncora (`anchor`) | Modelo inicial fixo a partir do qual o StoCFL mede o "movimento" de cada cliente. |
-| ψ (`psi`) | No código: `anchor − θ_após_treino_local`, a representação de um cliente no StoCFL. No artigo, a representação é `Ψ(D) = Normalize(∇ℓ(ψ; D))` e `ψ` (sem índice) é a **âncora**. |
+| Âncora (`anchor`) | Modelo inicial fixo em que o StoCFL calcula o gradiente de cada cliente. |
+| ψ (`psi`) | No código, `psi[cid]` é a representação de um cliente, o `Ψ(D_i)` do artigo. No artigo, `ψ` (sem índice) é a **âncora**, e no código ela se chama `anchor`. |
 | τ (`tau`) | Limiar de similaridade de cosseno para fusão (StoCFL). |
 | μ (`mu`, λ no artigo) | Peso do termo proximal entre o modelo do cluster e o global. |
 | `EPS_1`, `EPS_2` | Limiares de norma do critério de divisão do CFL. |

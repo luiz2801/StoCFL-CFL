@@ -21,7 +21,7 @@ flowchart TD
     Ini(("Início")):::node0
 
     %% ---------- Preparação ----------
-    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obep, obbs, tau, train, seed, dataset) e chamar setup_seed"]:::sc
+    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obbs, tau, train, seed, dataset) e chamar setup_seed"]:::sc
     D0{"process == 1?"}:::ctl
     P3["pre_process: rotacionar o dataset e gravar n partições<br/>(MNIST: 0°, 90°, 180°, 270° · CIFAR-10: 0°, 180°)"]:::sc
     P4["Escolher modelo e trainer<br/>mnist: k=4, SimpleLinear · cifar: k=2, CNN_CIFAR10<br/>RotatedMNISTTrainer(model, args)"]:::sc
@@ -32,8 +32,8 @@ flowchart TD
     S1["Sortear num_per_round clientes (ordenados)"]:::sv
 
     subgraph RO["para cada sorteado que ainda não tem psi"]
-        OB1["ob_train: treinar obep épocas a partir do anchor<br/>(SGD, lote obbs) e medir o movimento: anchor − modelo treinado"]:::cl
-        OB2["psi[cid] = movimento<br/>(calculado uma única vez por cliente)"]:::sv
+        OB1["dataset_representation: gradiente da perda no anchor,<br/>em todo o dataset, sem treinar, e normalizado"]:::cl
+        OB2["psi[cid] = gradiente normalizado<br/>(calculado uma única vez por cliente)"]:::sv
     end
 
     K1["sampled_cluster = clusters atuais dos clientes sorteados"]:::sv
@@ -117,7 +117,7 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 ## Como o fluxo funciona
 
 - **Agrupamento só por união.** Todo cliente começa num cluster próprio (`find_cluster_content[i] = [i]`). `unite` junta clusters e nada no código os divide de volta, então uma união errada não é desfeita.
-- **Movimento medido uma vez.** `psi[cid]` é calculado na primeira vez que o cliente é sorteado, treinando a partir do `anchor` (o modelo inicial), e nunca é refeito. O centro de um cluster é a média dos `psi` de todos os seus membros, e um cluster sorteado nunca tem membro sem `psi`.
+- **Representação calculada uma vez.** `psi[cid]` é calculado na primeira vez que o cliente é sorteado, como o gradiente normalizado da perda no `anchor` (o modelo inicial), sem treinar, e nunca é refeito. O centro de um cluster é a média dos `psi` de todos os seus membros, e um cluster sorteado nunca tem membro sem `psi`.
 - **Uniões em ordem de cosseno.** A matriz de cossenos é calculada uma vez por rodada. Os pares são percorridos do maior cosseno ao menor, e o primeiro par abaixo de `tau` encerra a rodada de uniões. Os cossenos não são recalculados depois de cada união.
 - **Dois modelos por cliente.** No treino, cada cliente sorteado atualiza o modelo do seu cluster, com um termo proximal que o mantém perto de `gmodel`, e treina também o modelo global. O servidor faz a média de cada um.
 - **Modelo global por FedAvg.** Em `RotatedMNISTTrainer.train`, cada cliente do segundo laço parte do mesmo `gmodel` da rodada, e o servidor faz a média dos modelos resultantes.

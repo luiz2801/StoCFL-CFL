@@ -197,7 +197,6 @@ if __name__ == "__main__":
     parser.add_argument("--mu", type=float, default=0.05)
 
     # cluster
-    parser.add_argument("--obep", type=int, default=10)
     parser.add_argument("--obbs", type=int, default=None)
 
     parser.add_argument("--tau", type=float, default=0.3)

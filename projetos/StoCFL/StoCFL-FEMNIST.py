@@ -202,7 +202,6 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int)
 
     # cluster
-    parser.add_argument("--obep", type=int, default=10)
     parser.add_argument("--obbs", type=int, default=None)
     parser.add_argument("--tau", type=float)
     parser.add_argument("--train", type=int, default=0) # set this to 0, only clustering no learning.

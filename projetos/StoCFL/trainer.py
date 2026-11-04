@@ -18,6 +18,19 @@ from leaf.dataloader import get_LEAF_dataloader, get_LEAF_all_test_dataloader
 from leaf.pickle_dataset import PickleDataset
 from datasets import RotatedCIFAR10Partitioner, RotatedMNIST, BaseDataset, ShiftedMNISTPartitioner, HybridMNISTPartitioner
 
+def dataset_representation(trainer, anchor, train_loader):
+    # Psi(D) = Normalize(grad l(anchor; D)) of the paper: one gradient on the whole dataset, no training step
+    criterion = torch.nn.CrossEntropyLoss(reduction="sum")
+    SerializationTool.deserialize_model(trainer._model, anchor)
+    trainer._model.eval()
+    trainer._model.zero_grad()
+    for data, label in train_loader:
+        if trainer.cuda:
+            data, label = data.cuda(trainer.gpu), label.cuda(trainer.gpu)
+        criterion(trainer._model(data), label).backward()
+    grad = SerializationTool.serialize_model_gradients(trainer._model)
+    return grad / grad.norm()
+
 class FEMNISTTrainer(SerialTrainer):
     def __init__(self, model, args, cuda=True, logger=None):
         super().__init__(model, None, cuda, logger)
@@ -40,25 +53,9 @@ class FEMNISTTrainer(SerialTrainer):
         movements = []
         for id in id_list:
             train_loader = self._get_dataloader(id, self.args.obbs)
-            move = self.ob_train(anchor, train_loader)
+            move = dataset_representation(self, anchor, train_loader)
             movements.append(move)
         return movements
-
-    def ob_train(self, model_parameters, train_loader):
-        criterion = torch.nn.CrossEntropyLoss()
-        SerializationTool.deserialize_model(self._model, model_parameters)
-        self._model.train()
-        for ep in range(self.args.obep):
-            for data, label in train_loader:
-                if self.cuda:
-                    data, label = data.cuda(self.gpu), label.cuda(self.gpu)
-
-                preds = self._model(data)
-                loss = criterion(preds,label)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-        return model_parameters - self.model_parameters
 
     def train(self, id_list, cluster_models, gmodel):
         updated_cmodels = []
@@ -144,25 +141,9 @@ class ShiftedMNISTTrainer(SerialTrainer):
         movements = []
         for id in id_list:
             train_loader, _ = self._get_dataloader(id)
-            move = self.ob_train(anchor, train_loader)
+            move = dataset_representation(self, anchor, train_loader)
             movements.append(move)
         return movements
-
-    def ob_train(self, model_parameters, train_loader):
-        criterion = torch.nn.CrossEntropyLoss()
-        SerializationTool.deserialize_model(self._model, model_parameters)
-        self._model.train()
-        for ep in range(1):
-            for data, label in train_loader:
-                if self.cuda:
-                    data, label = data.cuda(self.gpu), label.cuda(self.gpu)
-
-                preds = self._model(data)
-                loss = criterion(preds,label)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-        return model_parameters - self.model_parameters
 
     def train(self, id_list, cluster_models, gmodel):
         updated_cmodels = []
@@ -277,24 +258,9 @@ class RotatedMNISTTrainer(SerialTrainer):
         movements = []
         for id in id_list:
             train_loader = self.dataset.get_data_loader(id, self.args.obbs)
-            move = self.ob_train(anchor, train_loader)
+            move = dataset_representation(self, anchor, train_loader)
             movements.append(move)
         return movements
-
-    def ob_train(self, model_parameters, train_loader):
-        criterion = torch.nn.CrossEntropyLoss()
-        SerializationTool.deserialize_model(self._model, model_parameters)
-        self._model.train()
-        for ep in range(self.args.obep):
-            for data, label in train_loader:
-                if self.cuda:
-                    data, label = data.cuda(self.gpu), label.cuda(self.gpu)
-                preds = self._model(data)
-                loss = criterion(preds,label)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-        return model_parameters - self.model_parameters
 
     def get_test_dataloader(self, cid):
         data_loader = self.dataset.get_data_loader(cid, batch_size=4096, type="test")
@@ -362,24 +328,9 @@ class LabelSkewMNISTTrainer(SerialTrainer):
         movements = []
         for id in id_list:
             train_loader = self._get_dataloader(id)
-            move = self.ob_train(anchor, train_loader)
+            move = dataset_representation(self, anchor, train_loader)
             movements.append(move)
         return movements
-
-    def ob_train(self, model_parameters, train_loader):
-        criterion = torch.nn.CrossEntropyLoss()
-        SerializationTool.deserialize_model(self._model, model_parameters)
-        self._model.train()
-        for ep in range(1):
-            for data, label in train_loader:
-                if self.cuda:
-                    data, label = data.cuda(self.gpu), label.cuda(self.gpu)
-                preds = self._model(data)
-                loss = criterion(preds,label)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-        return model_parameters - self.model_parameters
 
     def train(self, id_list, cluster_models, gmodel):
         updated_cmodels = []
@@ -467,25 +418,9 @@ class FeatureSkewHybridMNISTTrainer(SerialTrainer):
         movements = []
         for id in id_list:
             train_loader = self.dataset.get_data_loader(id)
-            move = self.ob_train(anchor, train_loader)
+            move = dataset_representation(self, anchor, train_loader)
             movements.append(move)
         return movements
-
-    def ob_train(self, model_parameters, train_loader):
-        criterion = torch.nn.CrossEntropyLoss()
-        SerializationTool.deserialize_model(self._model, model_parameters)
-        self._model.train()
-        for ep in range(5):
-            for data, label in train_loader:
-                if self.cuda:
-                    data, label = data.cuda(self.gpu), label.cuda(self.gpu)
-
-                preds = self._model(data)
-                loss = criterion(preds,label)
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-        return model_parameters - self.model_parameters
 
     def get_test_dataloader(self, cid):
         data_loader = self.dataset.get_data_loader(cid, batch_size=4096, type="test")
