@@ -157,3 +157,24 @@ Para cada decisão, a entrada segue este modelo:
   - Incluir `git push` automático: descartada, não há remote e o usuário não pediu. Enviar o código para fora é uma ação que deve ser pedida.
   - Commits separados para documentação e para código: descartada, deixaria commits intermediários com código e documentação divergentes, o que a política 2 proíbe.
 
+## D-011: Plano modular do ISODATA-FL, com o CFL como split e o StoCFL como merge
+
+- **Data:** 2026-11-04
+- **Decidido por:** usuário, quanto à direção ("utilizar o ISODATA como base", "o CFL irá separar os clientes e o StoCFL irá agrupá-los caso seja necessário", "não rodarão todo round", "crie um diretório novo [...] modular"). Claude, por serem escolhas triviais e reversíveis (política 4): o local do diretório, a divisão dos arquivos e o código da simulação dentro de um Markdown.
+- **Situação:** vigente. **Esta decisão não aprova as recomendações do plano:** elas continuam pendentes em [11-decisoes-pendentes.md](implementar/plano-isodata-fl/11-decisoes-pendentes.md).
+- **Contexto:** a proposta anterior (D-003) deixava em aberto o papel de cada algoritmo. O usuário definiu os papéis e sugeriu que o CFL atue só em rodadas primas a partir da 7, para que um não desfaça o trabalho do outro, e pediu um plano passo a passo com problemas, soluções, alternativas e justificativas.
+- **Decisão:**
+  - Criar `docs/implementar/plano-isodata-fl/`, com um arquivo por módulo, cada um correspondendo a uma parte do código futuro.
+  - Tratar "CFL em rodadas primas a partir da 7" como **hipótese** do usuário ("acho que"), e não como decisão: é o ponto de partida do plano e é comparada com outros calendários no experimento E6.
+  - Testar o raciocínio em uma simulação de brinquedo, rodada fora do repositório, com o código e os resultados no anexo A. O resultado principal contraria a hipótese: o calendário reduz a oscilação, mas não a elimina, e o plano propõe guardas para isso.
+  - Acrescentar notas de "proposta mais recente" na especificação, nos diagramas e na arquitetura, sem reescrevê-los.
+  - Nenhum código foi criado em `projetos/` (D-005 continua valendo).
+- **Alternativas consideradas:**
+  - Um único documento: descartada pelo pedido de modularidade e pelo motivo de D-003.
+  - Reescrever a especificação, os diagramas e a arquitetura: descartada, porque são propostas e ainda não há decisão. As notas evitam a contradição sem apagar o raciocínio anterior.
+  - Diretório na raiz ou em `projetos/`: descartada pela D-004, e `projetos/` é para código, que ainda não existe.
+  - Simulação em um `.py` no repositório: descartada, porque o usuário pediu Markdown e a D-005 mantém o repositório sem código novo. Fica no anexo, e vira teste na Fase 1, se aprovada.
+  - Escrever o plano só com argumentos, sem simular: descartada, porque a simulação derrubou várias expectativas iniciais (vantagem dos primos sobre o período fixo, efeito do número de testes, candidatos a métrica de merge).
+  - Perguntar cada ponto antes de escrever: descartada, porque o pedido é justamente o levantamento das alternativas. As escolhas de algoritmo ficam como recomendações pendentes.
+- **Consequência:** a próxima etapa é o usuário resolver as decisões pendentes. As três que bloqueiam a Fase 1 são DP-14, DP-16 e DP-18, e a de maior efeito no algoritmo é a DP-01 (quem age primeiro).
+

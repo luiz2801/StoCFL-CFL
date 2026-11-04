@@ -3,6 +3,8 @@
 Este documento define o design arquitetural para implementação do framework **ISODATA-FL**, garantindo desacoplamento entre as regras do algoritmo de clusterização e os motores de treinamento federado existentes.
 
 > **Status: proposta, nada implementado.** Os nomes de classes e métodos abaixo são ilustrativos. Antes de implementar, resolva os problemas em aberto da [especificação](especificacao-isodata-fl.md) (seção 5) e as decisões listadas na seção 5 deste documento.
+>
+> **Proposta mais recente:** o [plano modular](plano-isodata-fl/README.md) substitui, depois de aprovado, as duas integrações (`PureTorchISODATAServer` e `FedLabISODATAServer`) por um laço único ([módulo 8](plano-isodata-fl/08-arquitetura-do-codigo.md)) e o roteiro de 4 fases por um de 11 ([módulo 10](plano-isodata-fl/10-roteiro.md)).
 
 ---
 

@@ -3,6 +3,8 @@
 Este documento apresenta os diagramas que descrevem o fluxo operacional e o protocolo de comunicação entre Servidor e Clientes para a execução do algoritmo híbrido **ISODATA-FL**.
 
 > **Status: proposta, nada implementado.** Os diagramas seguem a [especificação](especificacao-isodata-fl.md) e herdam seus problemas em aberto (seção 5 dela), em especial a métrica do merge, o papel de $K_{\text{alvo}}$ e a participação parcial. Os diagramas devem ser revisados quando esses pontos forem decididos. Os diagramas do código existente estão em [`projetos/ISODATA-python/`](../../projetos/ISODATA-python/).
+>
+> **Diagramas mais recentes:** [plano modular, módulo 12](plano-isodata-fl/12-diagramas.md). Eles trocam a paridade por um calendário, acrescentam a verificação no merge e fazem o split **antes** da agregação, como o CFL do notebook. Os diagramas abaixo agregam antes de decidir o split, o que diverge do CFL.
 
 ---
 

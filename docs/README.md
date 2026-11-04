@@ -10,7 +10,7 @@ Material de referência do repositório: os artigos dos dois algoritmos de apren
 | [Clustered_Federated_Learning_Model-Agnostic_Distributed_Multitask_Optimization_Under_Privacy_Constraints.pdf](Clustered_Federated_Learning_Model-Agnostic_Distributed_Multitask_Optimization_Under_Privacy_Constraints.pdf) | Artigo do CFL: Sattler, Müller e Samek, IEEE TNNLS, 2021 (arXiv:1910.01991). |
 | [guia.md](guia.md) | Guia técnico do CFL e do StoCFL: o que cada função faz, fluxo de execução, variáveis, bugs conhecidos, como rodar e mapa entre artigo e código. |
 | [../isodata.pdf](../isodata.pdf) | Artigo do ISODATA: Ball & Hall, *ISODATA, A Novel Method of Data Analysis and Pattern Classification*, 1965. Está na raiz do repositório, fora de `docs/`. |
-| [implementar/](implementar/README.md) | Diretório de planejamento com os documentos de crítica, guia técnico do ISODATA (código existente), e as propostas ainda não implementadas de especificação, diagramas e arquitetura do ISODATA-FL. |
+| [implementar/](implementar/README.md) | Diretório de planejamento com os documentos de crítica, guia técnico do ISODATA (código existente), e as propostas ainda não implementadas de especificação, diagramas e arquitetura do ISODATA-FL. O [plano modular](implementar/plano-isodata-fl/README.md) é a proposta mais recente. |
 | [decisoes.md](decisoes.md) | Registro das decisões tomadas sobre o repositório, com as alternativas consideradas e o motivo de cada escolha. |
 
 ## Por onde começar

@@ -3,6 +3,8 @@
 Este diretório reúne os documentos de diagnóstico crítico da documentação e das políticas do repositório, bem como as especificações conceituais, matemáticas e arquiteturais para guiar agentes e desenvolvedores na futura aplicação do **ISODATA** sobre os frameworks **CFL** e **StoCFL**.
 
 > **Status (2026-11-04): fase de planejamento. Nada do ISODATA-FL foi implementado.** O [guia técnico do ISODATA](guia-tecnico-isodata.md) descreve código existente e foi verificado contra ele e contra o artigo. Os demais documentos são propostas com problemas em aberto, listados na seção 5 da [especificação](especificacao-isodata-fl.md) e na seção 5 da [arquitetura](arquitetura-componentes-isodata-fl.md).
+>
+> **Proposta mais recente:** o [plano modular](plano-isodata-fl/README.md) (CFL como split, StoCFL como merge e calendário por rodadas) encaminha esses problemas, com recomendações ainda não aprovadas. Comece por ele.
 
 ---
 
@@ -15,4 +17,5 @@ Este diretório reúne os documentos de diagnóstico crítico da documentação 
 | [especificacao-isodata-fl.md](especificacao-isodata-fl.md) | Especificação técnica e formulação matemática para transpor o ISODATA ao Aprendizado Federado (CFL + StoCFL). |
 | [diagramas-isodata-fl.md](diagramas-isodata-fl.md) | Diagramas Mermaid de atividades e de sequência da rodada federada com dinâmica adaptativa de Split e Merge. |
 | [arquitetura-componentes-isodata-fl.md](arquitetura-componentes-isodata-fl.md) | Design de classes, desacoplamento de software e roteiro de implementação modular em 4 fases. |
+| [plano-isodata-fl/](plano-isodata-fl/README.md) | Plano passo a passo com CFL como split e StoCFL como merge: calendário, estabilidade, problemas, soluções, alternativas, experimentos e decisões pendentes. Um arquivo por módulo. |
 

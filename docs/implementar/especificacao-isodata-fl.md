@@ -2,6 +2,8 @@
 
 Este documento especifica a formulação conceitual, matemática e algorítmica para transpor a dinâmica de agrupamento adaptativo do **ISODATA** para o contexto de **Aprendizado Federado Clusterizado (*Clustered Federated Learning*)**, unificando as vantagens do **CFL** (Sattler et al.) e do **StoCFL** (Zeng et al.).
 
+> **Proposta mais recente:** o [plano modular](plano-isodata-fl/README.md) detalha esta ideia e encaminha os problemas da seção 5 ([mapa](plano-isodata-fl/11-decisoes-pendentes.md)). Onde divergirem, vale o plano, depois de aprovado. O plano recomenda, em particular, não usar o "ou $\sigma_{\theta,k} > TS_{FL}$" da seção 3.2 nem a direção média de $\Delta W$ citada no problema 1, e não sustenta a afirmação da seção 1 de que o método se adapta a *drifts*, porque $\psi$ é imutável.
+
 ---
 
 ## 1. Motivação Teórica e Limitações Atuais
