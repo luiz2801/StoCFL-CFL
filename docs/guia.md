@@ -55,7 +55,7 @@ cfl_stocfl/
 
 | Projeto | Linguagem/stack | Como roda | Framework FL |
 |---|---|---|---|
-| CFL | PyTorch puro + scikit-learn | Notebook Jupyter | implementação própria (`fl_devices.py`) |
+| CFL | PyTorch puro | Notebook Jupyter | implementação própria (`fl_devices.py`) |
 | StoCFL | PyTorch + **FedLab 1.2.1** | Scripts Python via CLI (`argparse`) | `fedlab` (serialização, agregação, classes base) |
 
 Os dois são simulações em uma única máquina: não há rede, e "clientes" e "servidor" são objetos no mesmo processo.
@@ -89,7 +89,7 @@ O CFL é **divisivo (top-down)**:
 3. Para cada cluster, o servidor mede:
    - `mean_norm = ‖ média_i ΔW_i ‖`: se é pequeno, o modelo do cluster chegou perto de um ponto estacionário do objetivo **conjunto**;
    - `max_norm = max_i ‖ΔW_i‖`: se é grande, algum cliente ainda está longe do **seu próprio** ótimo.
-4. **Critério de divisão:** se `mean_norm < EPS_1` **e** `max_norm > EPS_2` (mais as condições `|cluster| > 2` e `rodada > 20`), os clientes do cluster têm distribuições incongruentes. O cluster é **bipartido** com clusterização aglomerativa (*complete linkage*) sobre a matriz de similaridade de cosseno entre os `ΔW_i`. O artigo propõe um algoritmo de bipartição equivalente a *single linkage*; veja a diferença em 3.10.
+4. **Critério de divisão:** se `mean_norm < EPS_1` **e** `max_norm > EPS_2` (mais as condições `|cluster| > 2` e `rodada > 20`), os clientes do cluster têm distribuições incongruentes. O cluster é **bipartido** com o Algoritmo 1 do artigo, equivalente a *single linkage*, sobre a matriz de similaridade de cosseno entre os `ΔW_i`.
 5. Cada cluster continua o FedAvg separadamente. Clusters **só se dividem**, nunca se fundem.
 6. Antes de cada divisão, e no fim, o modelo do cluster é guardado em cache. No final, cada cliente pode escolher, entre os modelos guardados, o que dá maior acurácia na sua validação.
 
@@ -117,7 +117,7 @@ Intuição: o FedAvg converge para um ponto que é ótimo "em média". Se ali a 
 | `Server.select_clients` | [fl_devices.py:123](clustered-federated-learning/fl_devices.py#L123) | Amostra `frac` dos clientes (o notebook usa `frac=1.0`). |
 | `Server.aggregate_weight_updates` | [fl_devices.py:126](clustered-federated-learning/fl_devices.py#L126) | ⚠️ **Quebrado e não usado**: passa `target=` em vez de `targets=`. |
 | `Server.compute_pairwise_similarities` | [fl_devices.py:129](clustered-federated-learning/fl_devices.py#L129) | `pairwise_angles` sobre os `dW` de todos os clientes. |
-| `Server.cluster_clients(S)` | [fl_devices.py:132](clustered-federated-learning/fl_devices.py#L132) | `AgglomerativeClustering(metric="precomputed", linkage="complete")` com distância `−S`, 2 clusters. Retorna `c1, c2` como **posições dentro de S**, e não ids de cliente; o notebook os converte com `idc[c1]` e `idc[c2]`. |
+| `Server.cluster_clients(S)` | [fl_devices.py:131](clustered-federated-learning/fl_devices.py#L131) | Algoritmo 1 do artigo: percorre os pares em ordem decrescente de similaridade e funde os grupos que os contêm até restarem 2. Retorna `c1, c2` como **posições dentro de S**, e não ids de cliente; o notebook os converte com `idc[c1]` e `idc[c2]`. |
 | `Server.aggregate_clusterwise` | [fl_devices.py:139](clustered-federated-learning/fl_devices.py#L139) | Para cada cluster: `W_i += média(dW_j, j ∈ cluster)` em todos os membros. |
 | `Server.compute_max_update_norm` | [fl_devices.py:145](clustered-federated-learning/fl_devices.py#L145) | `max_i ‖dW_i‖`. |
 | `Server.compute_mean_update_norm` | [fl_devices.py:149](clustered-federated-learning/fl_devices.py#L149) | `‖média_i dW_i‖`. |
@@ -172,7 +172,7 @@ for r in 1..COMMUNICATION_ROUNDS:
         mean_norm = ‖mean_{i∈C} dW_i‖
         if mean_norm < EPS_1 and max_norm > EPS_2 and |C| > 2 and r > 20:
             server.cache_model(C, W de C[0], acc_clients da rodada anterior)
-            c1, c2 = Agglomerative(complete, 2)(dist = −S[C][:, C])
+            c1, c2 = Alg1(S[C][:, C])
             novos += [C[c1], C[c2]]                   # c1 e c2 são posições dentro de C
             log split = r
         else:
@@ -227,7 +227,6 @@ ao final: cache_model de cada cluster final
 | aquecimento `c_round > 20` | 20 | célula 9 (fixo no código) | Nenhuma divisão antes da rodada 21. No cenário do notebook não tem efeito: `mean_norm` só fica abaixo de `EPS_1` depois da rodada 20 (resultado idêntico com e sem a condição, em 3 seeds). |
 | `len(idc) > 2` | 2 | célula 9 (fixo no código) | Clusters com ≤ 2 clientes nunca se dividem. |
 | `frac` | 1.0 | célula 9 | ⚠️ Com `frac < 1`, quem não participou mantém o `dW` antigo, mas entra mesmo assim na similaridade e na agregação. O código assume participação total. |
-| `linkage` | `"complete"` | `cluster_clients` | Como a bipartição é feita. O Algoritmo 1 do artigo equivale a `"single"` (minimiza a maior similaridade entre os dois lados); `"complete"` é uma escolha do notebook. Os dois dão o mesmo resultado sempre que o gap de separação `g(α)` é positivo; só divergem quando `g(α) ≤ 0` (3.10). |
 | seeds | 42 | célula 0 | Reprodutibilidade da partição e da inicialização. |
 
 Regra prática: `EPS_1` e `EPS_2` são valores **absolutos de norma** e dependem de lr, momentum, épocas, batch, tamanho dos dados e arquitetura. Para calibrar, rode sem divisões e observe as curvas `mean_norm`/`max_norm` no gráfico da direita. Aplicando a recomendação do artigo (3.9.8): escolha `EPS_1` perto de um décimo do valor máximo que `mean_norm` atingiu, e `EPS_2` entre `EPS_1` e `10·EPS_1`, abaixo do nível em que `max_norm` estaciona. Se `max_norm` cai a zero junto com `mean_norm`, os clientes são congruentes e **não** deve haver divisão.
@@ -247,13 +246,13 @@ Obs.: `mean_norm`/`max_norm` registrados por rodada são os do **último** clust
 2. `Server.aggregate_weight_updates` está quebrado (`target=` em vez de `targets=`, e `server.W` não é lista). Não é usado.
 3. `eval_op` usa `model.train()`; troque por `model.eval()` se usar um modelo com dropout/BN.
 4. **Compatibilidade com versões novas (corrigida em 2026-11-04):** o código usava `AgglomerativeClustering(affinity=...)`, removido no scikit-learn 1.4; `iter(loader).next()`; `data.train_labels`; e um `CustomSubset` sem `__getitems__`, que o torch 2.15 exige. O notebook inteiro foi executado com Python 3.12, torch 2.15 e scikit-learn 1.9.
-5. Não há `requirements.txt`. Dependências: `torch`, `torchvision`, `numpy`, `scikit-learn`, `matplotlib`, `pandas`, `IPython/jupyter`.
+5. Não há `requirements.txt`. Dependências: `torch`, `torchvision`, `numpy`, `matplotlib`, `pandas`, `IPython/jupyter`.
 6. `acc_clients` usado em `cache_model` é o da rodada **anterior**. Funciona porque a primeira divisão só ocorre após a rodada 20.
 
 ### 3.8 Como rodar
 
 ```bash
-pip install torch torchvision numpy scikit-learn matplotlib pandas jupyter
+pip install torch torchvision numpy matplotlib pandas jupyter
 cd clustered-federated-learning
 jupyter notebook clustered_federated_learning.ipynb
 ```
@@ -388,7 +387,7 @@ O notebook é uma implementação do **Algoritmo 5** com simplificações e acr�
 | Elemento | Artigo | Notebook / `fl_devices.py` | Consequência |
 |---|---|---|---|
 | Critério de divisão | `‖Δθ_c‖ < ε1` e `max‖Δθ_i‖ > ε2` e `γ_max < √((1−α_cross^max)/2)` | `mean_norm < EPS_1` e `max_norm > EPS_2` e `len > 2` e `rodada > 20`. **Sem a checagem de `γ_max`.** | Equivale ao Alg. 5 com `γ_max = 0`, valor que o artigo permite (`γ_max ∈ [0, 1)`), mas sem poder configurar. No notebook real, a 1ª divisão saiu correta em 12 de 12 seeds, e 7 seeds fizeram divisões extras dentro de um mesmo grupo. Com `γ_max = 0.75`, escolhido depois de ver os dados, 6 de 7 dessas seeds deixaram de fazê-las, com acurácia parecida. |
-| Algoritmo de bipartição | Alg. 1: ordem decrescente de `α`, fundindo até restarem 2 (≡ *single linkage*; minimiza o maior `α` entre os lados) | `AgglomerativeClustering(linkage="complete")` com distância `−S` ([fl_devices.py:133](clustered-federated-learning/fl_devices.py#L133)) | Se `g(α) > 0`, qualquer linkage acerta (Corolário 1), e os dois dão o mesmo resultado. Em 3000 matrizes sintéticas, não houve nenhuma divergência nas 1609 com `g(α) > 0`. Só divergem com `g(α) ≤ 0` (729 de 1391), e aí o *complete* não resolve a Eq. 33, enquanto o Alg. 1 atinge o ótimo exato (conferido por força bruta). Isso não significa acertar mais os grupos: com `g(α) ≤ 0`, o *complete* acertou 652 de 1391 e o Alg. 1, 447, porque o Alg. 1 isola um único cliente em 709 casos. No notebook real, os dois coincidiram na 1ª divisão em todas as execuções. Grupos alongados, por si só, não causam divergência. Para seguir o artigo, use `linkage="single"`. Detalhes do teste no fim da seção 8. |
+| Algoritmo de bipartição | Alg. 1: ordem decrescente de `α`, fundindo até restarem 2 (≡ *single linkage*; minimiza o maior `α` entre os lados) | `Server.cluster_clients` transcreve o Alg. 1 ([fl_devices.py:131](clustered-federated-learning/fl_devices.py#L131)) | **Segue o artigo.** Atinge o ótimo da Eq. 33 em todas as matrizes testadas. O notebook original usava *complete linkage*. Com `g(α) > 0` os dois dão o mesmo resultado, porque qualquer linkage acerta (Corolário 1). Com `g(α) ≤ 0` eles divergem, e a garantia do artigo não vale: em matrizes sintéticas, o *complete* acertou os grupos verdadeiros mais vezes (652 contra 447 de 1391), porque o Alg. 1 tende a isolar um único cliente. |
 | Agregação | Alg. 2 pondera por `|D_i|/|D_c|`; Alg. 5 usa `1/|c|` | Média uniforme (`reduce_add_average`) | Consistente com o Alg. 5. |
 | Quando divide | Alg. 3: só depois do FL convergir. Alg. 5: checa a cada rodada. | Checa a cada rodada, **mais** um aquecimento de 20 rodadas | O aquecimento não está no artigo e não tem efeito no cenário do notebook (3.5). |
 | Decaimento do lr (×0.99 por rodada) | Não existe | [fl_devices.py:108](clustered-federated-learning/fl_devices.py#L108) | Faz as normas caírem com o tempo e altera o efeito de `EPS_1`/`EPS_2`. Sem ele, a 1ª divisão vem bem mais tarde ou não vem (3.5). |
@@ -947,7 +946,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Participação | Assume **todos** os clientes em toda rodada | **Parcial** (`num_per_round`); ψ de rodadas diferentes são comparáveis |
 | Quando agrupa | Só depois que o FL converge (`mean_norm < EPS_1`, `max_norm > EPS_2`, rodada > 20) | Desde a 1ª rodada (independe do treino; dá para rodar com `--train 0`) |
 | Nº de clusters controlado por | `EPS_1`, `EPS_2` (normas absolutas, sensíveis a lr etc.) | `τ` (cosseno, invariante à escala) |
-| Algoritmo de agrupamento | Bipartição que minimiza a maior similaridade entre os lados (Alg. 1 do artigo, ≡ *single linkage* até restarem 2); o notebook usa *complete linkage* | *Single linkage* com limiar τ entre os clusters amostrados |
+| Algoritmo de agrupamento | Bipartição que minimiza a maior similaridade entre os lados (Alg. 1 do artigo, ≡ *single linkage* até restarem 2) | *Single linkage* com limiar τ entre os clusters amostrados |
 | Erros | Divisões irreversíveis | Fusões irreversíveis |
 | Modelos | 1 por cluster + cache dos modelos ancestrais | 1 por cluster **+ 1 global**, com termo proximal μ (bi-nível) |
 | Escolha final do modelo | O cliente escolhe o melhor modelo do cache | Modelo do seu cluster |
@@ -982,7 +981,6 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Novo cenário de dados (StoCFL) | Criar um Partitioner (`pre_process`, `get_dataset`, `get_data_loader`) em `datasets.py` e um Trainer com a interface de 4.6; registrar em `__main__`. |
 | Novo cenário no CFL | Célula 5 (transformações por cliente) e/ou `split_noniid`. |
 | Medir a qualidade da clusterização | Comparar `cluster.pkl` / `exp_*_logs.pkl` com o ground truth de 4.6 (ex.: ARI/NMI do sklearn); hoje isso não é calculado. |
-| Seguir o Algoritmo 1 do artigo no CFL | Trocar para `linkage="single"` em `Server.cluster_clients` ([fl_devices.py:133](clustered-federated-learning/fl_devices.py#L133)). |
 | Adicionar a checagem de `γ_max` do Alg. 5 | Depois de `cluster_clients`, calcular `α_cross^max` (maior `S` entre `c1` e `c2`) e dividir só se `γ_max < sqrt((1 − α_cross^max)/2)` (3.9.2). |
 | Tornar o `ψ` do StoCFL igual ao do artigo | `--obep 1` e `--obbs` omitido: com SGD sem momentum, `ψ = η·∇ℓ(âncora; D)`. Opcionalmente normalizar `ψ` (4.16). |
 | Implementar clientes novos no StoCFL | Calcular o `ψ` do cliente novo, comparar com os centros e aplicar a regra `≥ τ` ou criar cluster (4.15.4). |

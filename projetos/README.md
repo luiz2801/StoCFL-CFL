@@ -4,7 +4,7 @@ Os três subprojetos do repositório. Cada um tem a sua própria pasta, e o READ
 
 | Subprojeto | Tema | Linguagem e stack | Origem |
 |---|---|---|---|
-| [clustered-federated-learning](clustered-federated-learning/) | CFL: clusterização divisiva de clientes em FL | Python, PyTorch, scikit-learn, Jupyter | Felix Sattler et al. |
+| [clustered-federated-learning](clustered-federated-learning/) | CFL: clusterização divisiva de clientes em FL | Python, PyTorch, Jupyter | Felix Sattler et al. |
 | [StoCFL](StoCFL/) | StoCFL: clusterização estocástica e aglomerativa de clientes, com participação parcial | Python, PyTorch, FedLab 1.2.1 | Dun Zeng et al. |
 | [ISODATA-python](ISODATA-python/) | ISODATA: classificação de pixels de imagens por linha de comando | Python, Pillow, NumPy, matplotlib | Lucka |
 

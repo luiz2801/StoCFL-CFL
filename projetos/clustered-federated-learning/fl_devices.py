@@ -2,7 +2,6 @@ import random
 import torch
 from torch.utils.data import DataLoader
 import numpy as np
-from sklearn.cluster import AgglomerativeClustering
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -130,10 +129,17 @@ class Server(FederatedTrainingDevice):
         return pairwise_angles([client.dW for client in clients])
   
     def cluster_clients(self, S):
-        clustering = AgglomerativeClustering(metric="precomputed", linkage="complete").fit(-S)
+        # Algorithm 1 of the paper: merge along the most similar pairs until two clusters remain
+        M = len(S)
+        clusters = [{i} for i in range(M)]
+        for s in np.argsort(-S, axis=None, kind="stable"):
+            i1, i2 = int(s) // M, int(s) % M
+            c_tmp = [c for c in clusters if i1 in c or i2 in c]
+            clusters = [c for c in clusters if c not in c_tmp] + [set().union(*c_tmp)]
+            if len(clusters) == 2:
+                break
 
-        c1 = np.argwhere(clustering.labels_ == 0).flatten() 
-        c2 = np.argwhere(clustering.labels_ == 1).flatten() 
+        c1, c2 = [np.array(sorted(c)) for c in clusters]
         return c1, c2
     
     def aggregate_clusterwise(self, client_clusters):

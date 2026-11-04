@@ -24,7 +24,7 @@ cfl_stocfl/
 
 | Projeto | Algoritmo | Como executar | Situação |
 |---|---|---|---|
-| [clustered-federated-learning](projetos/clustered-federated-learning/) | CFL, divisivo, com `scikit-learn` | Notebook `clustered_federated_learning.ipynb` | Funciona com correções (ver guia, seção 3.7) |
+| [clustered-federated-learning](projetos/clustered-federated-learning/) | CFL, divisivo, com PyTorch | Notebook `clustered_federated_learning.ipynb` | Funciona com correções (ver guia, seção 3.7) |
 | [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | Os três scripts rodam; `StoCFL-FCC.py` só com `--train 0` (ver guia, seção 4.12) |
 | [ISODATA-python](projetos/ISODATA-python/) | ISODATA para imagens comuns (RGB ou cinza) | `python main.py --input ... --output ...` | Funcional, mas muito lento |
 
