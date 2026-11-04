@@ -73,7 +73,7 @@ class StandaloneServer(ModelMaintainer):
                 # clustered optimization
                 for id in cid_this_round:
                     if self.find_client_cluster[id] not in self.cluster_parameters.keys():
-                        self.cluster_parameters[self.find_client_cluster[id]] = deepcopy(self.gmodel)
+                        self.cluster_parameters[self.find_client_cluster[id]] = deepcopy(self.anchor)
                 cluster_models = [self.cluster_parameters[self.find_client_cluster[i]] for i in cid_this_round]
                 updated_cmodels, gmodels = self.client_trainer.train(cid_this_round, cluster_models, self.gmodel)
 

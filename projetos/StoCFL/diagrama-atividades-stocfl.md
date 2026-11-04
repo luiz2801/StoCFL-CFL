@@ -52,7 +52,7 @@ flowchart TD
     Dtrain{"train == 1?"}:::ctl
 
     %% ---------- Treino em dois níveis ----------
-    T1["clusters sorteados sem modelo recebem uma cópia de gmodel"]:::sv
+    T1["clusters sorteados sem modelo recebem uma cópia de anchor (ω₀)"]:::sv
     T2["cluster_models = modelo do cluster de cada cliente sorteado"]:::sv
 
     subgraph RL1["para cada cliente sorteado (modelo do cluster)"]

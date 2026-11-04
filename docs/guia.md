@@ -436,7 +436,7 @@ Ao longo das rodadas, clusters de clientes com a mesma distribuição vão se ju
   `loss = CE + (μ/2)·‖w − gmodel‖²` (termo proximal estilo FedProx, puxando o modelo do cluster para o global; μ é o λ do artigo).
 - **Modelo global:** treina o `gmodel` com CE pura, com todos os clientes partindo do mesmo `gmodel` da rodada (FedAvg, como no artigo).
 - Servidor: `gmodel ← média dos globais treinados`; `modelo[k] ← média dos modelos treinados pelos membros sorteados do cluster k`.
-- Cluster sem modelo ainda (recém-criado ou herdado) recebe uma cópia do `gmodel` atual.
+- Cluster sem modelo ainda recebe uma cópia de `ω₀` (`anchor`), como na inicialização do artigo (`ω₀ = θ₁ = ⋯ = θ_N`). A cópia é feita só quando o cluster é sorteado, para não ocupar memória com `N` modelos.
 
 ### 4.2 Pontos de entrada
 
@@ -904,7 +904,7 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 | Centro do cluster | Eq. 2: média de `Ψ` sobre **todos os membros** do cluster (o Alg. 1, linha 9, escreve soma, o que dá o mesmo cosseno) | `cluster_center`: média dos `ψ` de todos os membros | **Segue o artigo.** O código original usava só os membros sorteados na rodada. Em Rotated MNIST real, a partição foi idêntica nas duas formas (2 seeds), porque as rotações se separam com folga (fim da seção 8). |
 | Limiar | Fusão com `M_ij > τ` | `result[key] >= self.tau` | Diferença irrelevante na prática. |
 | Ordem e regra das fusões | Não especificada | Pares em ordem decrescente de cosseno; para no primeiro abaixo de `τ`. A matriz é calculada **uma vez** por rodada. | Equivale a *single linkage* com corte em `τ`, com transitividade: `A~B` e `B~C` juntam `A,B,C` mesmo com `cos(A,C) < τ`. |
-| Fusão de modelos | "O servidor funde os modelos" (sem regra) | `unite`: se `\|C_i\| < \|C_j\|` e `j` tem modelo, `i` herda o de `j`; senão `i` mantém o seu (pode não ter nenhum, e então é recriado a partir do `gmodel`). `i` é o menor id. | O modelo do cluster maior tende a vencer, mas não sempre: se `j` não tem modelo ainda, `i` mantém o seu mesmo sendo menor. |
+| Fusão de modelos | "O servidor funde os modelos" (sem regra) | `unite`: se `\|C_i\| < \|C_j\|` e `j` tem modelo, `i` herda o de `j`; senão `i` mantém o seu (pode não ter nenhum, e então volta a `ω₀`). `i` é o menor id. | O modelo do cluster maior tende a vencer, mas não sempre: se `j` não tem modelo ainda, `i` mantém o seu mesmo sendo menor. |
 | Passos locais | Alg. 1: um passo; texto: vários | `args.epochs` épocas completas | Mais deriva do cliente com `epochs` alto. |
 | Termo proximal | `λ·(θ − ω)` no gradiente | `loss = CE + 0.5·mu·Σ‖w − w0‖²` com `w0 = gmodel` do início da rodada | Idêntico, com `mu = λ`. |
 | Modelo global `G` | FedAvg: todos partem de `ω_t`, e o servidor faz a média | `_train_alone` a partir do mesmo `gmodel` para cada cliente + `fedavg_aggregate`, média uniforme | **Segue o texto do artigo**, mas não as tabelas: o código encadeado original é o que chega perto dos números publicados (4.12 #12). |
@@ -914,7 +914,7 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 | Métrica | Acurácia média dos modelos de cluster nos testes dos respectivos clusters, e do modelo global em todos os testes | Cada cluster sorteado é testado no grupo do **primeiro membro**; resultado em `accuracy.pkl` (FCC+CFL) | Sem agregação por sementes e sem ARI/NMI. |
 | Modelo CIFAR | "Duas camadas conv + duas FC" | `CNN_CIFAR10`: duas conv + **três** FC (120→84→10) | Diferença pequena na arquitetura. |
 | Modelo FEMNIST | Duas conv, max pooling, duas FC, inicialização Xavier e dropout 0.5 **entre as camadas convolucionais e as FC** | `CNN_FEMNIST` ([models/cnn.py:13](StoCFL/models/cnn.py#L13)): dropout **0.25** logo após a convolução e **0.5** entre as duas FC; Xavier | Diferença pequena na posição e no valor do dropout. |
-| Inicialização dos modelos de cluster | `ω₀ = θ₁ = ⋯ = θ_N`: todos os modelos de cluster começam em `ω₀` | `cluster_parameters` começa vazio. Um cluster sem modelo recebe `deepcopy(self.gmodel)` **atual** na primeira vez que um membro é sorteado ([StoCFL-FCC+CFL.py:90-91](StoCFL/StoCFL-FCC+CFL.py#L90-L91)) | Na rodada 0 coincide com `ω₀`. Depois, um cluster que aparece tarde parte do `ω_t` já treinado, e não da inicialização aleatória. Efeito desprezível em Rotated MNIST real (até 0.0001), porque clientes novos se fundem aos grupos antes de treinar. |
+| Inicialização dos modelos de cluster | `ω₀ = θ₁ = ⋯ = θ_N`: todos os modelos de cluster começam em `ω₀` | `cluster_parameters` começa vazio, e um cluster sem modelo recebe `deepcopy(self.anchor)` na primeira vez que um membro é sorteado ([StoCFL-FCC+CFL.py:88](StoCFL/StoCFL-FCC+CFL.py#L88)) | **Segue o artigo**, com a cópia feita sob demanda. O código original usava o `gmodel` atual. O efeito foi desprezível em Rotated MNIST real (até 0.0001). |
 | Objetivo da Eq. 2 (Fig. 5) | Curva do nº de clusters e do valor da Eq. 2 por rodada | O código não calcula a Eq. 2. O nº de clusters sai de `cluster.pkl` (FCC+CFL) ou de `exp_*_logs.pkl` (FCC) | A Fig. 5 não é reproduzível só com os logs existentes. |
 | Sementes | 5 sementes | Um comentário em [StoCFL-FCC+CFL.py:224](StoCFL/StoCFL-FCC+CFL.py#L224) lista `[0, 42, 1998, 4421380, 789190]` | Provável conjunto usado nos experimentos. |
 

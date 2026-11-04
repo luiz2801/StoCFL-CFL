@@ -59,7 +59,7 @@ sequenceDiagram
 
         opt train == 1
             Note over S,T: Treino em dois níveis
-            S->>S: clusters sem modelo recebem deepcopy(gmodel)
+            S->>S: clusters sem modelo recebem deepcopy(anchor)
             S->>T: train(cid_this_round, cluster_models, gmodel)
             loop para cada cliente sorteado
                 T->>D: get_data_loader(cid, batch_size)
