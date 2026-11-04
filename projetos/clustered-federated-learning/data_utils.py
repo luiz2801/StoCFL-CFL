@@ -34,5 +34,8 @@ class CustomSubset(Subset):
         
         if self.subset_transform:
             x = self.subset_transform(x)
-      
-        return x, y   
+
+        return x, y
+
+    def __getitems__(self, idcs):
+        return [self[idx] for idx in idcs]

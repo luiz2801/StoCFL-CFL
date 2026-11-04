@@ -117,7 +117,7 @@ Intuição: o FedAvg converge para um ponto que é ótimo "em média". Se ali a 
 | `Server.select_clients` | [fl_devices.py:123](clustered-federated-learning/fl_devices.py#L123) | Amostra `frac` dos clientes (o notebook usa `frac=1.0`). |
 | `Server.aggregate_weight_updates` | [fl_devices.py:126](clustered-federated-learning/fl_devices.py#L126) | ⚠️ **Quebrado e não usado**: passa `target=` em vez de `targets=`. |
 | `Server.compute_pairwise_similarities` | [fl_devices.py:129](clustered-federated-learning/fl_devices.py#L129) | `pairwise_angles` sobre os `dW` de todos os clientes. |
-| `Server.cluster_clients(S)` | [fl_devices.py:132](clustered-federated-learning/fl_devices.py#L132) | `AgglomerativeClustering(affinity="precomputed", linkage="complete")` com distância `−S`, 2 clusters. Retorna `c1, c2` como **posições dentro de S** (não ids de cliente; ver bug em 3.7). |
+| `Server.cluster_clients(S)` | [fl_devices.py:132](clustered-federated-learning/fl_devices.py#L132) | `AgglomerativeClustering(metric="precomputed", linkage="complete")` com distância `−S`, 2 clusters. Retorna `c1, c2` como **posições dentro de S** (não ids de cliente; ver bug em 3.7). |
 | `Server.aggregate_clusterwise` | [fl_devices.py:139](clustered-federated-learning/fl_devices.py#L139) | Para cada cluster: `W_i += média(dW_j, j ∈ cluster)` em todos os membros. |
 | `Server.compute_max_update_norm` | [fl_devices.py:145](clustered-federated-learning/fl_devices.py#L145) | `max_i ‖dW_i‖`. |
 | `Server.compute_mean_update_norm` | [fl_devices.py:149](clustered-federated-learning/fl_devices.py#L149) | `‖média_i dW_i‖`. |
@@ -246,11 +246,7 @@ Obs.: `mean_norm`/`max_norm` registrados por rodada são os do **último** clust
 1. **Bug de índices na 2ª divisão em diante (importante).** `cluster_clients` recebe a submatriz `S[idc][:, idc]` e devolve **posições** dentro de `idc`, mas o notebook faz `cluster_indices_new += [c1, c2]` como se fossem ids de cliente. Na 1ª divisão `idc = [0..N-1]` e funciona por coincidência. Ao dividir um subcluster (ex. `[5..9]`) os ids saem errados: clientes duplicados ou faltando. **Correção:** `cluster_indices_new += [idc[c1], idc[c2]]`. Confirmado em 2026-11-04 executando o `cluster_clients` real: com 10 clientes em três grupos (`{0,1,2}`, `{3–6}`, `{7–9}`), a 2ª divisão de `[3..9]` gerou `[[0,1,2], [4,5,6], [0,1,2,3]]`, sem os clientes 7, 8 e 9 e com 0, 1 e 2 duplicados. O bug afeta o cenário do próprio notebook: em 12 seeds com EMNIST real, 7 fizeram mais de uma divisão e 4 terminaram com partição inválida. Na seed 7 a partição foi `[[0,1,3], [2,4], [0,1,2,3,4]]`, com os clientes 5 a 9 fora de todos os clusters. A acurácia final dessas 4 seeds ficou entre 0.61 e 0.72, e a correção a levou a 0.72–0.76. A seed 42, a do notebook, faz uma só divisão, e por isso a saída salva não mostra o problema. A recursão do Algoritmo 3 do artigo (até K−1 divisões) também não funciona.
 2. `Server.aggregate_weight_updates` está quebrado (`target=` em vez de `targets=`, e `server.W` não é lista). Não é usado.
 3. `eval_op` usa `model.train()`; troque por `model.eval()` se usar um modelo com dropout/BN.
-4. **Compatibilidade com versões novas:**
-   - scikit-learn ≥ 1.4: `AgglomerativeClustering(affinity=...)` foi removido; use `metric="precomputed"`. Confirmado em 2026-11-04: `TypeError` no 1.9.1; o 1.3.2 funciona, com `FutureWarning`.
-   - Python 3: `iter(loader).next()` (célula 7) → `next(iter(loader))`.
-   - torchvision: `data.train_labels` → `data.targets`.
-   - torch 2.15: `CustomSubset` falha com `NotImplementedError`, porque subclasses de `Subset` que sobrescrevem `__getitem__` agora precisam definir `__getitems__`.
+4. **Compatibilidade com versões novas (corrigida em 2026-11-04):** o código usava `AgglomerativeClustering(affinity=...)`, removido no scikit-learn 1.4; `iter(loader).next()`; `data.train_labels`; e um `CustomSubset` sem `__getitems__`, que o torch 2.15 exige. O notebook inteiro foi executado com Python 3.12, torch 2.15 e scikit-learn 1.9.
 5. Não há `requirements.txt`. Dependências: `torch`, `torchvision`, `numpy`, `scikit-learn`, `matplotlib`, `pandas`, `IPython/jupyter`.
 6. `acc_clients` usado em `cache_model` é o da rodada **anterior**. Funciona porque a primeira divisão só ocorre após a rodada 20.
 
@@ -259,7 +255,7 @@ Obs.: `mean_norm`/`max_norm` registrados por rodada são os do **último** clust
 ```bash
 pip install torch torchvision numpy scikit-learn matplotlib pandas jupyter
 cd clustered-federated-learning
-jupyter notebook clustered_federated_learning.ipynb   # aplicar as correções do item 3.7.4 se necessário
+jupyter notebook clustered_federated_learning.ipynb
 ```
 
 O EMNIST é baixado em `./EMNIST` (`root="."`).
@@ -999,7 +995,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 
 **Checklist para rodar o StoCFL sem surpresas:** `mkdir logs`; corrigir o import de `femnist` (FCC/FEMNIST); baixar o MNIST antes do `--process 1` no rotated; passar `--n --com_round --num_per_round --seed` (sem default; `--batch_size` e `--obbs` podem ser omitidos e valem batch cheio); usar `--process 1` só na primeira vez; ajustar `torch.load` se torch ≥ 2.6.
 
-**Checklist para o CFL:** corrigir `idc[c1], idc[c2]` (bug 3.7 #1); ajustar `affinity → metric`, `.next()` e `train_labels`; manter `frac=1.0`.
+**Checklist para o CFL:** corrigir `idc[c1], idc[c2]` (bug 3.7 #1); manter `frac=1.0`.
 
 ---
 

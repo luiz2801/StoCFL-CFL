@@ -130,7 +130,7 @@ class Server(FederatedTrainingDevice):
         return pairwise_angles([client.dW for client in clients])
   
     def cluster_clients(self, S):
-        clustering = AgglomerativeClustering(affinity="precomputed", linkage="complete").fit(-S)
+        clustering = AgglomerativeClustering(metric="precomputed", linkage="complete").fit(-S)
 
         c1 = np.argwhere(clustering.labels_ == 0).flatten() 
         c2 = np.argwhere(clustering.labels_ == 1).flatten() 
