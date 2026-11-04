@@ -145,3 +145,15 @@ Para cada decisão, a entrada segue este modelo:
   - Criar `projetos/clustered-federated-learning/LICENSE` com um copyright presumido: descartada, seria fabricar o aviso de copyright de Felix Sattler.
   - Usar o nome completo do usuário no `LICENSE`: descartada, o nome não foi informado. O e-mail e o usuário git não bastam para inferi-lo.
 
+## D-010: Política 6, commits atômicos ao concluir cada tarefa
+
+- **Data:** 2026-11-04
+- **Decidido por:** usuário ("adicione a política de sempre fazê-los"). Claude definiu os detalhes da política (limites, formato de mensagem), por serem consequência direta do pedido e reversíveis.
+- **Situação:** vigente
+- **Contexto:** os commits só eram feitos quando o usuário pedia, e o usuário quer que passem a ser parte do fluxo de toda tarefa.
+- **Decisão:** acrescentar a política 6 ao `CLAUDE.md`. Ao concluir uma tarefa, fazer commits atômicos locais, com código e documentação juntos. A autorização cobre apenas commits: `git push`, reescrita de histórico e descarte de alterações continuam exigindo pedido.
+- **Alternativas consideradas:**
+  - Commitar só quando o usuário pedir (comportamento anterior): descartada, é o que o usuário quis mudar.
+  - Incluir `git push` automático: descartada, não há remote e o usuário não pediu. Enviar o código para fora é uma ação que deve ser pedida.
+  - Commits separados para documentação e para código: descartada, deixaria commits intermediários com código e documentação divergentes, o que a política 2 proíbe.
+

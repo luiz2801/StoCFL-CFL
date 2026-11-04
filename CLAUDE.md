@@ -53,6 +53,17 @@ Toda decisão tomada, seja pelo usuário em resposta a uma pergunta, seja por vo
 
 Não apague decisões antigas. Se uma decisão for revista, registre a nova decisão e marque a anterior como substituída.
 
+### 6. Fazer commits atômicos ao concluir cada tarefa
+
+Ao terminar uma tarefa que alterou arquivos, faça os commits no repositório da raiz sem esperar um pedido separado. Isso vale para código, documentação e configuração.
+
+- **Atômico:** cada commit contém uma única mudança lógica que pode ser entendida e revertida sozinha. Não misture mudanças sem relação, e separe, por exemplo, uma correção de bug, uma nova funcionalidade e uma reorganização de arquivos.
+- **Código e documentação juntos:** a mudança e a atualização da documentação que ela exige (política 2) e o registro em `docs/decisoes.md` (política 5) entram no mesmo commit, para que cada commit deixe o repositório consistente.
+- **Mensagem:** em português, com título curto no imperativo e um corpo que explique o quê e por quê. Termine com a linha de coautoria indicada pelo ambiente.
+- **Antes de commitar:** rode `git status` e `git diff`. Adicione os arquivos por nome, não use `git add -A`, e não commite alterações que você não fez sem antes perguntar ao usuário. Não commite saídas de execução, como o output de células de notebook com erro, nem o `.venv/`.
+- **Limites:** o commit é local. **Não faça `git push`**, não reescreva o histórico (`reset`, `rebase`, `amend`, `push --force`) e não descarte alterações (`checkout`, `restore`, `clean`) sem pedido do usuário.
+- **Relato:** na mensagem final (política 3), liste os commits criados.
+
 ## Estrutura de referência
 
 - `docs/`: artigos (PDF) e o guia técnico `guia.md`.
