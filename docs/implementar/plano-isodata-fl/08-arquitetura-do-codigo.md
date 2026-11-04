@@ -37,7 +37,7 @@ projetos/ISODATA-FL/
 ├── diagrama-sequencia-isodata-fl.md
 ├── isodata_fl/
 │   ├── nucleo.py          # esqueleto genérico do ISODATA         (doc 01)
-│   ├── calendario.py      # primos, interprimos, paridade, etc.   (doc 02)
+│   ├── calendario.py      # primos, pares, paradas, paridade etc. (doc 02)
 │   ├── similaridade.py    # cosseno, normas, agrupar()            (docs 03, 04)
 │   ├── split_cfl.py       # operador de split                     (doc 03)
 │   ├── merge_stocfl.py    # operador de merge                     (doc 04)
@@ -86,6 +86,7 @@ A ordem funciona nos dois casos. No adaptador de pixels, `coletar` já faz class
 
 | Por quê | Detalhe |
 |---|---|
+| **Já foi testado** | Um protótipo com 22 linhas de esqueleto e 84 de adaptador reproduziu `ISODATAKit.py` **pixel a pixel em 300 de 300 execuções**, em cinza e RGB, cobrindo split (160), merge (155) e descarte (102). Código no [anexo A](anexo-a-simulacao.md) |
 | **Teste determinístico sem GPU** | Com a mesma semente em `random.sample`, o adaptador tem que produzir **a mesma imagem** que `doISODATAGray` e `doISODATARGB` em imagens pequenas |
 | **"ISODATA como base" vira uma propriedade testável** | Se o esqueleto reproduz o ISODATA original, é mesmo o ISODATA, e não só inspiração |
 | **Calendário original como plugin** | `calendario_isodata(K)` implementa a linha 116 e serve de baseline |
@@ -130,11 +131,11 @@ Os subprojetos não são importáveis como biblioteca, então o caminho é porta
 | `StoCFL-FCC+CFL.py` | O nome tem `-` e `+`, e o `StandaloneServer` está triplicado (guia 6) | A lógica de `bucket` e de centros por cluster |
 | `trainer.py` | Importa `leaf`, que exige `spacy` (guia 4.11) | `ob_train`, adaptado |
 | `datasets.py` | Depende de `fedlab` e relê do disco a cada chamada (guia 4.7) | A receita dos particionadores, com os dados em memória |
-| `clustered_federated_learning.ipynb` | É notebook | A receita do cenário (célula 5) e do laço (célula 9) |
-| `fl_devices.py` | Importável, mas com pesos vivos e bugs conhecidos | Fórmulas das normas |
+| `clustered_federated_learning.ipynb` | É notebook | Só a ideia do cenário e do laço, reescritos a partir do artigo (DP-17) |
+| `fl_devices.py` | Importável, mas com pesos vivos e bugs conhecidos | Nada: as fórmulas das normas estão no artigo (DP-17) |
 | `ISODATAKit.py` | Não precisa portar | Os testes o usam como oráculo |
 
-> **Pendência de licença (DP-17).** Portar código do CFL exige o aviso de copyright dos autores, e o arquivo `LICENSE` original **não está no repositório** (D-009 em [decisoes.md](../../decisoes.md)). Antes da Fase 4 é preciso obter o texto ou reescrever as fórmulas a partir do artigo, sem copiar código. Os demais subprojetos têm `LICENSE` e o aviso deve ser mantido nos trechos portados. A seção "Créditos" do [README](../../../README.md) precisa ser atualizada quando o subprojeto existir.
+> **Pendência de licença (DP-17).** O repositório original do CFL **não declara licença nenhuma**: não tem arquivo `LICENSE`, o README dele não menciona licença e o GitHub não reconhece nenhuma (verificado em 2026-11-04). A informação "MIT" da D-009 ainda precisa de uma fonte. Por isso, a recomendação é não copiar código de `fl_devices.py` e reescrever as fórmulas a partir do artigo, o que quase não custa nada neste plano. Os demais subprojetos têm `LICENSE`, e o aviso deve ser mantido nos trechos portados. A seção "Créditos" do [README](../../../README.md) precisa ser atualizada quando o subprojeto existir.
 
 ## 8.7 Testes
 
@@ -165,7 +166,7 @@ Hoje o repositório não tem testes automatizados.
 |---|---|---|---|
 | P-COD-1 | **Os testes de redução precisam dos originais rodando, em ambientes incompatíveis.** O StoCFL pede Python 3.8–3.10 e `fedlab==1.2.1`; o notebook do CFL precisa das correções de compatibilidade; o `.venv` da raiz não serve para nenhum dos dois | Um ambiente descartável para cada original, usado **só para gerar saídas de referência uma vez**. Partições e métricas ficam salvas em JSON, e os testes comparam com esse arquivo | O teste do dia a dia não pode depender de um ambiente de 2022. Guia 3.7, 4.11 e seção 6 |
 | P-COD-2 | Os subprojetos não são importáveis | Portar trechos curtos (8.6) | Nome de arquivo com `+`, notebook, importações com efeitos colaterais |
-| P-COD-3 | Falta o aviso de copyright do CFL | DP-17 (8.6) | D-009 |
+| P-COD-3 | O CFL original não declara licença | Reescrever a partir do artigo, sem copiar, e confirmar a origem do "MIT" (DP-17) | 8.6 |
 | P-COD-4 | O repositório não tem testes | Criar a suíte de 8.7 desde a Fase 1 | Sem isso, "reproduz o CFL" fica só na palavra |
 | P-COD-5 | Determinismo na GPU não é total | Registrar a semente e a configuração, e comparar partições e tolerâncias, não pesos bit a bit | Partição é o que importa nos testes de redução |
 | P-COD-6 | Se os experimentos forem longos, uma falha perde o trabalho | Salvar o estado a cada `n` rodadas, se a Fase 3 mostrar que é necessário | Não vale pagar antes de medir o custo |

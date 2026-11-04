@@ -30,7 +30,7 @@ Os primos dividem por 4,5 o número de oscilações, mas **quase todo split aind
 | **O1** | **Merge desfaz split correto** | `ψ` diz "juntar" e não muda | Cenário B: 24 de 25 splits desfeitos |
 | **O2** | **Split desfaz merge** | A média ponderada é quase o ponto estacionário da união. Logo depois do merge, `mean_norm ≈ 0` e `max_norm` é alto, então o critério do CFL dispara na próxima janela. **Não há atraso natural** | Cenário B: 24 splits em clusters recém-fundidos |
 | **O3** | **Laço falso** | O CFL divide um grupo homogêneo por ruído, o merge corrige, e o CFL divide de novo | Cenário C: 45 splits e 42 merges |
-| **O4** | **Janelas coladas** | Com primos gêmeos, o merge cai 1 rodada depois do split (11 e 12, 17 e 18...). Os filhos quase não treinaram | Mesmo calendário, 13 pares gêmeos até a rodada 200 |
+| **O4** | **Janelas coladas** | O merge pode cair 1 rodada depois do split (sempre, se o merge for nas pares). Os filhos quase não treinaram, e o teste tem pouco a medir | Com ruído na validação e sem espera, o ARI em B cai para 0,10 |
 | **O5** | **Empate real** | Subgrupos genuínos: o split é legítimo, e o merge também é aceitável pela tolerância | Pior caso: 45 splits e 42 merges |
 
 O1 e O3 são erros em lados opostos: em O1 o merge está errado, em O3 o split. **Nenhuma guarda em um único lado resolve os dois.**
@@ -58,7 +58,7 @@ Como ler:
 - **Persistência em C** tem ARI 1,00 por sorte: foram 48,8 operações, e só parou na partição certa porque a última foi um merge.
 - **`γ_max` e ganho de fusão são complementares:** um protege contra o erro do split, e o outro, contra o erro do merge.
 
-**Com a pilha, o calendário deixa de importar para a partição.** Em todos os seis calendários do cenário B, o ARI é 1,00, com 3 splits e 0 merges. A diferença entre eles passa a ser só de custo e atraso ([calendário](02-calendario.md)).
+**Com a pilha bem calibrada, o calendário deixa de importar para a partição.** Em todos os seis calendários do cenário B, o ARI é 1,00, com 3 splits e 0 merges. A diferença entre eles passa a ser de custo e atraso ([calendário](02-calendario.md)). A exceção é um `γ_max` mal calibrado: aí, parar os splits antes do fim leva o ARI de 0,94 para 1,00 ([02](02-calendario.md), 2.8).
 
 ## 5.4 A pilha proposta
 
@@ -70,8 +70,10 @@ Cada operador precisa **provar o que afirma**, usando evidência que muda com o 
 | Persistência `p = 3` | Split | Falso split no cruzamento de `ε1` | 2 rodadas de atraso | Falso split de 0,93 para 0,01 | Manter |
 | `γ_max` | Split | **O3** | Nenhum, usa a mesma `S` | ARI em C de 0,77 para 1,00 | Manter e calibrar |
 | Ganho de fusão | Merge | **O1** e, por consequência, **O2** | 1 download por cliente testado | ARI em B de 0,33 para 1,00 | Manter |
-| Espera crescente | Ambos | **O5** e o custo de testes repetidos | Atrasa correções legítimas | Pior caso de 45 para 7 splits; testes de 122,7 para 20,9 | Manter |
-| `W_merge` | Merge | **O4** | Atrasa correções | **Nenhum ganho no toy**, pois a perda não tem ruído | Manter como hipótese, E4 decide |
+| Espera crescente | Ambos | **O4**, **O5**, retestes e ruído da validação | Atrasa correções legítimas | Pior caso de 45 para 7 splits; testes de 122,7 para 20,2; com ruído, ARI em B de 0,10 para 0,88 | Manter |
+| Parada do split em 70% | Split | Loteria sobre qual operador agiu por último | Um split necessário e tardio se perde | Com `γ_max` errado, ARI de 0,94 para 1,00 | Manter |
+
+**Testado e descartado: `W_merge`, uma idade mínima para qualquer cluster antes do merge.** A primeira versão deste plano o recomendava. No toy, ele derruba o ARI de 0,94 para 0,12 quando o merge é necessário, porque bloqueia também os clusters que acabaram de se fundir, e não traz benefício no cenário B. O único caso em que uma espera importa, o dos irmãos recém-separados, a espera crescente já cobre ([DP-09](11-decisoes-pendentes.md#dp-09-quanto-esperar-depois-de-cada-operação)).
 
 ### Limite para a oscilação
 
@@ -90,7 +92,7 @@ Quando os operadores discordam:
 1. **Prova vence filtro.** `ψ` nunca decide sozinho contra um split aprovado.
 2. **Evidência nova vence evidência velha.** O ganho de fusão é medido nos modelos atuais; `ψ` é da rodada em que foi observado.
 3. **Empate mantém o que está.** Se os dois lados têm prova, a partição atual fica até a espera vencer.
-4. **O CFL não tem preferência automática.** Ele tem um teorema, mas com hipóteses (guia 3.9.2), e o `ε2` errado produz splits falsos. O merge precisa poder corrigi-lo. No toy, com `γ_max` mal calibrado em 0,68, só o split dá ARI 0,04. Com merge verificado e espera, dá 0,94. **É onde o StoCFL tem função de verdade no híbrido.** Com `γ_max` bem calibrado, ele quase não age ([01](01-conceito-e-mapeamento.md), P-CON-5).
+4. **O CFL não tem preferência automática.** Ele tem um teorema, mas com hipóteses (guia 3.9.2), e o `ε2` errado produz splits falsos. O merge precisa poder corrigi-lo. No toy, com `γ_max` mal calibrado em 0,68, só o split dá ARI 0,04. Com merge verificado e espera, dá 0,94, e com a parada do split, 1,00. **É onde o StoCFL tem função de verdade no híbrido.** Com `γ_max` bem calibrado, ele quase não age ([01](01-conceito-e-mapeamento.md), P-CON-5).
 
 ## 5.6 Problemas e soluções
 
@@ -99,7 +101,7 @@ Quando os operadores discordam:
 | P-EST-1 | O1: merge por `ψ` desfaz split correto | Ganho de fusão | 5.3 |
 | P-EST-2 | O2: split logo depois do merge, sem atraso natural | Resolvido na origem: merges errados não acontecem. Espera para separar, para os casos restantes | No toy, com o ganho, nenhum merge errado acontece |
 | P-EST-3 | O3: laço falso | `γ_max` e persistência | 5.3 |
-| P-EST-4 | O4: janelas coladas em primos gêmeos | `W_merge`, por cluster, em vez de confiar no calendário | A idade é o que importa, não a posição no calendário |
+| P-EST-4 | O4: janelas coladas | Espera depois do split, por par de clientes, em vez de confiar no calendário | O que importa é o tempo desde o split daquele par. Uma idade mínima por cluster é prejudicial (5.4) |
 | P-EST-5 | O5: empate real | Espera crescente, nos dois sentidos | Oscilação limitada (5.4) |
 | P-EST-6 | Guardas atrasam correções legítimas | Medir. No toy, cenário C com `γ_max` mal calibrado: ARI 0,79 sem espera e 0,94 com ela. Aqui a espera até ajudou, porque reduziu a oscilação | Trocas a ver em E3 |
 | P-EST-7 | Oscilação pode passar despercebida | Métricas "M desfaz S" e "S desfaz M" em toda execução, e alarme se passar do limite de 5.4 | ARI final esconde a oscilação (linha da persistência em 5.3) |
@@ -109,11 +111,11 @@ Quando os operadores discordam:
 | Alternativa | Sugestão | Justificativa |
 |---|---|---|
 | **Só o calendário** (hipótese inicial) | **Descartar** como proteção única | 5.1. Fica como organizador das janelas |
-| **Só idade mínima** | **Descartar** | Só adia: ARI 0,68 em B |
+| **Idade mínima** (`W_merge`) | **Descartar** | Sozinha, só adia (ARI 0,68 em B). Junto com as outras guardas, atrapalha (ARI 0,12 quando o merge é necessário) |
 | **Tabu permanente** | **Descartar** | Ótimo em B, desastroso em C (ARI 0,04). Torna os erros do CFL irreversíveis, o defeito que a especificação aponta no StoCFL |
 | **Tabu com prazo** | **Descartar** | Reagenda a oscilação: ARI 0,53 em B e 0,15 em C |
 | **Histerese em `τ`** (limiares diferentes para unir e separar) | **Descartar** | `ψ` é fixo e o split não usa `ψ`. Não há o que separar com dois limiares |
-| **Fases: primeiro só split, depois só merge** | **Testar** em E6 | Impede **O2** por construção, e é simples. **O1** continua, então o ganho de fusão ainda é necessário. Perde a capacidade de reagir mais tarde |
+| **Fases: primeiro só split, depois só merge** | **Testar** em E6 | Impede **O2** por construção, e é simples. No toy dá ARI 1,00, como a parada do split, que é uma versão mais flexível dela. **O1** continua, então o ganho de fusão ainda é necessário |
 | **CFL calibra `τ`:** subir `τ` para acima do cosseno de um split aprovado | **Adiar** | Atacaria a falta de regra para `τ` (guia 4.15.7) e pouparia testes. Risco: um split falso sobe `τ` para todos. Reconsiderar depois de E4 |
 | **Objetivo único `J`:** perda + custo por cluster, aceitando só operações que reduzem `J` | **Adiar** | É a garantia mais limpa, pois `J` estritamente decrescente impede ciclos. Mas o split só pode ser avaliado depois de treinar os filhos, o que exige o período de teste abaixo, e é preciso escolher o custo por cluster |
 | **Período de teste:** manter o modelo do pai em paralelo por `W` rodadas e reverter se os filhos não melhorarem | **Adiar** | Implementaria a promessa "pelo menos tão bom quanto o FL", que o artigo do CFL faz sem descrever como (guia 3.9.3). Mas dobra o custo durante o teste |

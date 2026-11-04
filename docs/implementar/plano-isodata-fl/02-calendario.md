@@ -8,23 +8,24 @@
 
 **Hipótese do usuário:** o CFL atua só em rodadas primas a partir da 7, para que ele e o StoCFL não desfaçam o trabalho um do outro.
 
-**Proposta completa:** o StoCFL atua nos **interprimos**, o ponto médio entre dois primos consecutivos. O resultado é uma alternância estrita: split, merge, split, merge, com rodadas sem operador entre eles.
+**Proposta completa:** o CFL age nas rodadas primas a partir da 7, **até 70% das rodadas**, e o StoCFL age nas **rodadas pares**. Como todo primo a partir de 3 é ímpar, os dois nunca coincidem, e o resultado é uma versão rarefeita da alternância do ISODATA: split nas ímpares, merge nas pares.
 
 | Operador | Rodadas até 100 |
 |---|---|
 | **S** (CFL) | 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83, 89, 97 |
-| **M** (StoCFL) | 9, 12, 15, 18, 21, 26, 30, 34, 39, 42, 45, 50, 56, 60, 64, 69, 72, 76, 81, 86, 93, 99 |
+| **M** (StoCFL) | Todas as pares a partir da 8 |
 
 ```text
 t:    1-6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31
-       FL  S  .  M  .  S  M  S  .  M  .  S  M  S  .  M  .  S  .  .  M  .  .  S  M  S
+       FL  S  M  .  M  S  M  S  M  .  M  S  M  S  M  .  M  S  M  .  M  .  M  S  M  S
 ```
 
-Três regras acompanham o calendário:
+Quatro regras acompanham o calendário:
 
 1. **O treino roda em toda rodada.** O calendário só governa os operadores.
 2. **Janela é permissão, não ordem.** Em rodada prima, o CFL **avalia** seu critério. Se o critério falhar, nada acontece.
 3. **Monitorar em toda rodada, agir só na janela.** Normas custam nada, porque usam os `ΔW` que o FedAvg já envia.
+4. **O merge tem a última palavra.** Os splits param antes do fim, para que o merge possa limpar os erros (2.8).
 
 ## 2.2 O que a regra dos primos garante
 
@@ -84,29 +85,31 @@ Calculado para `t` até 300.
 | Atrasa pouco | **Sim**, cerca de 6 rodadas, igual a um período fixo de mesma densidade | 2.6 |
 | Dispensa ajuste de parâmetro | **Sim** | Só `t_min` |
 
-**Conclusão:** a regra pode ficar, pelos motivos certos: custo baixo, atraso pequeno e nenhum parâmetro. A proteção contra a oscilação precisa vir das [guardas](05-estabilidade.md). O experimento E6 compara os primos com um período fixo. **Se empatarem, a hipótese H5 é refutada e a escolha passa a ser só de simplicidade.**
+**Conclusão:** a regra pode ficar, pelos motivos certos: custo baixo, atraso pequeno e nenhum parâmetro. A proteção contra a oscilação precisa vir das [guardas](05-estabilidade.md). O experimento E6 compara os primos com um período fixo. **Se empatarem, a hipótese H5 é refutada e a escolha passa a ser só de simplicidade.** O dilema está detalhado em [DP-02](11-decisoes-pendentes.md#dp-02-quando-o-cfl-pode-agir).
 
 ## 2.5 Quando o StoCFL age
 
 A hipótese do usuário não define o calendário do StoCFL. Opções, até `R = 200`:
 
-| Opção | Merges | Distância do split ao merge seguinte (mín/média/máx) | Alternância estrita | Sugestão |
-|---|---|---|---|---|
-| **Interprimos** | 42 | 1 / 2,37 / 7 | **Sim** | **Recomendada** |
-| Não primos | 151 | 1 / 1,00 / 1 | Não | **Descartar:** todo split é seguido por um merge na rodada seguinte |
-| Pares (paridade do ISODATA) | 97 | 1 / 1,00 / 1 | Não | **Testar** em E6: é o mais fiel ao artigo, mas tem o mesmo problema |
-| Múltiplos de 4 | 49 | 1 / 1,93 / 3 | Não | **Descartar:** nenhuma vantagem sobre os interprimos |
-| Múltiplos de 6 | 32 | 1 / 2,95 / 5 | Não | **Descartar:** todo primo a partir de 5 é vizinho de um múltiplo de 6, então metade dos splits tem merge logo depois |
-| Só quando necessário, sem calendário | Variável | Variável | Não | **Testar** em E6 como modo "evento" |
+| Opção | Merges | Distância do split ao merge seguinte (mín/média/máx) | ARI com `γ_max` errado | Rodada correta, cenário E | Sugestão |
+|---|---|---|---|---|---|
+| **Pares** (paridade do ISODATA) | 97 | 1 / 1,00 / 1 | **0,99** | 12 | **Recomendada** |
+| Interprimos (ponto médio entre dois primos) | 42 | 1 / 2,37 / 7 | 0,94 | 15 | **Testar** em E6: alternância exata, mas sem benefício medido |
+| Não primos | 151 | 1 / 1,00 / 1 | 0,97 | 10 | **Descartar:** sem ganho claro sobre as pares |
+| Múltiplos de 4 | 49 | 1 / 1,93 / 3 | — | — | **Descartar:** nada a favor |
+| Múltiplos de 6 | 32 | 1 / 2,95 / 5 | — | — | **Descartar:** nada a favor |
+| Só quando necessário, sem calendário | Variável | Variável | — | — | **Testar** em E6 como modo "evento" |
 
-**Por que interprimos:**
+**Por que pares:**
 
-- A média de dois primos ímpares é inteira, e nunca é prima, porque não há primo entre dois primos consecutivos.
-- Exatamente um merge entre dois splits. É a alternância do ISODATA, sem colisão possível.
-- Máxima distância das duas janelas vizinhas, com a mesma densidade dos primos.
-- Mais frequência não ajudaria: na partida única, um excesso de divisão pode esperar algumas rodadas.
+- **Uma janela de merge quase não custa.** Calcular cossenos é só no servidor, e a espera crescente limita os testes: no cenário B, são 21,0 testes nas pares e 20,2 nos interprimos, com o dobro de janelas.
+- **Mais fiel ao ISODATA:** as iterações pares são as de fusão no artigo.
+- **Mais fácil de explicar:** primas para o CFL, pares para o StoCFL.
+- **Mais janelas corrigem um pouco mais cedo**, como mostra a tabela.
 
-**Limite:** entre primos gêmeos, a distância é 1 (11 e 12, 17 e 18...). O calendário sozinho não dá tempo para os filhos divergirem, e essa é a função de `W_merge`.
+**Mudança de recomendação.** A primeira versão deste plano recomendava os interprimos, porque dão exatamente um merge entre dois splits, à maior distância possível dos dois. É elegante, mas nenhuma métrica medida favoreceu essa escolha.
+
+**Limite:** nas pares, o merge sempre cai 1 rodada depois de um split. Os filhos não terão divergido, mas isso não importa: a espera bloqueia a reunião dos irmãos ([05](05-estabilidade.md)).
 
 ## 2.6 Quanto o calendário atrasa
 
@@ -117,7 +120,7 @@ Cenário A do toy, com a pilha de guardas:
 | Toda rodada | 134 | 44,1 | 0,111 |
 | Paridade | 67 | 45,1 | 0,112 |
 | Período 4 | 34 | 49,5 | 0,118 |
-| Primos + interprimos | 31 | 50,2 | 0,119 |
+| Primos a partir de 7 | 31 | 50,2 | 0,119 |
 
 Os primos chegam à partição correta cerca de 6 rodadas depois de "toda rodada" (14%), com 4,3 vezes menos testes. O atraso é aceitável e vem quase todo de esperar a próxima janela. **O período 4 empata com os primos:** a maior densidade dos primos no início não se traduziu em vantagem.
 
@@ -142,15 +145,27 @@ O `t_min` baixo é seguro **enquanto `ε1` estiver bem calibrado**, porque a jan
 
 O artigo do ISODATA reserva a última iteração: "nenhuma divisão ou fusão é permitida nesta iteração final, que serve principalmente para consolidação". Em FL, as últimas `F` rodadas não têm operadores, porque um split na última rodada deixa os filhos sem treino. Valor inicial: `F = 10`, ajustado à velocidade de convergência observada na Fase 3.
 
+**Parar os splits antes dos merges.** Se os dois operadores agem até o fim, a partição final depende de qual agiu por último. O merge tem uma prova e o split falso não, então o merge deve ter a última palavra: os erros são limpos, e os splits corretos sobrevivem, porque o teste recusa desfazê-los.
+
+| Cenário C com `γ_max` mal calibrado | ARI | Splits e merges | Rodada correta |
+|---|---|---|---|
+| Split até o fim | 0,94 | 13,5 e 12,1 | 130 |
+| Split para em 90% | 0,94 | 13,4 e 12,1 | 130 |
+| **Split para em 70%** | **1,00** | 10,8 e 9,8 | 126 |
+| Split para em 50% | 1,00 | 5,7 e 4,7 | 84 |
+
+Nos cenários A e B, parar não custa nada, porque os splits terminam antes de 50% das rodadas. O risco é um split necessário cair depois do limite, se o treino for lento: com participação de 5%, por exemplo, o ARI cai para 0,74. `R` e a parada precisam ser escolhidos juntos.
+
 ## 2.9 Problemas e soluções
 
 | ID | Problema | Solução proposta | Justificativa |
 |---|---|---|---|
 | P-CAL-1 | O calendário não impede a oscilação | Tratar a oscilação com guardas. O calendário é só o agendador | 2.3 |
-| P-CAL-2 | Primos gêmeos colam as janelas | `W_merge`, por cluster | A idade importa, e não a posição no calendário. Pular o segundo gêmeo (2.10) resolveria só o sintoma |
+| P-CAL-2 | Primos gêmeos e rodadas pares colam as janelas: o merge pode cair 1 rodada depois de um split | Espera crescente, por par de clientes | O que importa é o tempo desde o split daquele par, não a posição no calendário. `W_merge`, por cluster, foi testado e é prejudicial (DP-09) |
 | P-CAL-3 | `mean_norm` só fica abaixo de `ε1` em rodadas não primas, e a janela se perde | Persistência monitorada em toda rodada, avaliada na próxima janela | Monitorar é gratuito. O atraso fica limitado pela lacuna, de no máximo 14 até `R = 200` |
 | P-CAL-4 | Janelas iniciais (7, 11, 13) podem ser cedo demais | `ε1` continua obrigatório, e `t_min` é testado em E6 | A janela só permite. Teorema 1: a separação depende de estar perto do estacionário |
 | P-CAL-5 | Split muito no fim deixa filhos sem treino | `F` rodadas finais sem operadores | Regra do artigo do ISODATA |
+| P-CAL-9 | Um split falso tardio não tem tempo de ser corrigido, e o resultado vira uma loteria sobre qual operador agiu por último | Parar os splits em 70% das rodadas (2.8) | No toy: ARI de 0,94 para 1,00, sem custo nos cenários A e B |
 | P-CAL-6 | Splits em cascata ficam mais lentos com menos janelas | Medir em E6. Se pesar, usar um período menor ou o modo evento | No toy, o atraso é de cerca de 6 rodadas (2.6) |
 | P-CAL-7 | `t` depende da configuração (épocas, lr) | Registrar `t_min` e as épocas juntos, e não comparar entre configurações | 2.7 |
 | P-CAL-8 | Janela de merge sem nada a fazer | Sem custo: sem par acima do filtro, nenhuma mensagem sai | O cálculo de cossenos entre centros é só no servidor |
@@ -163,8 +178,8 @@ O artigo do ISODATA reserva a última iteração: "nenhuma divisão ou fusão é
 | **Paridade** (ISODATA e especificação) | **Testar** em E6 | A mais fiel ao artigo. Metade das rodadas com teste, sem esfriamento, e merge sempre na rodada seguinte a um split |
 | **Período fixo** | **Testar** em E6 | **Concorrente direto.** No toy, empata com os primos na partição e é mais simples de explicar. Exige escolher o período |
 | **Evento, sem calendário** | **Testar** em E6 | Age assim que o critério vale, com guardas por idade. Se as guardas bastam, o calendário pode ser desnecessário. É a alternativa mais simples conceitualmente |
-| **Fases** (primeiro só split, depois só merge) | **Testar** em E6 | Impede split depois de merge. Mas exige escolher o ponto de troca e não reage depois dele |
-| **Primos sem o segundo gêmeo** (lacuna mínima 4) | **Adiar** | Elimina as janelas coladas sem parâmetro novo, mas `W_merge` resolve isso melhor. Reconsiderar se E4 dispensar `W_merge` |
+| **Fases** (primeiro só split, depois só merge) | **Testar** em E6 | ARI 1,00 no toy, como a parada do split. Mas sem merge na primeira metade, um excesso de divisão fica mais tempo, e a partida por `ψ` perde o caminho de cluster pequeno no início |
+| **Primos sem o segundo gêmeo** (lacuna mínima 4) | **Descartar** | Elimina as janelas coladas sem parâmetro novo, mas a espera já resolve o problema real |
 | **Sequências mais ralas:** quadrados, Fibonacci, potências de 2 | **Descartar** | Até `R = 200` dão 12, 7 e 5 janelas, com lacunas de até 27, 55 e 64 rodadas. Atrasariam demais os splits em cascata |
 | **Janelas aleatórias** | **Descartar** | Dificulta comparar execuções e não traz vantagem |
 | **Split e merge na mesma rodada** | **Descartar** | O artigo do ISODATA nunca faz isso, e os dados de uma rodada não sustentam as duas decisões |
@@ -174,7 +189,7 @@ O artigo do ISODATA reserva a última iteração: "nenhuma divisão ou fusão é
 
 - [ ] `acao(t)` devolve as rodadas das tabelas de 2.1.
 - [ ] Nenhuma rodada tem split e merge ao mesmo tempo.
-- [ ] Entre dois splits consecutivos há exatamente um merge, em primos e interprimos.
+- [ ] Os splits param na fração configurada de `R`, e os merges continuam até as últimas `F` rodadas.
 - [ ] Nas últimas `F` rodadas, só há `NADA`.
 - [ ] A interface aceita qualquer calendário da seção 2.10 sem mudar os operadores.
 - [ ] `calendario_isodata(K)` reproduz a linha 116 de `ISODATAKit.py`.

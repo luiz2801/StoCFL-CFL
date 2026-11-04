@@ -178,3 +178,21 @@ Para cada decisão, a entrada segue este modelo:
   - Perguntar cada ponto antes de escrever: descartada, porque o pedido é justamente o levantamento das alternativas. As escolhas de algoritmo ficam como recomendações pendentes.
 - **Consequência:** a próxima etapa é o usuário resolver as decisões pendentes. As três que bloqueiam a Fase 1 são DP-14, DP-16 e DP-18, e a de maior efeito no algoritmo é a DP-01 (quem age primeiro).
 
+## D-012: Detalhar as decisões pendentes e testar cada uma antes de explicá-la
+
+- **Data:** 2026-11-04
+- **Decidido por:** usuário, quanto ao pedido ("detalhe melhor as decisões pendentes, explique o dilema e como as possíveis soluções podem ajudar"). Claude, por serem escolhas triviais e reversíveis (política 4): manter tudo em um único arquivo e ampliar a simulação antes de escrever.
+- **Situação:** vigente. **As decisões pendentes continuam pendentes:** esta entrada registra só como elas são apresentadas e as recomendações que mudaram.
+- **Contexto:** várias recomendações da D-011 eram justificadas só por argumento. Explicar um dilema assim seria repetir uma opinião, então a simulação foi ampliada com testes específicos, incluindo um protótipo do esqueleto, ainda fora de `projetos/`. Os testes mudaram recomendações e derrubaram afirmações do próprio plano.
+- **Decisão:**
+  - Reescrever `11-decisoes-pendentes.md`: para cada decisão, o dilema, como cada opção ajuda, o que custa, o que os testes mostraram, a recomendação e o custo de errar. As decisões foram separadas em "só você pode responder", "escolha de projeto" e "o experimento decide".
+  - Atualizar as recomendações propostas: merge nas rodadas pares, em vez de interprimos; parar os splits em 70% das rodadas; sem `W_merge`; média corrigida em qualquer modo com amostra; comparar censo e amostra, em vez de adiar a amostra; reatribuição seletiva com a partida por `ψ`; reescrever o CFL sem copiar.
+  - Corrigir a afirmação de que o termo proximal invalida os limiares do CFL, que o toy não sustenta.
+  - Atualizar os módulos e os diagramas do plano, para que nenhum contradiga as novas recomendações.
+- **Alternativas consideradas:**
+  - Só detalhar o texto, sem novos testes: descartada, porque os testes mudaram várias recomendações, e o texto teria explicado dilemas com premissas erradas.
+  - Um arquivo por decisão: descartada. Quem decide lê em sequência, e as decisões se referem umas às outras. O índice no topo do arquivo cobre a navegação.
+  - Testar em rede neural real: descartada nesta etapa. Exige ambiente e dados, e é o trabalho das Fases 3 a 5. O próprio plano registra o que o toy não responde.
+  - Criar o protótipo do esqueleto em `projetos/`: descartada pela D-005. O código fica no anexo A.
+- **Consequência:** a recomendação combinada foi testada junta, em todos os cenários do toy. O que ainda precisa de resposta do usuário está na seção 11.1 de [11-decisoes-pendentes.md](implementar/plano-isodata-fl/11-decisoes-pendentes.md).
+

@@ -52,10 +52,12 @@ Cada filho parte do modelo do pai e recebe a média das atualizações **dos seu
 
 **Proposta: fora da v1** (`μ = 0`), por quatro motivos:
 
-1. **Muda o significado de `ΔW`.** Com o termo proximal, o ponto estacionário do cluster não é mais o da sua própria perda, e `mean_norm`/`max_norm` passam a medir também a tração em direção ao global. Os limiares do CFL perdem a interpretação.
-2. **Dobra o custo.** Cada cliente sorteado treina duas vezes por rodada (guia 4.12, item 11).
+1. **Dobra o custo.** Cada cliente sorteado treina duas vezes por rodada (guia 4.12, item 11).
+2. **Prende o modelo entre dois ótimos.** No toy, a perda final sobe de 0,0004 (`μ = 0`) para 0,042 (`μ = 0,5`) e 0,31 (`μ = 10`). O toy mostra só esse custo, porque não modela o benefício de transferir conhecimento.
 3. **Não é necessário na partida única.** O primeiro split guarda o modelo FL no histórico, que é o que o CFL oferece como referência.
 4. **Divergência entre o guia e o código.** O guia dizia que o `gmodel` do código é FedAvg. **Não é:** nos cinco trainers, o segundo laço de `train` reatribui `gmodel` e cada cliente parte do resultado do anterior ([`trainer.py:273`](../../../projetos/StoCFL/trainer.py#L273)), o que é treino sequencial. O [diagrama de atividades do StoCFL](../../../projetos/StoCFL/diagrama-atividades-stocfl.md) já registrava isso. O guia foi corrigido nesta tarefa (4.1, 4.12 e 4.16).
+
+> **Correção.** A primeira versão deste plano dizia que o termo proximal invalida os limiares do CFL. No toy isso não acontece: no ponto estacionário, a tração se cancela com o desvio médio do cluster, os `ΔW` individuais ficam como eram, e o ARI continua em 1,00 para todo `μ`. Em redes reais, ainda é preciso verificar.
 
 **Quando reconsiderar:** no cenário patológico de rótulos, a Tabela 4 do artigo mostra acurácia de 24–38% com `λ ≤ 0,05`, contra 89% com `λ = 10` (guia 4.15.6). Se o híbrido dividir por rótulo, cada cluster perde classes e o modelo global volta a ser necessário. Experimento E7. Nesse caso, a rodada de split pode treinar com `μ = 0`, para que `ΔW` mantenha o significado.
 
@@ -65,9 +67,9 @@ Cada filho parte do modelo do pai e recebe a média das atualizações **dos seu
 |---|---|---|---|
 | Momentum | 0,9, com buffer por cliente que persiste entre rodadas, mesmo depois de `reset()` (guia 3.10) | Nenhum | **Nenhum** na v1. O buffer antigo aponta para o ótimo do cluster anterior e contamina `ΔW` depois de um split ou merge. Além disso, cliente parcial não guarda estado |
 | Decaimento de lr | ×0,99 a cada chamada (`fl_devices.py:108`) | Nenhum | Desligado, e configurável para reproduzir o notebook. O decaimento reduz as normas com o tempo e altera o efeito de `ε1` e `ε2` (guia 3.5) |
-| Peso na agregação | Uniforme | Uniforme | Uniforme na v1. Ponderar por `|D_i|` no FEMNIST, onde os tamanhos diferem (guia 4.12, item 10) |
+| Peso na agregação | Uniforme | Uniforme | Uniforme na v1. Ponderar por `\|D_i\|` no FEMNIST, onde os tamanhos diferem (guia 4.12, item 10) |
 
-Para reproduzir o notebook (Fase 4), os três itens precisam ser configuráveis. Os limiares `ε` calibrados em um modo não valem no outro.
+Para reproduzir o notebook (Fase 4), os três itens precisam ser configuráveis. Os limiares `ε` calibrados em um modo não valem no outro. No toy, com `β = 0,9` e os mesmos `ε`, o ARI cai para 0,61 em um cenário, e uma população homogênea se divide em 11,5 clusters. Zerar os buffers conserta o primeiro caso, e reescalar `ε2` conserta o segundo ([DP-15](11-decisoes-pendentes.md#dp-15-otimizador)).
 
 ## 7.7 Histórico
 
@@ -92,7 +94,7 @@ Cada operação gera um nó com: rodada, tipo, clusters envolvidos, membros, mod
 |---|---|---|---|
 | P-MOD-1 | O split quebra as invariantes do StoCFL | Tabela de 7.2: só a invariante 3 cai | Verificado no código de `unite` |
 | P-MOD-2 | Média de modelos pode cair em barreira de perda | Testar o modelo antes de adotar (ganho de fusão) | O teste mede o modelo que será usado, e não uma aproximação |
-| P-MOD-3 | Termo proximal altera `ΔW` | `μ = 0` na v1 | 7.5 |
+| P-MOD-3 | Termo proximal dobra o treino e prende o modelo entre o ótimo do cluster e o global | `μ = 0` na v1 | 7.5 |
 | P-MOD-4 | Momentum contamina `ΔW` depois de split ou merge | Sem momentum na v1 | Guia 3.10 |
 | P-MOD-5 | Memória: `ψ` e `θ` por cliente | Vetores 1-D em `float32`, um modelo por cluster e `ψ` opcionalmente comprimido | `ψ` de 1,6 M parâmetros ocupa 6,5 MB por cliente (guia 4.17) |
 | P-MOD-6 | O histórico cresce sem limite | Guardar modelo só nos splits, evidência sempre | Evidência são poucos números; o custo real é o modelo |

@@ -51,7 +51,7 @@ flowchart LR
 
 1. Revisar as [decisões pendentes](11-decisoes-pendentes.md), ao menos as marcadas como bloqueantes para a Fase 1.
 2. Registrar cada uma em [decisoes.md](../../decisoes.md) (política 5).
-3. Obter o aviso de copyright do CFL, ou decidir reescrever (DP-17).
+3. Confirmar a origem da informação de que o CFL é MIT, porque o repositório original não declara licença (DP-17).
 
 **Aceite.** Nenhuma decisão bloqueante em aberto.
 
@@ -64,7 +64,7 @@ flowchart LR
 **Objetivo.** Implementar e testar tudo o que não precisa de treino.
 
 1. Criar `projetos/ISODATA-FL/` com README, `requirements.txt` e os diagramas exigidos pela política 1.
-2. `calendario.py`: primos, interprimos, paridade do ISODATA, período fixo, evento.
+2. `calendario.py`: primos, pares, interprimos, paridade do ISODATA, período fixo, evento, parada do split.
 3. `similaridade.py`: `matriz_cos`, normas, `agrupar` ([split](03-split-cfl.md), seção 3.2).
 4. `estado.py`: partição, ids, invariantes e histórico.
 5. `estabilidade.py`: bloqueios e espera crescente.
@@ -155,7 +155,7 @@ flowchart LR
 
 **Objetivo.** Ligar os operadores e **medir o problema** antes de resolvê-lo.
 
-1. Partida única, calendário de primos e interprimos, `L_FL = 1`, sem verificação.
+1. Partida única, split em primos até 70% das rodadas, merge nas pares, `L_FL = 1`, sem verificação.
 2. Rodar **E2** em C3 e C4, com `τ` certo e errado.
 
 **Aceite.** O experimento rodou, e as métricas de oscilação foram registradas.
@@ -172,8 +172,7 @@ flowchart LR
 
 1. Ganho de fusão. Depois, as verificações alternativas para comparar.
 2. Espera crescente, nos dois sentidos.
-3. `W_merge`.
-4. Rodar **E3** (ablação) e **E4** (verificação e regra do modelo).
+3. Rodar **E3** (ablação) e **E4** (verificação, `δ`, espera e regra do modelo).
 
 **Aceite.** Em C3 e C4: oscilação limitada pela fórmula de [05](05-estabilidade.md), e partição final no mínimo igual à do melhor baseline.
 
@@ -185,7 +184,7 @@ flowchart LR
 
 **Objetivo.** Decidir com dados as duas hipóteses centrais.
 
-1. Partida por `ψ` e caminho de cluster pequeno.
+1. Partida por `ψ`, caminho de cluster pequeno e reatribuição seletiva.
 2. Rodar **E5**.
 3. Rodar **E6**. Aqui se decide se a regra dos primos fica.
 
@@ -199,10 +198,11 @@ flowchart LR
 
 **Objetivo.** Tirar a exigência de participação total onde der.
 
-1. M2 (censo) com pré-filtro e espera.
-2. Se necessário, M3 com o estado pendente.
-3. Rodar **E8**.
-4. Reatribuição, só se o ARI mostrar clientes presos.
+1. Média corrigida, indispensável em qualquer modo com amostra.
+2. M3 (só amostra), com o estado pendente.
+3. M2 (censo), com pré-filtro e espera.
+4. Rodar **E8**.
+5. Reatribuição completa, só se a seletiva não bastar.
 
 **Aceite.** Com `frac = 0,2` em M2, partição igual à de M1 em C3 (tolerância a definir com base em E1).
 
@@ -219,7 +219,7 @@ flowchart LR
 3. Fechar a documentação: guia, READMEs, créditos e diagramas.
 4. Marcar os documentos de planejamento como concluídos ou substituídos.
 
-**Aceite.** H1 a H6 têm conclusão registrada, inclusive as refutadas.
+**Aceite.** H1 a H7 têm conclusão registrada, inclusive as refutadas.
 
 ## 10.3 Regras para todas as fases
 

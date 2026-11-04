@@ -19,11 +19,11 @@ flowchart TD
     P2["Componentes do grafo cos(ψ) #ge; τ<br/>todos com modelo = θ0"]:::sv
 
     subgraph RT["a cada rodada t"]
-        T0["Calendário de t: SPLIT, MERGE ou NADA<br/>NADA nas últimas F rodadas"]:::sv
-        A1["Definir os participantes<br/>v1: todos. Depois: censo dos candidatos"]:::sv
+        T0["Calendário de t: SPLIT, MERGE ou NADA<br/>split só até 70% das rodadas, NADA nas últimas F"]:::sv
+        A1["Definir os participantes<br/>v1: todos. Depois: amostra ou censo"]:::sv
         A2["Cliente sem ψ: observar a partir da âncora<br/>uma vez por cliente"]:::cl
         A3["Treino local a partir do modelo do cluster<br/>cada cliente devolve ΔW"]:::cl
-        A4["Monitorar por cluster, em toda rodada<br/>mean_norm, max_norm, persistência"]:::sv
+        A4["Monitorar por cluster, em toda rodada<br/>mean_norm (corrigida, se houver amostra), max_norm, persistência"]:::sv
         D1{"ação = SPLIT?"}:::ctl
 
         subgraph SP["Split, para cada cluster"]
@@ -39,7 +39,7 @@ flowchart TD
 
         subgraph MG["Merge, até L pares"]
             M1["Centros: média de ψ dos membros observados<br/>pares em ordem decrescente de cosseno"]:::merge
-            M2{"Há par com cos #ge; τ, idade mínima,<br/>liberado e ainda não fundido nesta janela?"}:::merge
+            M2{"Há par com cos #ge; τ ou com cluster pequeno,<br/>liberado e ainda não fundido nesta janela?"}:::merge
             M3["Candidato: θm = média ponderada dos modelos<br/>membros avaliam θm na validação: ΔL"]:::merge
             M4{"ΔL #le; δ?"}:::merge
             M5["Fundir: modelo = θm, id = menor cliente<br/>registrar e iniciar a espera para separar"]:::merge
@@ -166,7 +166,8 @@ sequenceDiagram
 |---|---|---|
 | `ψ` | Uma por cliente. Gratuita se a rodada 1 for aproveitada | 1 download e 1 upload de modelo |
 | Avaliação de `θm` | Só em merges testados, limitados pela espera crescente | 1 download por cliente testado, e 2 números de upload |
-| Censo (Fase 9) | Só em clusters candidatos, nas janelas de split | Treino normal, em clientes que não seriam sorteados |
+| Censo (Fase 9, se for o modo escolhido) | Só em clusters candidatos, nas janelas de split | Treino normal, em clientes que não seriam sorteados |
+| Reatribuição seletiva (com a partida por `ψ`) | Só para clientes com perda muito acima da mediana do cluster | 1 download por outro cluster testado |
 
 O split não acrescenta nenhuma mensagem: usa os mesmos `ΔW` que o FedAvg já envia.
 
@@ -178,7 +179,7 @@ O que o [módulo de estabilidade](05-estabilidade.md) controla, do ponto de vist
 stateDiagram-v2
     [*] --> Juntos
     Juntos --> EsperaParaReunir: split aprovado
-    EsperaParaReunir --> Candidatos: espera e idade vencidas
+    EsperaParaReunir --> Candidatos: espera vencida
     Candidatos --> EmTeste: janela de merge com cos ψ ≥ τ
     EmTeste --> EsperaParaReunir: ΔL acima de δ, espera maior
     EmTeste --> EsperaParaSeparar: ΔL até δ, fundidos

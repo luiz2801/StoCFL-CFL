@@ -13,7 +13,7 @@ O ISODATA é um laço que alterna dois operadores sobre um conjunto de clusters:
 | Laço, alternância, limites por iteração, consolidação final | **ISODATA** | O fluxo de controle de `doISODATAGray` |
 | Operador de divisão | **CFL** | Critério de normas e bipartição por cosseno sobre `ΔW` |
 | Operador de fusão | **StoCFL** | Representação `ψ` a partir da âncora, centros por cluster e limiar `τ` |
-| Quando cada operador pode agir | **Calendário** | Hipótese do usuário: CFL em rodadas primas a partir da 7 |
+| Quando cada operador pode agir | **Calendário** | Hipótese do usuário: CFL em rodadas primas a partir da 7. Proposta: StoCFL nas pares |
 | Treino entre as operações | **FedAvg por cluster** | Comum aos dois algoritmos |
 
 O treino acontece em **toda** rodada. O que não roda toda rodada são os operadores: muitas rodadas são só FedAvg dentro de cada cluster.
@@ -44,14 +44,14 @@ Linhas de [`ISODATAKit.py`](../../../projetos/ISODATA-python/ISODATAKit.py), fun
 |---|---|---|---|---|
 | `NROWS` | `partida` | `unica` | Pedido do usuário | Alternativa: `psi` |
 | `K` | `K_max` (opcional) | desligado | CFL e StoCFL não precisam de `K` | Limite de segurança, não meta |
-| `TN` | `TN_FL` | 0 | Reproduz `len(idc) > 2` do CFL | `|C| > 2(TN_FL+1)` |
+| `TN` | `TN_FL` | 0 | Reproduz `len(idc) > 2` do CFL | `\|C\| > 2(TN_FL+1)` |
 | `TS` | `ε2` e `γ_max` | calibrar | Artigo do CFL (3.9.8) | Ver [split](03-split-cfl.md) |
 | `TC` | `τ` | calibrar | `cos_rec.log` (guia 4.9) | Vira só um filtro, ver [merge](04-merge-stocfl.md) |
 | `L` | `L_FL` | 1 por janela | Conservador | Regra de pares vem do artigo |
 | `I` | `R_max` | por cenário | Experimento | |
-| Paridade | `t_min` e calendário | 7, primos e interprimos | Hipótese do usuário | Paridade original é o caso particular testado |
+| Paridade | `t_min` e calendário | Split em primos a partir de 7, até 70% das rodadas; merge nas pares | Hipótese do usuário e toy | Paridade original é um dos casos testados |
 | — | `ε1`, persistência `p` | calibrar, 3 | Artigo do CFL; toy | `p = 1` reproduz o CFL |
-| — | `W_merge`, `espera` | 10, 10 | Toy, a calibrar | [Estabilidade](05-estabilidade.md) |
+| — | `espera` | 10 | Toy, a calibrar | [Estabilidade](05-estabilidade.md). `W_merge` foi testado e descartado (DP-09) |
 | — | `δ` | 0 mais o ruído da validação | Toy, a calibrar | Tolerância do ganho de fusão |
 | — | `F` | 10 | Artigo do ISODATA | Rodadas finais sem operadores |
 
@@ -61,7 +61,7 @@ Linhas de [`ISODATAKit.py`](../../../projetos/ISODATA-python/ISODATAKit.py), fun
 
 1. **Alternância.** A figura 1 do artigo manda para o divisor nas iterações ímpares e para o fundidor nas pares, na última iteração ou com clusters demais. Isso confirma que a paridade é do algoritmo original, e não invenção do código.
 2. **Só pares, no máximo `L` por iteração.** O artigo considerou fundir trios e descartou porque "parecia mudar a partição radicalmente demais para o procedimento iterativo convergir de forma satisfatória". Isso corrige o StoCFL, cujo `unite` encadeia fusões transitivas na mesma rodada (guia 4.1).
-3. **Iteração final de consolidação.** "Nenhuma divisão ou fusão é permitida nesta iteração final." Vira as `F` rodadas finais.
+3. **Iteração final de consolidação.** "Nenhuma divisão ou fusão é permitida nesta iteração final." Vira as `F` rodadas finais, e inspira a parada dos splits antes do fim ([02](02-calendario.md), 2.8).
 
 **Quatro coisas não se transpõem:**
 
@@ -83,7 +83,7 @@ estado: partição P, modelo θ_c por cluster, âncora θ0, ψ = {}, histórico 
 
 para t = 1 .. R_max:
     ação = calendário(t)                     # SPLIT, MERGE ou NADA; NADA nas últimas F rodadas
-    S_t  = amostrar(P, ação)                 # v1: todos; depois: censo dos clusters candidatos
+    S_t  = amostrar(P, ação)                 # v1: todos; depois: amostra ou censo, com média corrigida
     observar ψ_i dos clientes que ainda não têm   # uma vez por cliente
     ΔW_i = treino local a partir de θ_c(i), para i em S_t
     monitorar(P, ΔW)                         # normas e persistência, em TODA rodada
@@ -119,17 +119,18 @@ Esta é a decisão de maior efeito do plano (DP-01), e a sua formulação ("o CF
 
 No [toy](anexo-a-simulacao.md), as duas chegam à partição correta nos cenários A a D. A partida por `ψ` tem perda média bem menor quando `ψ` é bom (0,029 contra 0,119 no cenário A), mas falha sem o caminho de cluster pequeno se `τ` é alto demais (cenário E, ARI 0,00). A comparação de perda é otimista para clientes isolados, porque no toy eles aprendem quase tão bem quanto um cluster.
 
-**Recomendação:** implementar as duas, porque a diferença é uma configuração. Manter a partida única como referência, que é o pedido e é robusta a `τ`, e comparar no experimento E5 com dados reais. Vale notar que a partida por `ψ` dá um sentido natural ao "a partir do 7": rodadas 1 a 6 só para o StoCFL e, depois, o CFL começa a poder corrigir.
+**Recomendação:** implementar as duas, porque a diferença é uma configuração. Manter a partida única como referência, que é o pedido e é robusta a `τ`, e comparar no experimento E5 com dados reais. O dilema está detalhado em [DP-01](11-decisoes-pendentes.md#dp-01-quem-age-primeiro). Vale notar que a partida por `ψ` dá um sentido natural ao "a partir do 7": rodadas 1 a 6 só para o StoCFL e, depois, o CFL começa a poder corrigir.
 
 ## 1.7 Escopo
 
 | Entra na v1 | Fica para depois | Fora do escopo |
 |---|---|---|
-| Partida única e por `ψ` | Participação parcial sem censo | Privacidade (permutação `P`, DP, agregação segura) |
-| Participação total (e censo em seguida) | Modelo global com termo proximal | Clientes bizantinos |
+| Partida única e por `ψ` | Participação parcial, com média corrigida | Privacidade (permutação `P`, DP, agregação segura) |
+| Participação total | Modelo global com termo proximal | Clientes bizantinos |
 | Calendário configurável | Reatribuição de clientes | Rede real: tudo é simulação em um processo, como hoje |
 | Split com `γ_max` e persistência | Clientes novos e árvore de parâmetros | |
 | Merge com ganho de fusão e regras do ISODATA | Deriva de dados (*drift*) | |
+| | Reatribuição seletiva, com a partida por `ψ` | |
 
 > **Afirmação a não repetir.** O diagrama da [especificação](../especificacao-isodata-fl.md), seção 1, diz que o ISODATA-FL "adapta-se a drifts nos dados". Com `ψ` imutável isso não é verdade: `ψ` não vê deriva nenhuma. Ver [clientes](06-clientes-e-participacao.md), P-CLI-8.
 
@@ -140,7 +141,7 @@ No [toy](anexo-a-simulacao.md), as duas chegam à partição correta nos cenári
 | P-CON-1 | "ISODATA como base" pode ser lido como reaproveitar o código, que só serve para pixels | A base é o fluxo, e isso é provado por um teste de oráculo ([08](08-arquitetura-do-codigo.md), 8.4) | Transforma uma afirmação vaga em uma propriedade verificável |
 | P-CON-2 | Sem reclassificação, um split errado não se corrige sozinho como no ISODATA | Evidência nova no merge, com o [ganho de fusão](04-merge-stocfl.md) | É a função que a reclassificação cumpria no original (1.4) |
 | P-CON-3 | Os dois algoritmos usam sinais diferentes, e eles podem discordar | Nenhum decide sozinho: cada operador prova o que afirma ([05](05-estabilidade.md)) | Medir a discordância real é o primeiro experimento (E0) |
-| P-CON-4 | CFL e StoCFL têm premissas opostas sobre participação | Participação total primeiro, depois censo ([06](06-clientes-e-participacao.md)) | Separa dois riscos |
+| P-CON-4 | CFL e StoCFL têm premissas opostas sobre participação | Participação total primeiro, depois amostra ou censo, sempre com média corrigida ([06](06-clientes-e-participacao.md)) | Separa dois riscos. Sem a correção, o critério do CFL nem dispara com amostra |
 | P-CON-5 | **O merge pode ficar ocioso.** No toy, com `γ_max` bem calibrado, quase não há split falso, e o StoCFL não faz nada | Medir em E3. Se repetir em redes reais, considerar a versão só com split, deixando o merge como rede de segurança ou retirando-o | Honestidade sobre o valor da combinação. O toy só mostra benefício claro quando `γ_max` está mal calibrado: ARI 0,04 sem merge e 0,94 com ele |
 | P-CON-6 | A combinação pode não superar os originais em dados reais | Hipóteses com critério de refutação e condição de parada ([09](09-experimentos.md)) | O problema 9 da especificação registra que a motivação ainda não tem evidência |
 

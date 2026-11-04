@@ -2,7 +2,7 @@
 
 Plano modular para implementar o CFL e o StoCFL sobre o laço do ISODATA: o **CFL separa** os clientes, o **StoCFL agrupa** quando necessário, e os dois agem só em rodadas definidas por um calendário.
 
-> **Status (2026-11-04): planejamento. Nada foi implementado, e nenhuma das recomendações foi aprovada.** As decisões em aberto estão em [11-decisoes-pendentes.md](11-decisoes-pendentes.md). Os números vêm de um modelo de brinquedo (o [*toy*](anexo-a-simulacao.md)), que mostra mecanismos, mas não prevê acurácia em redes neurais.
+> **Status (2026-11-04): planejamento. Nada foi implementado, e nenhuma das recomendações foi aprovada.** As decisões em aberto, com o dilema de cada uma, estão em [11-decisoes-pendentes.md](11-decisoes-pendentes.md). Os números vêm de um modelo de brinquedo (o [*toy*](anexo-a-simulacao.md)), que mostra mecanismos, mas não prevê acurácia em redes neurais.
 
 ## O essencial
 
@@ -24,10 +24,17 @@ Plano modular para implementar o CFL e o StoCFL sobre o laço do ISODATA: o **CF
 
 4. **A ordem pedida pode não ser a melhor.** Começar com o StoCFL (partição por `ψ` na rodada 1) e deixar o CFL corrigir atinge a partição correta bem mais cedo quando `ψ` é bom: perda média de 0,029 contra 0,119 no cenário A. Mas falha se `τ` for alto demais, salvo com uma regra extra. **É a primeira decisão a tomar** ([01](01-conceito-e-mapeamento.md), 1.6).
 
-5. **Há armadilhas que este plano já evita:**
+5. **A forma final do calendário:** o CFL age nas rodadas primas a partir da 7, até 70% das rodadas, e o StoCFL nas pares. Parar os splits antes do fim dá a última palavra ao merge, que tem uma prova, e foi o que limpou os erros restantes: ARI de 0,94 para 1,00 com `γ_max` mal calibrado ([02](02-calendario.md), 2.8).
+
+6. **Participação parcial tem uma armadilha, com solução.** Em um cluster incongruente, a média de uma amostra não se cancela, e o critério do CFL nunca dispara: ARI 0,00 com 10% dos clientes. Um estimador corrigido, sem custo de comunicação, resolve: ARI 1,00 ([06](06-clientes-e-participacao.md), 6.2).
+
+7. **Há outras armadilhas que este plano já evita:**
    - Dois candidatos naturais a métrica de merge são degenerados e dão o mesmo valor para split certo e errado ([04](04-merge-stocfl.md), 4.4).
    - `γ_max` alto demais faz o algoritmo nunca dividir, sem erro nenhum ([03](03-split-cfl.md), 3.3).
    - Tabu permanente parece resolver a oscilação, mas torna os erros do CFL irreversíveis ([05](05-estabilidade.md), 5.3).
+   - Uma idade mínima antes do merge parece prudente, mas derruba o ARI de 0,94 para 0,12 ([05](05-estabilidade.md), 5.4).
+
+**Uma ressalva de licença:** o repositório original do CFL não declara licença nenhuma, e por isso o plano reescreve em vez de copiar ([DP-17](11-decisoes-pendentes.md#dp-17-a-licença-do-cfl)).
 
 ## Módulos
 
@@ -36,18 +43,18 @@ Cada módulo corresponde a uma parte do código futuro e pode ser lido e impleme
 | Arquivo | Conteúdo | Código futuro |
 |---|---|---|
 | [01-conceito-e-mapeamento.md](01-conceito-e-mapeamento.md) | A ideia, ISODATA passo a passo, hiperparâmetros, uma rodada, quem age primeiro | `nucleo.py` |
-| [02-calendario.md](02-calendario.md) | Análise da regra dos primos, interprimos, início na rodada 7 | `calendario.py` |
+| [02-calendario.md](02-calendario.md) | Análise da regra dos primos, merge nas pares, parada do split, início na rodada 7 | `calendario.py` |
 | [03-split-cfl.md](03-split-cfl.md) | CFL como operador: critérios, `γ_max`, bipartição | `split_cfl.py` |
 | [04-merge-stocfl.md](04-merge-stocfl.md) | StoCFL como operador: `ψ`, candidatos a métrica, ganho de fusão | `merge_stocfl.py` |
 | [05-estabilidade.md](05-estabilidade.md) | Como um não desfaz o outro: mecanismos, proteções, limite | `estabilidade.py` |
-| [06-clientes-e-participacao.md](06-clientes-e-participacao.md) | Participação parcial, censo, clusters pequenos, reatribuição | `participacao.py` |
+| [06-clientes-e-participacao.md](06-clientes-e-participacao.md) | Participação parcial, média corrigida, censo, clusters pequenos, reatribuição | `participacao.py` |
 | [07-modelos-e-estado.md](07-modelos-e-estado.md) | Ids, invariantes, modelo no split e no merge, modelo global | `estado.py` |
 | [08-arquitetura-do-codigo.md](08-arquitetura-do-codigo.md) | Pacote, interfaces, reaproveitamento, licenças, testes | Estrutura |
 | [09-experimentos.md](09-experimentos.md) | Hipóteses, cenários, métricas, baselines, E0 a E9 | `experimentos/` |
 | [10-roteiro.md](10-roteiro.md) | **O passo a passo**: 11 fases com aceite e pontos de decisão | — |
-| [11-decisoes-pendentes.md](11-decisoes-pendentes.md) | O que falta decidir, e os 9 problemas da especificação | — |
+| [11-decisoes-pendentes.md](11-decisoes-pendentes.md) | **As 19 decisões:** o dilema de cada uma, como cada opção ajuda, o que custa e o que os testes mostraram. Traz também os 9 problemas da especificação | — |
 | [12-diagramas.md](12-diagramas.md) | Atividades, sequência, estados, dependências | — |
-| [anexo-a-simulacao.md](anexo-a-simulacao.md) | Modelo de brinquedo: código e resultados | — |
+| [anexo-a-simulacao.md](anexo-a-simulacao.md) | Modelo de brinquedo e protótipo do esqueleto: código e resultados | — |
 | [anexo-b-literatura.md](anexo-b-literatura.md) | Trabalhos relacionados | — |
 
 ## Como usar
@@ -66,7 +73,7 @@ Cada módulo corresponde a uma parte do código futuro e pode ser lido e impleme
 | `DP-n` | Decisão pendente |
 | `E0` a `E9` | Experimentos |
 | `C0` a `C9` | Cenários |
-| `H1` a `H6` | Hipóteses |
+| `H1` a `H7` | Hipóteses |
 | `D-n` | Decisão já registrada em [decisoes.md](../../decisoes.md) |
 
 Nas tabelas de alternativas, a coluna "Sugestão" usa quatro valores:

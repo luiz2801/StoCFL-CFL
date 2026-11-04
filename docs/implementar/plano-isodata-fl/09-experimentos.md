@@ -16,6 +16,7 @@ Cada hipótese tem um critério que pode refutá-la. Resultado negativo é resul
 | H4 | O calendário de primos não piora a partição em relação a "toda rodada", com menos testes | ARI menor em mais de 0,05, ou partição correta mais de 25% mais tarde | Confirmada: mesmo ARI, 14% mais tarde, 4,3 vezes menos testes |
 | H5 | **Os primos têm alguma vantagem sobre um período fixo** | Sem diferença significativa em nenhuma métrica. **Nesse caso, prefere-se o período fixo, se for mais simples de explicar** | Empate; sem evidência a favor |
 | H6 | A partida por `ψ` converge mais cedo que a partida única, sem piorar a partição final | Partição final pior com `τ` calibrado | Confirmada |
+| H7 | Com a média corrigida, a participação parcial mantém a partição correta | ARI menor em mais de 0,05 com 20% de participação | Confirmada até 10%. Sem a correção, falha já em 20% |
 
 ## 9.2 Cenários
 
@@ -73,11 +74,11 @@ Em ordem. Cada um depende das conclusões do anterior.
 | **E1** | Quanto valem os baselines? | Todos os baselines em C1 a C5 | Referência para tudo |
 | **E2** | Há oscilação em dados reais? | Híbrido sem guardas × calendários, em C3 e C4, com `τ` certo e errado | H2. Quais guardas são necessárias de fato |
 | **E3** | Quais guardas pagam o custo? O merge faz falta? | Ablação da pilha em C1 a C4, incluindo CFL com `γ_max` sem merge; *single* × *complete* | Pilha final, e se o StoCFL se paga |
-| **E4** | Como verificar um merge? | Ganho de fusão × perda cruzada × `α_cross` em `θ_m` × distância relativa; regras de modelo; `W_merge` em {0, 5, 10, 20} | Verificação, regra do modelo e `W_merge` |
+| **E4** | Como verificar um merge? | Ganho de fusão × perda cruzada × `α_cross` em `θ_m` × distância relativa; regras de modelo; `δ` em {0, 1, 2, 3} erros padrão; base da espera em {5, 10, 20, 40} | Verificação, regra do modelo, `δ` e espera. Mede também o erro padrão de `ΔL` contra o ganho de um split verdadeiro |
 | **E5** | Quem deve agir primeiro? | Partida única × `ψ`, com e sem caminho de cluster pequeno, com `τ` certo, baixo e alto | H6 e DP-01 |
-| **E6** | Qual calendário? | Com a pilha final: primos + interprimos, paridade, período fixo, evento; `t_min` em {7, 11, 23}; `p` em {1, 3, 5}; `ε` automático; sem `ε2` | H4 e H5. Decide se a regra dos primos fica |
+| **E6** | Qual calendário? | Com a pilha final: primos + pares, primos + interprimos, paridade, período fixo, evento, fases; parada do split em {50, 70, 90, 100}%; `t_min` em {7, 11, 23}; `p` em {1, 2, 3, 5}; estimativa de `K` por cima, se houver; `ε` automático; sem `ε2` | H4 e H5. Decide se a regra dos primos fica |
 | **E7** | O modelo global ajuda? | `μ` em {0; 0,05; 1; 10} em C7 e C6 | Inclusão do modelo global |
-| **E8** | E com participação parcial? | M1, M2, M3 com `frac` em {1; 0,5; 0,2; 0,1}; reatribuição, se o ARI mostrar clientes presos | Modos suportados |
+| **E8** | E com participação parcial? | M1, M2, M3 com `frac` em {1; 0,5; 0,2; 0,1}, com e sem a média corrigida; se `ψ` real basta para os pendentes; reatribuição seletiva e completa | H7. Modos suportados |
 | **E9** | Comparação final | Melhor configuração contra todos os baselines em C1 a C9, 5 sementes | H3 e o resultado |
 
 ## 9.6 Protocolo
@@ -97,7 +98,9 @@ Em ordem. Cada um depende das conclusões do anterior.
 | Nenhuma guarda sozinha cobre os dois sentidos | Se `ψ` separa grupos em dados reais |
 | Dois candidatos a métrica de merge são degenerados | Barreira de perda na média de modelos |
 | `γ_max` tem falha silenciosa | Valores de `τ`, `γ_max`, `ε` em redes reais |
-| Falsos splits se concentram no cruzamento de `ε1` | Efeito de participação parcial |
+| Falsos splits se concentram no cruzamento de `ε1` | Se `ψ` real basta para colocar clientes pendentes |
+| `W_merge` atrapalha, e parar os splits antes do fim ajuda | O benefício do modelo global |
+| O critério do CFL não dispara com amostra, e a média corrigida resolve | Erro padrão real de `ΔL`, e se o ganho verdadeiro fica acima dele |
 
 ## 9.8 Critérios para parar
 

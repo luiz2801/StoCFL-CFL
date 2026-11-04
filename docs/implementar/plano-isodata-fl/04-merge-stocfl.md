@@ -24,11 +24,10 @@ O StoCFL original para na primeira pergunta. A seção 4.3 explica por que isso 
 | 3 | Pares em ordem decrescente de cosseno | StoCFL | |
 | 4 | Filtro: `cos ≥ τ`, ou um dos clusters tem menos de `n_pequeno` membros | StoCFL + novo | [Clientes](06-clientes-e-participacao.md), 6.3 |
 | 5 | Cada cluster se funde no máximo uma vez por janela, até `L_FL` pares | **ISODATA** | Impede as fusões transitivas do `unite` |
-| 6 | Os dois clusters têm idade `≥ W_merge` | Novo | Os modelos precisam ter tido tempo de divergir |
-| 7 | Par liberado em `nao_unir` | [Estabilidade](05-estabilidade.md) | |
-| 8 | Candidato: `θ_m = (n_a θ_a + n_b θ_b) / (n_a + n_b)` | ISODATA | [Estado](07-modelos-e-estado.md), 7.4 |
-| 9 | Ganho de fusão: `ΔL ≤ δ` | Novo, com precedente | 4.5 |
-| 10 | Aprovado: funde, o id é o menor dos dois, e a separação fica bloqueada. Reprovado: aumenta a espera do reteste | Novo | [Estabilidade](05-estabilidade.md) |
+| 6 | Par liberado em `nao_unir` | [Estabilidade](05-estabilidade.md) | Protege os irmãos recém-separados e limita os retestes |
+| 7 | Candidato: `θ_m = (n_a θ_a + n_b θ_b) / (n_a + n_b)` | ISODATA | [Estado](07-modelos-e-estado.md), 7.4 |
+| 8 | Ganho de fusão: `ΔL ≤ δ` | Novo, com precedente | 4.5 |
+| 9 | Aprovado: funde, o id é o menor dos dois, e a separação fica bloqueada. Reprovado: aumenta a espera do reteste | Novo | [Estabilidade](05-estabilidade.md) |
 
 ## 4.3 Por que `ψ` sozinho não basta
 
@@ -85,7 +84,7 @@ Se `θ_m` é a média ponderada, ele é quase o ponto estacionário da união. L
 
 **Amostra.** Em clusters grandes, o teste pode usar `m` clientes de cada lado. O ruído da estimativa entra em `δ`.
 
-**`δ` não é zero em redes reais.** No toy a perda não tem ruído de medição. Com validação finita, `δ` deve ser da ordem do erro padrão de `ΔL`, estimado dos próprios valores por cliente. E4 calibra.
+**`δ` não pode ser zero em redes reais.** Em uma fusão boa, o ganho real é quase zero, e o ruído da validação decide no cara ou coroa: no toy, com `δ = 0` e ruído, o ARI cai de 0,94 para cerca de 0,52. Com `δ` de 2 erros padrão, estimados dos próprios valores por cliente, ele volta a 0,84. **O limite é o ganho de um split verdadeiro:** se o ruído se aproximar dele, merges errados passam, então é preciso testar mais clientes. Nesse caso, a espera entre retestes é essencial: sem ela, o ARI em B cai de 0,88 para 0,10, porque cada reteste é mais uma chance de aprovar por engano. Tabela completa em [DP-04](11-decisoes-pendentes.md#dp-04-como-provar-que-fundir-é-seguro).
 
 **Precedente.** O FedDrift usa a perda cruzada e funde com média ponderada, o que é muito próximo disto ([anexo B](anexo-b-literatura.md)).
 
@@ -108,9 +107,9 @@ Se `θ_m` é a média ponderada, ele é quase o ponto estacionário da união. L
 | P-MRG-5 | `τ` é escolhido à mão, sem regra no artigo (guia 4.15.7) | Registrar os cossenos (como `cos_rec.log`) e calibrar em E0. Com a prova, `τ` errado para baixo só custa testes, não fusões erradas | No toy, cenário B: `τ` abaixo do cosseno cruzado, partição correta |
 | P-MRG-6 | `τ` alto demais bloqueia fusões necessárias | Caminho de cluster pequeno, sem `τ` | No toy, cenário E: de 24 clusters a 4, ARI de 0,00 a 1,00 |
 | P-MRG-7 | A perda depende da mistura de rótulos do cliente, o que pode impedir fusões legítimas (crítica do FedCCFA) | Aceitar: é uma falha conservadora, porque mantém os clusters. Medir em C6 e C7 | Fundir de menos custa menos que fundir errado, e o ganho é medido nos próprios clientes |
-| P-MRG-8 | Validação finita: `ΔL` tem ruído | `δ` igual ao erro padrão estimado, e reteste com espera | Um reteste é barato. O erro em um único teste não é definitivo |
-| P-MRG-9 | Testes repetidos custam comunicação | Espera crescente depois de reprovar | No toy, cenário B: de 122,7 para 20,9 testes, com a mesma partição |
-| P-MRG-10 | Split muito recente: os modelos não divergiram, e `θ_m ≈ θ_pai` | `W_merge` | Em redes reais, o ganho pode parecer nulo sem que os filhos tenham tido tempo. No toy não foi necessário, porque a perda não tem ruído. E4 decide |
+| P-MRG-8 | Validação finita: `ΔL` tem ruído, e fusões boas reprovam por acaso | `δ` de 2 erros padrão, e reteste com espera | No toy com ruído: ARI de 0,52 para 0,84 em C. A espera limita as chances de aprovar por engano |
+| P-MRG-9 | Testes repetidos custam comunicação | Espera crescente depois de reprovar | No toy, cenário B: de 122,7 para 20,2 testes, com a mesma partição |
+| P-MRG-10 | Split muito recente: os modelos não divergiram, e `θ_m ≈ θ_pai` | A espera depois do split, que vale só para os irmãos | `W_merge`, uma idade mínima para qualquer cluster, foi testado e é prejudicial: bloqueia também quem acabou de se fundir (ARI de 0,94 para 0,12, [DP-09](11-decisoes-pendentes.md#dp-09-quanto-esperar-depois-de-cada-operação)) |
 | P-MRG-11 | `ψ` ocupa memória, e `psi.pkl` é regravado toda rodada (guia 4.10) | Guardar em `float32` e salvar só os novos | 6,5 MB por cliente com `SimpleLinear` |
 | P-MRG-12 | `unite` nem sempre mantém o modelo do maior (guia 4.16) | Regra explícita, ver [estado](07-modelos-e-estado.md), 7.4 | Comportamento implícito do código, não uma escolha |
 
@@ -123,8 +122,8 @@ Se `θ_m` é a média ponderada, ele é quase o ponto estacionário da união. L
 | **Direção média de `ΔW`** (problema 1 da especificação) | **Descartar** | Degenerada (4.4) |
 | **Deslocamento desde o ancestral comum** | **Descartar** | Degenerado (4.4) |
 | **Deslocamento do modelo do cluster desde a âncora fixa** | **Adiar** | Não custa comunicação, mas converge para a mesma informação de `ψ̄` e não acrescenta evidência nova. Reconsiderar se `ψ` for caro demais |
-| **`α_cross^max` em `θ_m`** | **Testar** em E4 | Elegante: o mesmo critério `γ_max` governaria os dois operadores. Mas exige treinar, e `θ_m` pode ser um ponto ruim em redes não convexas |
-| **Perda cruzada do FedDrift** | **Testar** em E4 | Tem precedente. Usa `max`, que bloqueia a fusão de um cluster pequeno com um grande |
+| **`α_cross^max` em `θ_m`** | **Testar** em E4 | Elegante: o mesmo critério `γ_max` governaria os dois operadores. Mas exige treinar, `θ_m` pode ser um ponto ruim em redes não convexas, e no toy foi pior quando o merge era necessário (ARI 0,76 contra 0,94) |
+| **Perda cruzada do FedDrift** | **Testar** em E4 | Tem precedente. Depende de uma tolerância na escala da perda: com 0, o toy reprova quase tudo (ARI 0,04), e com 0,05, funciona como o ganho de fusão. Usa `max`, que pode bloquear a fusão de um cluster pequeno com um grande |
 | **Distância relativa entre modelos** (o `TC` original do ISODATA) | **Testar** em E4, como pré-filtro | Sem comunicação. Depende da idade do cluster e de um limiar |
 | **Razão intra/inter do FedAC** | **Adiar** | Outra família de sinal, única para os dois operadores. Seria um algoritmo diferente do pedido |
 | **Reancorar `ψ` no modelo do pai a cada split** | **Adiar** | Elimina o problema da âncora distante, mas `ψ` de âncoras diferentes não se comparam, e todos teriam de observar de novo. A prova por perda resolve o mesmo problema com menos custo |
