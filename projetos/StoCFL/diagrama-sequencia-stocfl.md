@@ -43,7 +43,7 @@ sequenceDiagram
         S->>L: psi.pkl
 
         Note over S,L: Agrupamento por união
-        S->>S: bucket e FedAvg dos movimentos de cada cluster
+        S->>S: cluster_center, média dos psi de todos os membros de cada cluster sorteado
         opt mais de 1 cluster sorteado
             S->>S: dt_matrix (cosseno) e parse_matrix (pares do maior ao menor)
             S->>L: cos_rec.log
@@ -92,6 +92,6 @@ sequenceDiagram
 
 - **Trainer único.** Os clientes não existem como objetos. O servidor chama o trainer com uma lista de ids, e o trainer carrega os dados de cada cliente do disco quando precisa. Num sistema distribuído, as setas `observe` e `train` seriam mensagens de rede.
 - **`observe` é chamado sempre.** Quando todos os sorteados já têm `psi`, a lista `unobserved` é vazia e nenhum cliente treina. Por isso o laço de observação fica vazio nas rodadas em que não aparece nenhum cliente novo.
-- **Cosseno entre clusters, não entre clientes.** A matriz usa a média dos `psi` dos clientes sorteados de cada cluster. Por isso o resultado de uma rodada depende de quais clientes foram sorteados.
+- **Cosseno entre clusters, não entre clientes.** A matriz usa o centro de cada cluster sorteado, a média dos `psi` de todos os seus membros. Só clusters sorteados na rodada são comparados.
 - **Dois laços de treino separados.** No `train`, todos os clientes treinam primeiro o modelo do cluster, e só depois o modelo global. Nos dois laços, cada cliente parte do modelo enviado pelo servidor naquela rodada.
 - **Arquivos reescritos.** `cos_rec.log` e `cluster_rec.log` são apagados e recriados a cada rodada, então o disco guarda só o estado da última. O histórico completo dos clusters fica em `cluster.pkl`.

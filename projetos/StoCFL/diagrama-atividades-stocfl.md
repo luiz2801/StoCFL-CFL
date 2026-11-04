@@ -36,9 +36,8 @@ flowchart TD
         OB2["psi[cid] = movimento<br/>(calculado uma única vez por cliente)"]:::sv
     end
 
-    M0["movements = psi dos clientes sorteados"]:::sv
-    K1["bucket: agrupar os movimentos pelo cluster atual de cada cliente"]:::sv
-    K2["direção de cada cluster = FedAvg dos movimentos<br/>dos seus clientes sorteados"]:::sv
+    K1["sampled_cluster = clusters atuais dos clientes sorteados"]:::sv
+    K2["centro de cada cluster sorteado = média dos psi<br/>de todos os seus membros (Eq. 2)"]:::sv
     Dk{"mais de 1 cluster sorteado?"}:::ctl
     K3["dt_matrix: cosseno entre as direções de cada par de clusters<br/>ordenar os pares do maior cosseno ao menor"]:::sv
 
@@ -80,7 +79,7 @@ flowchart TD
     D0 -->|"sim"| P3 --> P4
     D0 -->|"não"| P4
     P4 --> P5 --> P6 --> S1
-    S1 --> OB1 --> OB2 --> M0 --> K1 --> K2 --> Dk
+    S1 --> OB1 --> OB2 --> K1 --> K2 --> Dk
     Dk -->|"sim"| K3 --> Dtau
     Dk -->|"não"| K4
     Dtau -->|"sim"| U1 --> U2 --> K4
@@ -118,7 +117,7 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 ## Como o fluxo funciona
 
 - **Agrupamento só por união.** Todo cliente começa num cluster próprio (`find_cluster_content[i] = [i]`). `unite` junta clusters e nada no código os divide de volta, então uma união errada não é desfeita.
-- **Movimento medido uma vez.** `psi[cid]` é calculado na primeira vez que o cliente é sorteado, treinando a partir do `anchor` (o modelo inicial), e nunca é refeito. A direção de um cluster na rodada é a média só dos `psi` dos clientes dele que foram sorteados.
+- **Movimento medido uma vez.** `psi[cid]` é calculado na primeira vez que o cliente é sorteado, treinando a partir do `anchor` (o modelo inicial), e nunca é refeito. O centro de um cluster é a média dos `psi` de todos os seus membros, e um cluster sorteado nunca tem membro sem `psi`.
 - **Uniões em ordem de cosseno.** A matriz de cossenos é calculada uma vez por rodada. Os pares são percorridos do maior cosseno ao menor, e o primeiro par abaixo de `tau` encerra a rodada de uniões. Os cossenos não são recalculados depois de cada união.
 - **Dois modelos por cliente.** No treino, cada cliente sorteado atualiza o modelo do seu cluster, com um termo proximal que o mantém perto de `gmodel`, e treina também o modelo global. O servidor faz a média de cada um.
 - **Modelo global por FedAvg.** Em `RotatedMNISTTrainer.train`, cada cliente do segundo laço parte do mesmo `gmodel` da rodada, e o servidor faz a média dos modelos resultantes.

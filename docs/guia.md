@@ -425,7 +425,7 @@ Na primeira vez que um cliente é sorteado, ele parte da âncora, treina `obep` 
 
 **Fase 2, clusterização estocástica (toda rodada).**
 1. Sorteia `S_r` (clientes da rodada) e agrupa esses clientes pelo cluster atual.
-2. Direção de cada cluster amostrado = **média dos `ψ` dos seus membros sorteados nesta rodada** (não de todos os membros).
+2. Centro de cada cluster amostrado = **média dos `ψ` de todos os seus membros** (Eq. 2 do artigo), não só dos sorteados na rodada.
 3. Calcula o cosseno entre as direções de todos os pares de clusters amostrados.
 4. Percorre os pares em ordem **decrescente** de similaridade: se `cos ≥ τ`, **funde** os dois clusters; no primeiro par abaixo de `τ`, para.
    - Como a fusão é transitiva, o resultado equivale a ***single-linkage* com limiar τ** entre os clusters amostrados na rodada: `A~B` e `B~C` juntam `A,B,C` mesmo que `cos(A,C) < τ`.
@@ -468,8 +468,7 @@ __main__                                                    StoCFL-FCC+CFL.py:19
           ├─ trainer.observe(não_observados, anchor)        trainer.py:278
           │     ├─ dataset.get_data_loader(id, obbs)        trainer.py:281
           │     └─ ob_train(anchor, loader)                 trainer.py:286
-          ├─ bucket(cids, ψ)                                StoCFL-FCC+CFL.py:170
-          ├─ Aggregators.fedavg_aggregate (média dos ψ por cluster)   [fedlab]
+          ├─ cluster_center (média dos ψ de todos os membros)   functional.py:86
           ├─ inter_cluster_union                            StoCFL-FCC+CFL.py:121
           │     ├─ dt_matrix → cosine_sim                   functional.py:77, :54
           │     ├─ parse_matrix (ordena pares)              functional.py:86
@@ -492,7 +491,7 @@ Linhas referentes a [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py); a lógica é 
 |---|---|---|
 | `__init__` | [:30](StoCFL/StoCFL-FCC+CFL.py#L30) | Inicializa clusters unitários, `psi = {}`, `cluster_parameters = {}`, `gmodel` e `anchor` (= pesos iniciais). |
 | `main` | [:53](StoCFL/StoCFL-FCC+CFL.py#L53) | Loop de rodadas (fases 1–3 de 4.1) + logs/arquivos. |
-| `bucket(client_list, items)` | [:170](StoCFL/StoCFL-FCC+CFL.py#L170) | Agrupa `items` (ψ ou modelos) pelo cluster atual de cada cliente. Retorna `(ids_de_cluster_presentes, listas)` em ordem crescente de id. |
+| `bucket(client_list, items)` | [:170](StoCFL/StoCFL-FCC+CFL.py#L170) | Agrupa `items` (os modelos treinados) pelo cluster atual de cada cliente. Retorna `(ids_de_cluster_presentes, listas)` em ordem crescente de id. |
 | `inter_cluster_union(clusters, direções)` | [:121](StoCFL/StoCFL-FCC+CFL.py#L121) | Calcula o cosseno entre pares, grava `cos_rec.log`, funde pares com `cos ≥ τ` em ordem decrescente e para no primeiro abaixo. Com ≤ 1 cluster amostrado não faz nada. |
 | `unite(i, j)` | [:144](StoCFL/StoCFL-FCC+CFL.py#L144) | Union-find com relabel imediato. (a) Se `i` já foi absorvido nesta rodada (`i ∉ conteúdo[i]`), redireciona para o cluster atual do cliente `i`; idem `j`. (b) Mantém o **menor id**. (c) **Modelo:** se `|C_i| < |C_j|` e `j` tem modelo, `i` herda o modelo de `j` (o cluster maior "vence"); caso contrário `i` mantém o seu. (d) Move membros, esvazia `j` e apaga o modelo de `j`. |
 | `get_cluster` | [:183](StoCFL/StoCFL-FCC+CFL.py#L183) | Reescreve `cluster_rec.log` com a partição atual e faz `assert` de que todos os clientes estão em exatamente um cluster. |
@@ -515,7 +514,7 @@ Os modelos circulam como **vetores 1-D serializados** (`SerializationTool.serial
 2. A soma dos tamanhos dos clusters é igual a `client_num` (verificado em `get_cluster`).
 3. O nº de clusters é monotonicamente **não crescente**.
 4. `psi[i]` é calculado uma vez, a partir da mesma `anchor`.
-5. Todo cluster sorteado na rodada, e todo cluster com mais de um membro, contém só clientes já observados, isto é, com `psi` calculado. Só clusters sorteados se fundem, e todo cliente sorteado é observado antes da fusão; por indução, nenhum cluster unido tem membro sem `psi`. Verificado em 2026-11-04 por esse argumento e por simulação com o código real de `unite`, `bucket` e `inter_cluster_union` (5 seeds × 40 rodadas, zero violações). A invariante deixa de valer se um dia houver fusão de clusters não sorteados ou cliente sem observação (por exemplo, ao implementar clientes novos).
+5. Todo cluster sorteado na rodada, e todo cluster com mais de um membro, contém só clientes já observados, isto é, com `psi` calculado. Só clusters sorteados se fundem, e todo cliente sorteado é observado antes da fusão; por indução, nenhum cluster unido tem membro sem `psi`. Verificado em 2026-11-04 por esse argumento e por simulação com o código real de `unite`, `bucket` e `inter_cluster_union` (5 seeds × 40 rodadas, zero violações). `cluster_center` depende disso para encontrar o `psi` de todos os membros. A invariante deixa de valer se um dia houver fusão de clusters não sorteados ou cliente sem observação (por exemplo, ao implementar clientes novos).
 
 ### 4.6 Trainers (`trainer.py`): os "clientes"
 
@@ -575,7 +574,8 @@ Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que ro
 | `cosine_sim(a, b)` | [functional.py:54](StoCFL/functional.py#L54) | Cosseno (eps=1e-6). **Métrica de similaridade usada.** |
 | `dt_matrix(lista)` | [functional.py:77](StoCFL/functional.py#L77) | Matriz triangular superior de `cosine_sim`. A linha comentada permite trocar para `dt`. |
 | `dt(a, b)` | [functional.py:59](StoCFL/functional.py#L59) | Alternativa (norma mínima no segmento entre gradientes normalizados, estilo MGDA). Não usada. |
-| `parse_matrix(M, ids, descending)` | [functional.py:86](StoCFL/functional.py#L86) | Converte a matriz em `{"a,b": sim}` com os **ids de cluster** e devolve as chaves ordenadas. |
+| `cluster_center(psi, membros)` | [functional.py:86](StoCFL/functional.py#L86) | Centro do cluster: média dos `ψ` de todos os membros (Eq. 2). |
+| `parse_matrix(M, ids, descending)` | [functional.py:90](StoCFL/functional.py#L90) | Converte a matriz em `{"a,b": sim}` com os **ids de cluster** e devolve as chaves ordenadas. |
 | `setup_seed(seed)` | [functional.py:169](StoCFL/functional.py#L169) | Seeds de torch/cuda/numpy/random + `cudnn.deterministic`. |
 | `quadprog`, `optim_lambdas` | :14, :28 | Resto de MGDA (cvxopt). Não usados, mas exigem `cvxopt` no import. |
 | `evaluate_personalization` | :99 | ⚠️ Quebrado (desempacota 4 listas em 2 variáveis; `range(lista)`). Não usado. |
@@ -677,7 +677,7 @@ Observações de ambiente:
 5. **FEMNIST:** "Global Model - Global Test" avalia `self._model` **sem** carregar o `gmodel` antes ([StoCFL-FEMNIST.py:89](StoCFL/StoCFL-FEMNIST.py#L89)). Os pickles são lidos de `./leaf/pickle_datasets/femnist/{train,test}/`; gere-os com `leaf/gen_pickle_dataset.sh femnist <data_root>` a partir de JSONs no formato LEAF. O README em `datasets/femnist/` descreve o formato FedScale (CSV), que é diferente.
 6. **`ShiftedMNISTTrainer._get_dataloader`** faz `random_split` 80/20 **a cada chamada**: o subconjunto de treino muda toda vez e a validação se sobrepõe ao treino entre chamadas.
 7. **Assinatura do `SerialTrainer` (verificada, não é bug):** as subclasses chamam `super().__init__(model, None|0, cuda, logger)` de forma posicional. No `fedlab==1.2.1`, a versão fixada em `requirements.txt`, a assinatura é `SerialTrainer(model, client_num, cuda=False, logger=None)` (conferido no código-fonte em 2026-11-04). Então `cuda` e `logger` chegam aos parâmetros certos e o trainer usa a GPU.
-8. Centros de cluster usam só os membros **sorteados na rodada** ([StoCFL-FCC+CFL.py:81](StoCFL/StoCFL-FCC+CFL.py#L81)). O artigo (Eq. 2 e Alg. 1, linha 9) usa **todos** os membros do cluster, com os `Ψ` já guardados. Isso é calculável sem tratar caso especial, porque nenhum cluster sorteado tem membro sem `psi` (invariante 5 de 4.5). A divergência é, portanto, evitável. O bloco comentado "reupdate center" ([:75-79](StoCFL/StoCFL-FCC+CFL.py#L75-L79)) calcula a versão do artigo, mas só descomentá-lo não muda nada, porque a linha 81 reatribui `cluster_movements` logo depois. Ver 4.16 e a seção 6.
+8. **Corrigido em 2026-11-04.** Os centros de cluster usavam só os membros sorteados na rodada. Agora usam todos, como na Eq. 2 e na linha 9 do Alg. 1 do artigo (`cluster_center` em [functional.py](StoCFL/functional.py#L86)). Nenhum cluster sorteado tem membro sem `psi` (invariante 5 de 4.5).
 9. Fusões são irreversíveis e não há mecanismo de divisão.
 10. FedAvg sem ponderação por tamanho do dataset (irrelevante nos cenários sintéticos, que têm clientes de tamanho igual, mas não no FEMNIST).
 11. Custo: cada cliente sorteado treina **duas vezes** por rodada (cluster + global), mais a observação única. Os dados são relidos do disco a cada `get_data_loader`.
@@ -695,7 +695,7 @@ Observações de ambiente:
 | Símbolo | Uso no projeto |
 |---|---|
 | `SerializationTool.serialize_model / deserialize_model` | Modelo ↔ vetor 1-D de parâmetros. |
-| `Aggregators.fedavg_aggregate(lista)` | Média (uniforme quando não há pesos) de vetores; usada para ψ, `gmodel` e modelos de cluster. |
+| `Aggregators.fedavg_aggregate(lista)` | Média (uniforme quando não há pesos) de vetores; usada para o `gmodel` e os modelos de cluster. |
 | `ModelMaintainer` | Base do `StandaloneServer` (`self._model`, `self.model_parameters`). |
 | `SerialTrainer` | Base dos Trainers (`self._model`, `self.cuda`, `self.gpu`, `self.model_parameters`). |
 | `fedlab.utils.functional.evaluate(model, crit, loader)` | Retorna `(loss, acc)`; a loss é **somada** sobre os batches, como na cópia em `ShiftedMNISTTrainer.evaluate`. |
@@ -904,7 +904,7 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 | Elemento | Artigo | Código | Consequência |
 |---|---|---|---|
 | **Representação `Ψ`** | `Normalize(∇ℓ(ψ; D))`: **um gradiente** no modelo âncora, sem treino | `ψ_i = anchor − θ` depois de `obep` épocas de SGD a partir da âncora ([trainer.py:286](StoCFL/trainer.py#L286)), **sem normalizar** | Com 1 época e batch cheio, o SGD sem momentum dá `ψ = η·∇ℓ(âncora; D)`, igual ao artigo a menos de escala. É o caso do `ShiftedMNISTTrainer` (1 época, batch cheio). Com mais épocas ou batch menor, `ψ` é um deslocamento multi-passos, que acumula não-linearidade. O cosseno ignora a escala, mas a média por cluster pesa mais os clientes de maior norma. Medido em MNIST real: cosseno com `∇ℓ` de 0.96 com `obep=10` e de 0.50 com `obep=20`, lote 50 (config do README). A separação entre rotações continua boa nos dois casos, e a partição final foi a mesma. |
-| Centro do cluster | Eq. 2: média de `Ψ` sobre **todos os membros** do cluster (o Alg. 1, linha 9, escreve soma) | Média só dos `ψ` dos membros **sorteados na rodada** (`bucket`); a versão com todos os membros está comentada ("reupdate center") | **Diverge, e sem necessidade:** nenhum cluster sorteado tem membro sem `ψ` (4.5, invariante 5), então a Eq. 2 é calculável. O centro do código depende de quem foi sorteado na rodada e fica mais ruidoso com poucos sorteados. Em um toy sintético, o centro com todos os membros fundiu mais rápido, mas em Rotated MNIST real a partição foi idêntica nas duas formas (2 seeds), porque as rotações se separam com folga (fim da seção 8). |
+| Centro do cluster | Eq. 2: média de `Ψ` sobre **todos os membros** do cluster (o Alg. 1, linha 9, escreve soma, o que dá o mesmo cosseno) | `cluster_center`: média dos `ψ` de todos os membros | **Segue o artigo.** O código original usava só os membros sorteados na rodada. Em Rotated MNIST real, a partição foi idêntica nas duas formas (2 seeds), porque as rotações se separam com folga (fim da seção 8). |
 | Limiar | Fusão com `M_ij > τ` | `result[key] >= self.tau` | Diferença irrelevante na prática. |
 | Ordem e regra das fusões | Não especificada | Pares em ordem decrescente de cosseno; para no primeiro abaixo de `τ`. A matriz é calculada **uma vez** por rodada. | Equivale a *single linkage* com corte em `τ`, com transitividade: `A~B` e `B~C` juntam `A,B,C` mesmo com `cos(A,C) < τ`. |
 | Fusão de modelos | "O servidor funde os modelos" (sem regra) | `unite`: se `\|C_i\| < \|C_j\|` e `j` tem modelo, `i` herda o de `j`; senão `i` mantém o seu (pode não ter nenhum, e então é recriado a partir do `gmodel`). `i` é o menor id. | O modelo do cluster maior tende a vencer, mas não sempre: se `j` não tem modelo ainda, `i` mantém o seu mesmo sendo menor. |
@@ -977,7 +977,6 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 | Trocar a métrica de similaridade (CFL) | `pairwise_angles` ([fl_devices.py:62](clustered-federated-learning/fl_devices.py#L62)). |
 | Mudar o critério de divisão do CFL | Condição `if mean_norm<EPS_1 and ...` na célula 9 do notebook. |
 | Mudar a regra de fusão (ex.: average linkage, recalcular similaridade após cada fusão) | `inter_cluster_union` + `unite` em cada script StoCFL. |
-| Usar todos os membros para o centro do cluster (Eq. 2) | Em `StoCFL-FCC+CFL.py` e `StoCFL-FCC.py`, trocar a linha `cluster_movements = [...]` por uma média de `self.psi[i]` sobre `self.find_cluster_content[clu_id]`. No `FCC+CFL.py`, o bloco comentado "reupdate center" já faz isso, mas só descomentá-lo não basta: a linha 81 o sobrescreve, então apague uma das duas. No `StoCFL-FEMNIST.py`, descomente as duas linhas dentro do laço. Nenhum `psi[i]` falta (4.5, invariante 5). |
 | Mudar herança de modelo na fusão (ex.: média ponderada) | `unite`, bloco `# merge cluster model`. |
 | Desligar o acoplamento com o global | `--mu 0`. |
 | Novo cenário de dados (StoCFL) | Criar um Partitioner (`pre_process`, `get_dataset`, `get_data_loader`) em `datasets.py` e um Trainer com a interface de 4.6; registrar em `__main__`. |
