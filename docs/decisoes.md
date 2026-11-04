@@ -196,3 +196,19 @@ Para cada decisão, a entrada segue este modelo:
   - Criar o protótipo do esqueleto em `projetos/`: descartada pela D-005. O código fica no anexo A.
 - **Consequência:** a recomendação combinada foi testada junta, em todos os cenários do toy. O que ainda precisa de resposta do usuário está na seção 11.1 de [11-decisoes-pendentes.md](implementar/plano-isodata-fl/11-decisoes-pendentes.md).
 
+## D-013: Corrigir o guia depois de verificar o código contra os artigos
+
+- **Data:** 2026-11-04
+- **Decidido por:** usuário, quanto à correção ("corrige as imprecisões do guia"). Claude, por serem escolhas triviais, reversíveis e sem efeito sobre algoritmos (política 4): o texto das correções, manter a numeração dos itens, acrescentar a invariante 5 e não versionar os scripts de verificação.
+- **Situação:** vigente
+- **Contexto:** a verificação do CFL e do StoCFL contra os dois artigos, com leitura do código e execução de trechos isolados fora do repositório, achou imprecisões no guia: o item 4.12 #7 estava marcado "verificar" e se mostrou sem problema; o centro do cluster do StoCFL era descrito como ambíguo no artigo, e a dica de descomentar o bloco "reupdate center" não funciona; a divergência *complete* × Alg. 1 do CFL era descrita de forma imprecisa; faltavam divergências na tabela 4.16; e a seção 8 dizia que nada foi executado.
+- **Decisão:**
+  - Corrigir em [guia.md](guia.md): 3.5, 3.7 (#1 e #4), 3.10, 4.3, 4.5 (nova invariante 5), 4.12 (#7 e #8), 4.15.8, 4.16 (três linhas novas), seção 6 e seção 8 (resultado dos testes). O cabeçalho passou a dizer que trechos foram executados.
+  - Os itens 4.12 #7 e #8 mantêm o número, porque outros textos citam a numeração dessa lista.
+  - O código não foi alterado. As divergências continuam abertas: modelo global encadeado, centro do cluster só com sorteados, `ψ` não normalizado, *complete linkage*, bug de índices e ausência da checagem de `γ_max`. Corrigi-las é escolha de comportamento do algoritmo e cabe ao usuário.
+- **Alternativas consideradas:**
+  - Versionar os scripts de verificação em `docs/` ou `projetos/`: descartada. Foram verificações pontuais, o guia descreve o método e o resultado, e a D-005 mantém `projetos/` sem código novo na fase de planejamento. Pode ser revista se o usuário quiser os testes reexecutáveis.
+  - Corrigir só as quatro imprecisões, sem registrar a verificação: descartada, porque a seção 8 ficaria dizendo que nada foi executado, o que deixou de ser verdade.
+  - Renumerar ou remover o item 4.12 #7: descartada, para não quebrar referências.
+  - Já alterar o código para seguir o artigo: descartada, fora do pedido e contra a política 4.
+
