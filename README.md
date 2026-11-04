@@ -40,7 +40,7 @@ Este repositório parte de trabalhos de outros autores, que aqui são estudados 
 
 | Projeto | Autoria original | Origem | Licença |
 |---|---|---|---|
-| `projetos/clustered-federated-learning/` (CFL) | Felix Sattler (Fraunhofer HHI; commits também como `felisat`), com Klaus-Robert Müller e Wojciech Samek, autores do artigo *Clustered Federated Learning: Model-Agnostic Distributed Multi-Task Optimization under Privacy Constraints* ([arXiv:1910.01991](https://arxiv.org/abs/1910.01991)) | Repositório [felisat/clustered-federated-learning](https://github.com/felisat/clustered-federated-learning), de 2020 | O repositório original não inclui arquivo de licença. Verifique com os autores antes de redistribuir. |
+| `projetos/clustered-federated-learning/` (CFL) | Felix Sattler (Fraunhofer HHI; commits também como `felisat`), com Klaus-Robert Müller e Wojciech Samek, autores do artigo *Clustered Federated Learning: Model-Agnostic Distributed Multi-Task Optimization under Privacy Constraints* ([arXiv:1910.01991](https://arxiv.org/abs/1910.01991)) | Repositório [felisat/clustered-federated-learning](https://github.com/felisat/clustered-federated-learning), de 2020 | MIT, segundo o mantenedor deste repositório. O arquivo `LICENSE` original não está em `projetos/clustered-federated-learning/`; o aviso de copyright dos autores deve ser acrescentado quando o texto original for obtido. |
 | `projetos/StoCFL/` | Dun Zeng, Xiangjing Hu, Shiyu Liu, Yue Yu, Qifan Wang e Zenglin Xu, autores do artigo *StoCFL* ([arXiv:2303.00897](https://arxiv.org/abs/2303.00897)). Os commits originais são de Dun Zeng e de `Zed`/`zed`. | Código publicado pelos autores (URL não registrado) | MIT, Copyright (c) 2023 Dun Zeng ([LICENSE](projetos/StoCFL/LICENSE)) |
 | `projetos/ISODATA-python/` | Lucka (`lucka-me`), autor da implementação em Python | Projeto `ISODATA-python` do autor no GitHub (URL exata não registrada) | MIT, Copyright (c) 2018 Lucka ([LICENSE](projetos/ISODATA-python/LICENSE)) |
 | [isodata.pdf](isodata.pdf) | Geoffrey H. Ball e David J. Hall, *ISODATA, A Novel Method of Data Analysis and Pattern Classification*, relatório técnico, abril de 1965 | Algoritmo implementado em `ISODATA-python` | Artigo de terceiros, só para consulta. |
@@ -50,7 +50,9 @@ Este repositório parte de trabalhos de outros autores, que aqui são estudados 
 
 ## Licença
 
-Este repositório não tem licença própria na raiz. Cada subprojeto mantém a sua: `ISODATA-python` usa MIT, `StoCFL` tem um arquivo `LICENSE` próprio (MIT) e o CFL não traz licença no original. Os arquivos de terceiros (`StoCFL/fedscale/`, `StoCFL/leaf/`, `StoCFL/fedscale/core/utils/rcnn/`) mantêm as licenças originais. As licenças MIT exigem manter o aviso de copyright nas cópias e modificações, então não remova os arquivos `LICENSE`.
+Este repositório usa a licença **MIT** ([LICENSE](LICENSE)), Copyright (c) 2026 luiz2801. O texto do copyright pode ser ajustado pelo mantenedor, por exemplo para o nome completo.
+
+Os subprojetos são MIT e mantêm o aviso de copyright dos autores originais: `ISODATA-python` (Lucka) e `StoCFL` (Dun Zeng) têm arquivo `LICENSE` próprio, e o CFL (Felix Sattler) é MIT, mas ainda sem arquivo `LICENSE` no repositório. Os arquivos de terceiros (`StoCFL/fedscale/`, `StoCFL/leaf/`, `StoCFL/fedscale/core/utils/rcnn/`) mantêm as licenças originais. A MIT exige manter o aviso de copyright nas cópias e modificações, então não remova os arquivos `LICENSE`.
 
 ## Documentação por diretório
 

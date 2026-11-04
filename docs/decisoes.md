@@ -131,3 +131,17 @@ Para cada decisão, a entrada segue este modelo:
   - Submódulos: exigem remote para cada subprojeto, e nenhum existe.
   - Manter os repositórios separados e criar um só para `docs/` e a raiz: não atende o pedido de ter o projeto inteiro no repositório.
 - **Consequência:** commits futuros dos algoritmos ficam no mesmo histórico dos documentos. Não é possível comparar com o upstream por `git diff`; use os links dos créditos.
+
+## D-009: Licença MIT na raiz e correção da licença do CFL
+
+- **Data:** 2026-11-04
+- **Decidido por:** usuário ("O CFL tem licença do MIT. Esse projeto terá licença MIT também"). Claude escolheu o titular `luiz2801` e o ano 2026 no `LICENSE`, por serem triviais e reversíveis.
+- **Situação:** vigente
+- **Contexto:** o README dizia que o CFL não tinha licença no original, o que o usuário corrigiu. O repositório da raiz ainda não tinha licença.
+- **Decisão:**
+  - Adicionar `LICENSE` (MIT) na raiz, Copyright (c) 2026 luiz2801.
+  - Registrar o CFL como MIT no README. O arquivo `LICENSE` original **não** foi criado em `projetos/clustered-federated-learning/`, porque o texto de copyright dos autores não está no repositório e não deve ser inventado. Fica como pendência.
+- **Alternativas consideradas:**
+  - Criar `projetos/clustered-federated-learning/LICENSE` com um copyright presumido: descartada, seria fabricar o aviso de copyright de Felix Sattler.
+  - Usar o nome completo do usuário no `LICENSE`: descartada, o nome não foi informado. O e-mail e o usuário git não bastam para inferi-lo.
+
