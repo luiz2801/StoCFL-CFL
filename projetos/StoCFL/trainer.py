@@ -70,8 +70,7 @@ class FEMNISTTrainer(SerialTrainer):
         gmodels = []
         for id in tqdm(id_list):
             train_loader = self._get_dataloader(id, self.args.batch_size)
-            gmodel = self._train_alone(gmodel, train_loader)
-            gmodels.append(gmodel)
+            gmodels.append(self._train_alone(gmodel, train_loader))
 
         return updated_cmodels, gmodels
 
@@ -176,8 +175,7 @@ class ShiftedMNISTTrainer(SerialTrainer):
         gmodels = []
         for id in tqdm(id_list):
             train_loader, _ = self._get_dataloader(id)
-            gmodel = self._train_alone(gmodel, train_loader)
-            gmodels.append(gmodel)
+            gmodels.append(self._train_alone(gmodel, train_loader))
 
         return updated_cmodels, gmodels
 
@@ -271,8 +269,7 @@ class RotatedMNISTTrainer(SerialTrainer):
         gmodels = []
         for id in tqdm(id_list):
             train_loader = self.dataset.get_data_loader(id, self.args.batch_size)  
-            gmodel = self._train_alone(gmodel, train_loader)
-            gmodels.append(gmodel)
+            gmodels.append(self._train_alone(gmodel, train_loader))
 
         return updated_cmodels, gmodels
 
@@ -394,8 +391,7 @@ class LabelSkewMNISTTrainer(SerialTrainer):
         gmodels = []
         for id in tqdm(id_list):
             train_loader = self._get_dataloader(id)
-            gmodel = self._train_alone(gmodel, train_loader)
-            gmodels.append(gmodel)
+            gmodels.append(self._train_alone(gmodel, train_loader))
 
         return updated_cmodels, gmodels
 
@@ -505,8 +501,7 @@ class FeatureSkewHybridMNISTTrainer(SerialTrainer):
         gmodels = []
         for id in tqdm(id_list):
             train_loader = self.dataset.get_data_loader(id, self.args.batch_size)
-            gmodel = self._train_alone(gmodel, train_loader)
-            gmodels.append(gmodel)
+            gmodels.append(self._train_alone(gmodel, train_loader))
 
         return updated_cmodels, gmodels
 

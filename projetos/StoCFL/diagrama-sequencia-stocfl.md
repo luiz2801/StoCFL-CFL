@@ -69,7 +69,7 @@ sequenceDiagram
             loop para cada cliente sorteado
                 T->>D: get_data_loader(cid, batch_size)
                 D-->>T: DataLoader
-                T->>T: _train_alone, parte do resultado do cliente anterior
+                T->>T: _train_alone, parte do gmodel da rodada
             end
             T-->>S: updated_cmodels e gmodels
             S->>S: gmodel = FedAvg(gmodels)
@@ -93,5 +93,5 @@ sequenceDiagram
 - **Trainer único.** Os clientes não existem como objetos. O servidor chama o trainer com uma lista de ids, e o trainer carrega os dados de cada cliente do disco quando precisa. Num sistema distribuído, as setas `observe` e `train` seriam mensagens de rede.
 - **`observe` é chamado sempre.** Quando todos os sorteados já têm `psi`, a lista `unobserved` é vazia e nenhum cliente treina. Por isso o laço de observação fica vazio nas rodadas em que não aparece nenhum cliente novo.
 - **Cosseno entre clusters, não entre clientes.** A matriz usa a média dos `psi` dos clientes sorteados de cada cluster. Por isso o resultado de uma rodada depende de quais clientes foram sorteados.
-- **Dois laços de treino separados.** No `train`, todos os clientes treinam primeiro o modelo do cluster, e só depois o modelo global. No segundo laço, cada cliente parte do resultado do anterior.
+- **Dois laços de treino separados.** No `train`, todos os clientes treinam primeiro o modelo do cluster, e só depois o modelo global. Nos dois laços, cada cliente parte do modelo enviado pelo servidor naquela rodada.
 - **Arquivos reescritos.** `cos_rec.log` e `cluster_rec.log` são apagados e recriados a cada rodada, então o disco guarda só o estado da última. O histórico completo dos clusters fica em `cluster.pkl`.

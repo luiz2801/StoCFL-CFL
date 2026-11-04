@@ -436,7 +436,7 @@ Ao longo das rodadas, clusters de clientes com a mesma distribuição vão se ju
 **Fase 3, otimização bi-nível (só se `--train 1`).** Para cada cliente sorteado:
 - **Modelo do cluster:** treina o modelo do seu cluster com
   `loss = CE + (μ/2)·‖w − gmodel‖²` (termo proximal estilo FedProx, puxando o modelo do cluster para o global; μ é o λ do artigo).
-- **Modelo global:** treina o `gmodel` com CE pura. O artigo usa FedAvg; no código, o treino é encadeado, e cada cliente parte do resultado do anterior (4.12 #12).
+- **Modelo global:** treina o `gmodel` com CE pura, com todos os clientes partindo do mesmo `gmodel` da rodada (FedAvg, como no artigo).
 - Servidor: `gmodel ← média dos globais treinados`; `modelo[k] ← média dos modelos treinados pelos membros sorteados do cluster k`.
 - Cluster sem modelo ainda (recém-criado ou herdado) recebe uma cópia do `gmodel` atual.
 
@@ -505,7 +505,7 @@ Linhas referentes a [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py); a lógica é 
 | `find_client_cluster` | `list[int]` | `cliente → cluster_id` atual. |
 | `psi` | `dict[int, Tensor1D]` | Representação ψ de cada cliente já observado; **imutável** depois de calculada. |
 | `anchor` | `Tensor1D` | Pesos iniciais; fixo. |
-| `gmodel` | `Tensor1D` | Modelo global (média de treinos encadeados, ver 4.12 #12). |
+| `gmodel` | `Tensor1D` | Modelo global (FedAvg dos clientes sorteados). |
 | `cluster_parameters` | `dict[int, Tensor1D]` | Modelo de cada cluster (criado sob demanda). |
 
 Os modelos circulam como **vetores 1-D serializados** (`SerializationTool.serialize_model`) e são carregados num `nn.Module` com `deserialize_model`.
@@ -681,7 +681,7 @@ Observações de ambiente:
 9. Fusões são irreversíveis e não há mecanismo de divisão.
 10. FedAvg sem ponderação por tamanho do dataset (irrelevante nos cenários sintéticos, que têm clientes de tamanho igual, mas não no FEMNIST).
 11. Custo: cada cliente sorteado treina **duas vezes** por rodada (cluster + global), mais a observação única. Os dados são relidos do disco a cada `get_data_loader`.
-12. **Modelo global encadeado.** Nos cinco Trainers, o segundo laço de `train` reatribui `gmodel` a cada cliente ([trainer.py:273](StoCFL/trainer.py#L273), no `RotatedMNISTTrainer`). Cada cliente parte do resultado do anterior, e o servidor faz a média dessas etapas intermediárias. Isso não é o FedAvg do artigo (4.15.3), em que todos partem do mesmo `ω_t`. O [diagrama de atividades](StoCFL/diagrama-atividades-stocfl.md) já mostrava esse comportamento; o guia dizia o contrário até 2026-11-04. Com MNIST real nos parâmetros da Tabela 1 (1200 clientes, 10%, 100 rodadas, 1 seed), o `gmodel` encadeado dá 95.00, contra 94.96 da linha FedAvg do artigo, e o FedAvg de verdade dá 78.04, próximo da linha FedProx (77.82). Isso sugere que os números publicados vieram do código encadeado; é uma inferência, não prova.
+12. **Modelo global encadeado (corrigido em 2026-11-04).** Nos cinco Trainers, o segundo laço de `train` reatribuía `gmodel` a cada cliente, e cada cliente partia do resultado do anterior. Isso não é o FedAvg do artigo (4.15.3), em que todos partem de `ω_t`, então agora todos partem do mesmo `gmodel`. **Consequência importante:** isso afasta os resultados dos números publicados. Com MNIST real nos parâmetros da Tabela 1 (1200 clientes, 10%, 100 rodadas, 1 seed), o `gmodel` encadeado dava 95.00, contra 94.96 da linha FedAvg do artigo, e o FedAvg de verdade dá 78.04, próximo da linha FedProx (77.82). Isso sugere que as tabelas do artigo vieram do código encadeado; é uma inferência, não prova. Esta correção segue o texto do artigo por decisão do usuário (D-014).
 
 ### 4.13 Código legado ou não usado
 
@@ -910,10 +910,10 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 | Fusão de modelos | "O servidor funde os modelos" (sem regra) | `unite`: se `\|C_i\| < \|C_j\|` e `j` tem modelo, `i` herda o de `j`; senão `i` mantém o seu (pode não ter nenhum, e então é recriado a partir do `gmodel`). `i` é o menor id. | O modelo do cluster maior tende a vencer, mas não sempre: se `j` não tem modelo ainda, `i` mantém o seu mesmo sendo menor. |
 | Passos locais | Alg. 1: um passo; texto: vários | `args.epochs` épocas completas | Mais deriva do cliente com `epochs` alto. |
 | Termo proximal | `λ·(θ − ω)` no gradiente | `loss = CE + 0.5·mu·Σ‖w − w0‖²` com `w0 = gmodel` do início da rodada | Idêntico, com `mu = λ`. |
-| Modelo global `G` | FedAvg: todos partem de `ω_t`, e o servidor faz a média | `_train_alone` encadeado (cada cliente parte do resultado do anterior) + `fedavg_aggregate`, média uniforme | **Diverge.** O `gmodel` do código não é o baseline FedAvg: é um treino sequencial, com média das etapas intermediárias. É ele, e não o FedAvg de verdade, que chega perto dos números publicados (4.12 #12). |
+| Modelo global `G` | FedAvg: todos partem de `ω_t`, e o servidor faz a média | `_train_alone` a partir do mesmo `gmodel` para cada cliente + `fedavg_aggregate`, média uniforme | **Segue o texto do artigo**, mas não as tabelas: o código encadeado original é o que chega perto dos números publicados (4.12 #12). |
 | Agregação | `FedAvg` | `Aggregators.fedavg_aggregate` sem pesos por tamanho | Irrelevante nos cenários sintéticos (clientes de tamanho igual). |
 | Cliente novo | Seções 4 e 5.4: regra do cosseno com `τ` | **Não implementado** | Tabela 5 não é reproduzível. Está no [backlog](backlog.md). |
-| Baselines | FedAvg, FedInit, FedProx, Ditto, IFCA, CFL, FedSEM | **Nenhum implementado** (o `gmodel` lembra o FedAvg, mas é encadeado, ver 4.12 #12) | Tabelas 1–3 não são reproduzíveis só com este repo. |
+| Baselines | FedAvg, FedInit, FedProx, Ditto, IFCA, CFL, FedSEM | **Nenhum implementado** (o `gmodel` é o FedAvg dos clientes sorteados, com o mesmo treino local) | Tabelas 1–3 não são reproduzíveis só com este repo. |
 | Métrica | Acurácia média dos modelos de cluster nos testes dos respectivos clusters, e do modelo global em todos os testes | Cada cluster sorteado é testado no grupo do **primeiro membro**; resultado em `accuracy.pkl` (FCC+CFL) | Sem agregação por sementes e sem ARI/NMI. |
 | Modelo CIFAR | "Duas camadas conv + duas FC" | `CNN_CIFAR10`: duas conv + **três** FC (120→84→10) | Diferença pequena na arquitetura. |
 | Modelo FEMNIST | Duas conv, max pooling, duas FC, inicialização Xavier e dropout 0.5 **entre as camadas convolucionais e as FC** | `CNN_FEMNIST` ([models/cnn.py:13](StoCFL/models/cnn.py#L13)): dropout **0.25** logo após a convolução e **0.5** entre as duas FC; Xavier | Diferença pequena na posição e no valor do dropout. |

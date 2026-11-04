@@ -61,7 +61,7 @@ flowchart TD
     end
 
     subgraph RL2["para cada cliente sorteado (modelo global)"]
-        L2["_train_alone: SGD a partir de gmodel<br/>cada cliente parte do resultado do anterior"]:::cl
+        L2["_train_alone: SGD a partir de gmodel<br/>todos partem do mesmo gmodel da rodada"]:::cl
     end
 
     T3["gmodel = FedAvg dos modelos gerados no passo anterior"]:::sv
@@ -121,7 +121,7 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 - **Movimento medido uma vez.** `psi[cid]` é calculado na primeira vez que o cliente é sorteado, treinando a partir do `anchor` (o modelo inicial), e nunca é refeito. A direção de um cluster na rodada é a média só dos `psi` dos clientes dele que foram sorteados.
 - **Uniões em ordem de cosseno.** A matriz de cossenos é calculada uma vez por rodada. Os pares são percorridos do maior cosseno ao menor, e o primeiro par abaixo de `tau` encerra a rodada de uniões. Os cossenos não são recalculados depois de cada união.
 - **Dois modelos por cliente.** No treino, cada cliente sorteado atualiza o modelo do seu cluster, com um termo proximal que o mantém perto de `gmodel`, e treina também o modelo global. O servidor faz a média de cada um.
-- **Modelo global encadeado.** Em `RotatedMNISTTrainer.train`, `gmodel` é reatribuído a cada cliente do segundo laço. Cada cliente parte do resultado do anterior, e o FedAvg é feito sobre esses modelos intermediários, não sobre modelos treinados em paralelo a partir do mesmo ponto.
+- **Modelo global por FedAvg.** Em `RotatedMNISTTrainer.train`, cada cliente do segundo laço parte do mesmo `gmodel` da rodada, e o servidor faz a média dos modelos resultantes.
 - **Teste do cluster.** O teste usa a rotação do primeiro cliente do cluster (`int(cluster_content[0] * k / n)`). Se um cluster misturar rotações, a acurácia dele só reflete uma delas.
 
 ## Variações dos scripts
