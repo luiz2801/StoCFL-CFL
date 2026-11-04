@@ -1,0 +1,58 @@
+# cfl_stocfl
+
+Repositório de estudos e implementações em duas linhas de pesquisa:
+
+- **Aprendizado federado com clusterização de clientes** (*Clustered Federated Learning*): CFL (Sattler et al.) e StoCFL (Zeng et al.), para dados não-IID.
+- **Classificação de imagens com ISODATA**: implementação do algoritmo ISODATA (Ball & Hall, 1965) em Python, para pixels de imagens comuns e de sensoriamento remoto.
+
+Para a explicação detalhada dos algoritmos, das funções, dos bugs conhecidos e da correspondência entre código e artigos, veja o [guia técnico](docs/guia.md).
+
+## Estrutura
+
+```
+cfl_stocfl/
+├── docs/                               # artigos, guia técnico, decisões e planejamento (implementar/)
+├── projetos/                           # um subprojeto por algoritmo/implementação
+│   ├── clustered-federated-learning/   # CFL (notebook Jupyter)
+│   ├── StoCFL/                         # StoCFL (scripts CLI, FedLab)
+│   └── ISODATA-python/                 # ISODATA como ferramenta de linha de comando
+├── isodata.pdf                         # artigo original do ISODATA (Ball & Hall, 1965)
+└── .venv/                              # ambiente virtual Python 3.12 (apenas kernel Jupyter)
+```
+
+## Projetos
+
+| Projeto | Algoritmo | Como executar | Situação |
+|---|---|---|---|
+| [clustered-federated-learning](projetos/clustered-federated-learning/) | CFL, divisivo, com `scikit-learn` | Notebook `clustered_federated_learning.ipynb` | Funciona com correções (ver guia, seção 3.7) |
+| [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | `StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importam no estado atual |
+| [ISODATA-python](projetos/ISODATA-python/) | ISODATA para imagens comuns (RGB ou cinza) | `python main.py --input ... --output ...` | Funcional, mas muito lento |
+
+## Ambiente
+
+- O `.venv/` da raiz tem só o kernel Jupyter (Python 3.12). Não tem `torch`, `numpy`, `scikit-learn` nem `fedlab`, então não serve para rodar os projetos de aprendizado federado.
+- `projetos/StoCFL` funciona melhor com Python 3.8 a 3.10 e PyTorch até a série 2.5, por causa do `fedlab==1.2.1` (ver [guia, seção 4.11](docs/guia.md)).
+- A raiz é o único repositório git (branch `main`, sem remote). Os subprojetos `clustered-federated-learning`, `StoCFL` e `ISODATA-python` não têm `.git` próprio; o histórico original deles foi removido, e a autoria está nos créditos abaixo.
+
+## Créditos
+
+Este repositório parte de trabalhos de outros autores, que aqui são estudados e **modificados**. Ao unificar tudo em um só repositório, o histórico git original de cada projeto foi removido (D-008 em [docs/decisoes.md](docs/decisoes.md)). Por isso a autoria e a origem ficam registradas aqui.
+
+| Projeto | Autoria original | Origem | Licença |
+|---|---|---|---|
+| `projetos/clustered-federated-learning/` (CFL) | Felix Sattler (Fraunhofer HHI; commits também como `felisat`), com Klaus-Robert Müller e Wojciech Samek, autores do artigo *Clustered Federated Learning: Model-Agnostic Distributed Multi-Task Optimization under Privacy Constraints* ([arXiv:1910.01991](https://arxiv.org/abs/1910.01991)) | Repositório [felisat/clustered-federated-learning](https://github.com/felisat/clustered-federated-learning), de 2020 | O repositório original não inclui arquivo de licença. Verifique com os autores antes de redistribuir. |
+| `projetos/StoCFL/` | Dun Zeng, Xiangjing Hu, Shiyu Liu, Yue Yu, Qifan Wang e Zenglin Xu, autores do artigo *StoCFL* ([arXiv:2303.00897](https://arxiv.org/abs/2303.00897)). Os commits originais são de Dun Zeng e de `Zed`/`zed`. | Código publicado pelos autores (URL não registrado) | MIT, Copyright (c) 2023 Dun Zeng ([LICENSE](projetos/StoCFL/LICENSE)) |
+| `projetos/ISODATA-python/` | Lucka (`lucka-me`), autor da implementação em Python | Projeto `ISODATA-python` do autor no GitHub (URL exata não registrada) | MIT, Copyright (c) 2018 Lucka ([LICENSE](projetos/ISODATA-python/LICENSE)) |
+| [isodata.pdf](isodata.pdf) | Geoffrey H. Ball e David J. Hall, *ISODATA, A Novel Method of Data Analysis and Pattern Classification*, relatório técnico, abril de 1965 | Algoritmo implementado em `ISODATA-python` | Artigo de terceiros, só para consulta. |
+
+- **Código de terceiros** incluído em `StoCFL/`: FedScale, LEAF (com o adaptador do FedLab) e o Faster R-CNN adaptado por Jianwei Yang. Os créditos e as licenças originais estão nos READMEs e cabeçalhos de cada pasta.
+- **Modificações neste repositório** (feitas por `luiz2801`, a partir de 2026-11-04): documentação em `docs/`, diagramas Mermaid de cada algoritmo, `CLAUDE.md`, a opção `--NROWS` e a reescrita do núcleo em `ISODATA-python`, e as mudanças que vierem nos algoritmos. O que não está listado aqui continua sendo obra dos autores originais.
+
+## Licença
+
+Este repositório não tem licença própria na raiz. Cada subprojeto mantém a sua: `ISODATA-python` usa MIT, `StoCFL` tem um arquivo `LICENSE` próprio (MIT) e o CFL não traz licença no original. Os arquivos de terceiros (`StoCFL/fedscale/`, `StoCFL/leaf/`, `StoCFL/fedscale/core/utils/rcnn/`) mantêm as licenças originais. As licenças MIT exigem manter o aviso de copyright nas cópias e modificações, então não remova os arquivos `LICENSE`.
+
+## Documentação por diretório
+
+- [docs/](docs/README.md): artigos e guia técnico
+- [projetos/](projetos/README.md): visão dos três projetos
