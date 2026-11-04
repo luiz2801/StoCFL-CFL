@@ -52,13 +52,18 @@ sequenceDiagram
             NB->>S: compute_mean_update_norm(cluster)
             S-->>NB: mean_norm
 
-            alt mean_norm abaixo de ε₁, max_norm acima de ε₂, mais de 2 clientes e c_round acima de 20
-                NB->>S: cache_model(idc, W, acc_clients)
-                Note right of S: guarda o modelo do cluster pai, com as acurácias da rodada anterior
+            alt mean_norm abaixo de ε₁, max_norm acima de ε₂ e mais de 1 cliente
                 NB->>S: cluster_clients(S[idc][:,idc])
                 S-->>NB: c1, c2
                 Note over NB: c1 e c2 são posições em idc, e os novos clusters são idc[c1] e idc[c2]
-                NB->>L: log(split = c_round)
+                NB->>NB: alpha_cross_max = maior cosseno entre os dois lados
+                alt γ_max abaixo de √((1 − alpha_cross_max) / 2)
+                    NB->>S: cache_model(idc, W, acc_clients)
+                    Note right of S: guarda o modelo do cluster pai, com as acurácias da rodada anterior
+                    NB->>L: log(split = c_round)
+                else bipartição rejeitada
+                    Note over NB: mantém idc em cluster_indices_new
+                end
             else sem divisão
                 Note over NB: mantém idc em cluster_indices_new
             end

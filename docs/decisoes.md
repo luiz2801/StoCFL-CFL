@@ -229,3 +229,18 @@ Para cada decisão, a entrada segue este modelo:
   - Implementar já os recursos ausentes: descartada pelo usuário.
   - Corrigir só o algoritmo, deixando os scripts sem rodar: descartada pelo usuário.
 
+## D-015: Valores de `ε1`, `ε2` e `γ_max` no notebook do CFL
+
+- **Data:** 2026-11-04
+- **Decidido por:** usuário, em resposta à pergunta com os resultados dos testes.
+- **Situação:** vigente
+- **Contexto:** o artigo não informa valores. Dá uma regra de bolso (`ε1 ≈ max‖Δθ_c‖/10`, `ε2 ∈ [ε1, 10·ε1]`), diz que `ε1` deve ser "tão pequeno quanto o tempo permitir" e define `γ_max ∈ [0, 1)`. Os valores anteriores (0.4 e 1.6) foram calibrados com momentum e decaimento do lr, que saem do notebook.
+- **Decisão:** `EPS_1 = 0.2`, `EPS_2 = 0.8` e `GAMMA_MAX = 0.5`. Com SGD puro, Alg. 1 e 80 rodadas, em 13 seeds: todas dividem, a 1ª divisão sempre acerta, nenhum cluster mistura grupos e 11 terminam exatamente nos 2 grupos. Os valores valem para esse cenário e precisam ser recalibrados se lr, épocas, lote ou arquitetura mudarem.
+- **Alternativas consideradas:**
+  - `ε1 ≈ 0.04`, a regra de bolso: descartada. O ruído do SGD mantém `mean_norm` em ~0.10–0.15 mesmo depois de 200 rodadas, e o CFL nunca dividiria.
+  - `ε1 = 0.15`, `ε2 = 0.6`: descartada. Em 4 seeds, 2 não dividiram em 80 rodadas.
+  - `ε1 = 0.2`, `ε2 = 0.5`: descartada. Gerou de 3 a 6 divisões extras por seed, algumas nas rodadas 3 e 4, longe de um ponto estacionário.
+  - `γ_max = 0`: descartada. A checagem existiria, mas nunca rejeitaria nada.
+  - `γ_max = 0.7`: descartada. Fica logo abaixo do menor limite de uma divisão correta (0.712) e pode bloquear divisões corretas em outros dados.
+  - Nenhum `γ_max` separa as divisões corretas das extras nesse cenário, então a checagem não elimina as divisões extras (2 de 13 seeds).
+

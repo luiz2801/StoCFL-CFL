@@ -39,9 +39,11 @@ flowchart TD
 
     subgraph R2["para cada cluster idc"]
         E1["calcular max_norm e mean_norm<br/>dos dW dos clientes do cluster"]:::sv
-        D2{"mean_norm #lt; ε₁ ∧ max_norm #gt; ε₂<br/>∧ len(idc) #gt; 2 ∧ c_round #gt; 20?"}:::split
-        S1["cache_model<br/>guarda o modelo do cluster pai e acc_clients"]:::split
+        D2{"mean_norm #lt; ε₁ ∧ max_norm #gt; ε₂<br/>∧ len(idc) #gt; 1?"}:::split
         S2["cluster_clients<br/>Algoritmo 1 do artigo sobre S → c1, c2"]:::split
+        S4["alpha_cross_max: maior cosseno<br/>entre os dois lados"]:::split
+        D4{"γ_max #lt; √((1 − alpha_cross_max) / 2)?"}:::split
+        S1["cache_model<br/>guarda o modelo do cluster pai e acc_clients"]:::split
         S3["novos clusters: idc[c1] e idc[c2]<br/>registrar o split no cfl_stats"]:::split
         N1["manter idc sem divisão<br/>cluster_indices_new += [idc]"]:::sv
     end
@@ -62,7 +64,9 @@ flowchart TD
     D1 -->|"sim"| B2 --> B3
     D1 -->|"não"| B3
     B3 --> I1 --> I2 --> I3 --> I4 --> B5 --> E1 --> D2
-    D2 -->|"sim"| S1 --> S2 --> S3 --> B7
+    D2 -->|"sim"| S2 --> S4 --> D4
+    D4 -->|"sim"| S1 --> S3 --> B7
+    D4 -->|"não"| N1
     D2 -->|"não"| N1 --> B7
     B7 --> B8 --> B9 --> B10 --> D3
     D3 -->|"sim: c_round += 1"| D1
@@ -92,6 +96,6 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 ## Como o fluxo funciona
 
 - **Atualização sem aplicar.** Cada cliente treina uma época e volta ao modelo anterior (`reset`). Só `dW` fica guardado e é usado depois na agregação.
-- **Quando o cluster se divide.** A divisão só ocorre se `mean_norm < ε₁` (a média das atualizações quase se anula), `max_norm > ε₂` (cada atualização ainda é grande), o cluster tem mais de 2 clientes e já passou a rodada 20. Isso indica clientes puxando o modelo em direções opostas.
+- **Quando o cluster se divide.** O critério é o do Algoritmo 5 do artigo. A bipartição só é calculada se `mean_norm < ε₁` (a média das atualizações quase se anula) e `max_norm > ε₂` (cada atualização ainda é grande), o que indica clientes puxando o modelo em direções opostas. Ela só é aceita se `γ_max < √((1 − alpha_cross_max) / 2)`. Se for rejeitada, o cluster fica como está, e o teste se repete na rodada seguinte.
 - **Agregação por cluster.** O notebook não chama `Server.aggregate_weight_updates`. O servidor só entrega os pesos iniciais na rodada 1; depois, `aggregate_clusterwise` soma a média dos `dW` de cada cluster diretamente nos `W` dos clientes.
-- **Modelos guardados.** `cache_model` roda a cada divisão (guarda o modelo do cluster pai) e no fim para cada cluster final. A tabela final compara esses modelos por cliente.
+- **Modelos guardados.** `cache_model` roda a cada divisão aceita (guarda o modelo do cluster pai) e no fim para cada cluster final. A tabela final compara esses modelos por cliente.
