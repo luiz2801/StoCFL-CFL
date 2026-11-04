@@ -48,9 +48,9 @@ sequenceDiagram
             S->>S: dt_matrix (cosseno) e parse_matrix (pares do maior ao menor)
             S->>L: cos_rec.log
             loop para cada par, do maior cosseno ao menor
-                alt cosseno ≥ tau
+                alt cosseno acima de tau
                     S->>S: unite(a, b)
-                else cosseno abaixo de tau
+                else cosseno não passa de tau
                     Note over S: break, os pares restantes têm cosseno menor
                 end
             end

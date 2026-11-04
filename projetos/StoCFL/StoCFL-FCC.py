@@ -142,7 +142,7 @@ class StandaloneServer(ModelMaintainer):
 
         for key in sorted_key:
             cida, cidb = int(key.split(',')[0]), int(key.split(',')[1]) # cluster id
-            if result[key] >= self.tau:
+            if result[key] > self.tau:
                 self.unite(cida, cidb)
             else:
                 break

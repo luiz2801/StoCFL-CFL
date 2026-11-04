@@ -42,7 +42,7 @@ flowchart TD
     K3["dt_matrix: cosseno entre as direções de cada par de clusters<br/>ordenar os pares do maior cosseno ao menor"]:::sv
 
     subgraph RP["para cada par de clusters, em ordem decrescente de cosseno"]
-        Dtau{"cosseno ≥ tau?"}:::mg
+        Dtau{"cosseno #gt; tau?"}:::mg
         U1["unite(a, b): juntar os clientes no cluster de menor id<br/>e esvaziar o outro"]:::mg
         U2["cluster_parameters: o modelo do cluster maior prevalece<br/>o do cluster absorvido é removido"]:::mg
         BRK["break: os pares restantes têm cosseno ainda menor"]:::sv
@@ -118,7 +118,7 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 
 - **Agrupamento só por união.** Todo cliente começa num cluster próprio (`find_cluster_content[i] = [i]`). `unite` junta clusters e nada no código os divide de volta, então uma união errada não é desfeita.
 - **Representação calculada uma vez.** `psi[cid]` é calculado na primeira vez que o cliente é sorteado, como o gradiente normalizado da perda no `anchor` (o modelo inicial), sem treinar, e nunca é refeito. O centro de um cluster é a média dos `psi` de todos os seus membros, e um cluster sorteado nunca tem membro sem `psi`.
-- **Uniões em ordem de cosseno.** A matriz de cossenos é calculada uma vez por rodada. Os pares são percorridos do maior cosseno ao menor, e o primeiro par abaixo de `tau` encerra a rodada de uniões. Os cossenos não são recalculados depois de cada união.
+- **Uniões em ordem de cosseno.** A matriz de cossenos é calculada uma vez por rodada. Os pares são percorridos do maior cosseno ao menor, e o primeiro par que não passa de `tau` encerra a rodada de uniões. Os cossenos não são recalculados depois de cada união.
 - **Dois modelos por cliente.** No treino, cada cliente sorteado atualiza o modelo do seu cluster, com um termo proximal que o mantém perto de `gmodel`, e treina também o modelo global. O servidor faz a média de cada um.
 - **Modelo global por FedAvg.** Em `RotatedMNISTTrainer.train`, cada cliente do segundo laço parte do mesmo `gmodel` da rodada, e o servidor faz a média dos modelos resultantes.
 - **Teste do cluster.** O teste usa a rotação do primeiro cliente do cluster (`int(cluster_content[0] * k / n)`). Se um cluster misturar rotações, a acurácia dele só reflete uma delas.

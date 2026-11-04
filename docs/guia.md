@@ -425,7 +425,7 @@ Na primeira vez que um cliente é sorteado, ele calcula, no modelo âncora e sem
 1. Sorteia `S_r` (clientes da rodada) e agrupa esses clientes pelo cluster atual.
 2. Centro de cada cluster amostrado = **média dos `ψ` de todos os seus membros** (Eq. 2 do artigo), não só dos sorteados na rodada.
 3. Calcula o cosseno entre as direções de todos os pares de clusters amostrados.
-4. Percorre os pares em ordem **decrescente** de similaridade: se `cos ≥ τ`, **funde** os dois clusters; no primeiro par abaixo de `τ`, para.
+4. Percorre os pares em ordem **decrescente** de similaridade: se `cos > τ`, **funde** os dois clusters; no primeiro par que não passa de `τ`, para.
    - Como a fusão é transitiva, o resultado equivale a ***single-linkage* com limiar τ** entre os clusters amostrados na rodada: `A~B` e `B~C` juntam `A,B,C` mesmo que `cos(A,C) < τ`.
 5. Clusters **só se fundem, nunca se dividem**: um erro de fusão é permanente.
 
@@ -490,7 +490,7 @@ Linhas referentes a [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py); a lógica é 
 | `__init__` | [:30](StoCFL/StoCFL-FCC+CFL.py#L30) | Inicializa clusters unitários, `psi = {}`, `cluster_parameters = {}`, `gmodel` e `anchor` (= pesos iniciais). |
 | `main` | [:53](StoCFL/StoCFL-FCC+CFL.py#L53) | Loop de rodadas (fases 1–3 de 4.1) + logs/arquivos. |
 | `bucket(client_list, items)` | [:170](StoCFL/StoCFL-FCC+CFL.py#L170) | Agrupa `items` (os modelos treinados) pelo cluster atual de cada cliente. Retorna `(ids_de_cluster_presentes, listas)` em ordem crescente de id. |
-| `inter_cluster_union(clusters, direções)` | [:121](StoCFL/StoCFL-FCC+CFL.py#L121) | Calcula o cosseno entre pares, grava `cos_rec.log`, funde pares com `cos ≥ τ` em ordem decrescente e para no primeiro abaixo. Com ≤ 1 cluster amostrado não faz nada. |
+| `inter_cluster_union(clusters, direções)` | [:121](StoCFL/StoCFL-FCC+CFL.py#L121) | Calcula o cosseno entre pares, grava `cos_rec.log`, funde pares com `cos > τ` em ordem decrescente e para no primeiro que não passa de `τ`. Com ≤ 1 cluster amostrado não faz nada. |
 | `unite(i, j)` | [:144](StoCFL/StoCFL-FCC+CFL.py#L144) | Union-find com relabel imediato. (a) Se `i` já foi absorvido nesta rodada (`i ∉ conteúdo[i]`), redireciona para o cluster atual do cliente `i`; idem `j`. (b) Mantém o **menor id**. (c) **Modelo:** se `|C_i| < |C_j|` e `j` tem modelo, `i` herda o modelo de `j` (o cluster maior "vence"); caso contrário `i` mantém o seu. (d) Move membros, esvazia `j` e apaga o modelo de `j`. |
 | `get_cluster` | [:183](StoCFL/StoCFL-FCC+CFL.py#L183) | Reescreve `cluster_rec.log` com a partição atual e faz `assert` de que todos os clientes estão em exatamente um cluster. |
 
@@ -902,8 +902,8 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 |---|---|---|---|
 | **Representação `Ψ`** | `Normalize(∇ℓ(ψ; D))`: **um gradiente** no modelo âncora, sem treino | `dataset_representation` ([trainer.py:21](StoCFL/trainer.py#L21)) | **Segue o artigo.** O código original usava `ψ_i = anchor − θ` depois de `obep` épocas de SGD, sem normalizar: em MNIST real, cosseno com `∇ℓ` de 0.96 com `obep=10` e de 0.50 com `obep=20`, lote 50. A partição final em Rotated MNIST foi a mesma. |
 | Centro do cluster | Eq. 2: média de `Ψ` sobre **todos os membros** do cluster (o Alg. 1, linha 9, escreve soma, o que dá o mesmo cosseno) | `cluster_center`: média dos `ψ` de todos os membros | **Segue o artigo.** O código original usava só os membros sorteados na rodada. Em Rotated MNIST real, a partição foi idêntica nas duas formas (2 seeds), porque as rotações se separam com folga (fim da seção 8). |
-| Limiar | Fusão com `M_ij > τ` | `result[key] >= self.tau` | Diferença irrelevante na prática. |
-| Ordem e regra das fusões | Não especificada | Pares em ordem decrescente de cosseno; para no primeiro abaixo de `τ`. A matriz é calculada **uma vez** por rodada. | Equivale a *single linkage* com corte em `τ`, com transitividade: `A~B` e `B~C` juntam `A,B,C` mesmo com `cos(A,C) < τ`. |
+| Limiar | Fusão com `M_ij > τ` | `result[key] > self.tau` | **Segue o artigo.** |
+| Ordem e regra das fusões | Não especificada | Pares em ordem decrescente de cosseno; para no primeiro que não passa de `τ`. A matriz é calculada **uma vez** por rodada. | Equivale a *single linkage* com corte em `τ`, com transitividade: `A~B` e `B~C` juntam `A,B,C` mesmo com `cos(A,C) < τ`. |
 | Fusão de modelos | "O servidor funde os modelos" (sem regra) | `unite`: se `\|C_i\| < \|C_j\|` e `j` tem modelo, `i` herda o de `j`; senão `i` mantém o seu (pode não ter nenhum, e então volta a `ω₀`). `i` é o menor id. | O modelo do cluster maior tende a vencer, mas não sempre: se `j` não tem modelo ainda, `i` mantém o seu mesmo sendo menor. |
 | Passos locais | Alg. 1: um passo; texto: vários | `args.epochs` épocas completas | Mais deriva do cliente com `epochs` alto. |
 | Termo proximal | `λ·(θ − ω)` no gradiente | `loss = CE + 0.5·mu·Σ‖w − w0‖²` com `w0 = gmodel` do início da rodada | Idêntico, com `mu = λ`. |
