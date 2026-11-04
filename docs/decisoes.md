@@ -244,3 +244,14 @@ Para cada decisão, a entrada segue este modelo:
   - `γ_max = 0.7`: descartada. Fica logo abaixo do menor limite de uma divisão correta (0.712) e pode bloquear divisões corretas em outros dados.
   - Nenhum `γ_max` separa as divisões corretas das extras nesse cenário, então a checagem não elimina as divisões extras (2 de 13 seeds).
 
+## D-016: Tamanho das camadas do `CNN_CIFAR10` com duas FC
+
+- **Data:** 2026-11-04
+- **Decidido por:** Claude, por ser uma escolha trivial e reversível, que não muda o algoritmo: é uma consequência do pedido de seguir o artigo em algo que ele não especifica.
+- **Situação:** vigente
+- **Contexto:** o artigo descreve o modelo de CIFAR-10 como "duas camadas convolucionais seguidas de duas totalmente conectadas", sem informar tamanhos. O código tinha três (120→84→10).
+- **Decisão:** manter a primeira camada e retirar a intermediária: 120→10.
+- **Alternativas consideradas:**
+  - 84→10: descartada. Reduz mais o modelo sem motivo, e 120 já existia como entrada do classificador.
+  - Manter as três camadas: descartada. Contradiz o artigo.
+

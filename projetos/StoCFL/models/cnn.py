@@ -27,10 +27,9 @@ class CNN_FEMNIST(nn.Module):
         self.conv2d_1 = nn.Conv2d(1, 32, kernel_size=3)
         self.max_pooling = nn.MaxPool2d(2, stride=2)
         self.conv2d_2 = nn.Conv2d(32, 64, kernel_size=3)
-        self.dropout_1 = nn.Dropout(0.25)
+        self.dropout_1 = nn.Dropout(0.5)
         self.flatten = nn.Flatten()
         self.linear_1 = nn.Linear(9216, 128)
-        self.dropout_2 = nn.Dropout(0.5)
         self.linear_2 = nn.Linear(128, 10 if only_digits else 62)
         self.relu = nn.ReLU()
         # self.softmax = nn.Softmax(dim=1)
@@ -50,7 +49,6 @@ class CNN_FEMNIST(nn.Module):
         x = self.flatten(x)
         x = self.linear_1(x)
         x = self.relu(x)
-        x = self.dropout_2(x)
         x = self.linear_2(x)
         # x = self.softmax(x)
         return x
@@ -93,14 +91,12 @@ class CNN_CIFAR10(nn.Module):
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
         self.fc1 = nn.Linear(16 * 5 * 5, 120)
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 10)
+        self.fc2 = nn.Linear(120, 10)
 
         #nn.init.xavier_uniform_(self.conv1.weight)
         #nn.init.xavier_uniform_(self.conv2.weight)
         #nn.init.xavier_uniform_(self.fc1.weight)
         #nn.init.xavier_uniform_(self.fc2.weight)
-        #nn.init.xavier_uniform_(self.fc3.weight)
 
 
     def forward(self, x):
@@ -110,8 +106,7 @@ class CNN_CIFAR10(nn.Module):
         #x = F.relu(self.conv1(2))
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.fc2(x)
         return x
 
 

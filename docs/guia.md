@@ -560,8 +560,8 @@ Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que ro
 | Modelo | Arquivo | Arquitetura | Usado em |
 |---|---|---|---|
 | `SimpleLinear` | [models/linear.py](StoCFL/models/linear.py) | MLP 784→2048→10 + `log_softmax` (CE sobre log_softmax é equivalente) | MNIST (todos os cenários) |
-| `CNN_CIFAR10` | [models/cnn.py:85](StoCFL/models/cnn.py#L85) | LeNet: conv5(6)→pool→conv5(16)→pool→120→84→10 | Rotated CIFAR |
-| `CNN_FEMNIST` | [models/cnn.py:13](StoCFL/models/cnn.py#L13) | conv3(32)→conv3(64)→pool→dropout→9216→128→dropout→62 | FEMNIST |
+| `CNN_CIFAR10` | [models/cnn.py:85](StoCFL/models/cnn.py#L85) | conv5(6)→pool→conv5(16)→pool→120→10 | Rotated CIFAR |
+| `CNN_FEMNIST` | [models/cnn.py:13](StoCFL/models/cnn.py#L13) | conv3(32)→conv3(64)→pool→dropout(0.5)→9216→128→62 | FEMNIST |
 | `CNN_MNIST`, `AlexNet_CIFAR10` | models/cnn.py | importados, não usados | — |
 | `models/model.py` | — | duplicatas (ConvNet, MLP, ...) | não usado |
 
@@ -912,8 +912,8 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 | Cliente novo | Seções 4 e 5.4: regra do cosseno com `τ` | **Não implementado** | Tabela 5 não é reproduzível. Está no [backlog](backlog.md). |
 | Baselines | FedAvg, FedInit, FedProx, Ditto, IFCA, CFL, FedSEM | **Nenhum implementado** (o `gmodel` é o FedAvg dos clientes sorteados, com o mesmo treino local) | Tabelas 1–3 não são reproduzíveis só com este repo. |
 | Métrica | Acurácia média dos modelos de cluster nos testes dos respectivos clusters, e do modelo global em todos os testes | Cada cluster sorteado é testado no grupo do **primeiro membro**; resultado em `accuracy.pkl` (FCC+CFL) | Sem agregação por sementes e sem ARI/NMI. |
-| Modelo CIFAR | "Duas camadas conv + duas FC" | `CNN_CIFAR10`: duas conv + **três** FC (120→84→10) | Diferença pequena na arquitetura. |
-| Modelo FEMNIST | Duas conv, max pooling, duas FC, inicialização Xavier e dropout 0.5 **entre as camadas convolucionais e as FC** | `CNN_FEMNIST` ([models/cnn.py:13](StoCFL/models/cnn.py#L13)): dropout **0.25** logo após a convolução e **0.5** entre as duas FC; Xavier | Diferença pequena na posição e no valor do dropout. |
+| Modelo CIFAR | "Duas camadas conv + duas FC", sem informar os tamanhos | `CNN_CIFAR10`: duas conv + duas FC (120→10) | **Segue o artigo.** O código original tinha três FC (120→84→10). O tamanho 120 é uma escolha (D-016). |
+| Modelo FEMNIST | Duas conv, max pooling, duas FC, inicialização Xavier e dropout 0.5 **entre as camadas convolucionais e as FC** | `CNN_FEMNIST` ([models/cnn.py:13](StoCFL/models/cnn.py#L13)): dropout 0.5 logo após a convolução; Xavier | **Segue o artigo.** O código original tinha dropout 0.25 após a convolução e 0.5 entre as duas FC. |
 | Inicialização dos modelos de cluster | `ω₀ = θ₁ = ⋯ = θ_N`: todos os modelos de cluster começam em `ω₀` | `cluster_parameters` começa vazio, e um cluster sem modelo recebe `deepcopy(self.anchor)` na primeira vez que um membro é sorteado ([StoCFL-FCC+CFL.py:88](StoCFL/StoCFL-FCC+CFL.py#L88)) | **Segue o artigo**, com a cópia feita sob demanda. O código original usava o `gmodel` atual. O efeito foi desprezível em Rotated MNIST real (até 0.0001). |
 | Objetivo da Eq. 2 (Fig. 5) | Curva do nº de clusters e do valor da Eq. 2 por rodada | O código não calcula a Eq. 2. O nº de clusters sai de `cluster.pkl` (FCC+CFL) ou de `exp_*_logs.pkl` (FCC) | A Fig. 5 não é reproduzível só com os logs existentes. |
 | Sementes | 5 sementes | Um comentário em [StoCFL-FCC+CFL.py:224](StoCFL/StoCFL-FCC+CFL.py#L224) lista `[0, 42, 1998, 4421380, 789190]` | Provável conjunto usado nos experimentos. |
