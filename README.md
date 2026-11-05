@@ -11,7 +11,7 @@ Para a explicação detalhada dos algoritmos, das funções, dos bugs conhecidos
 
 ```
 cfl_stocfl/
-├── docs/                               # artigos, guia técnico, decisões e planejamento (implementar/)
+├── docs/                               # artigos, guia técnico, decisões, planejamento (implementar/) e notebook de clusterização ao longo do tempo
 ├── projetos/                           # um subprojeto por algoritmo/implementação
 │   ├── clustered-federated-learning/   # CFL (notebook Jupyter)
 │   ├── StoCFL/                         # StoCFL (scripts CLI, FedLab)

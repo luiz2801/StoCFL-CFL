@@ -318,3 +318,21 @@ Para cada decisão, a entrada segue este modelo:
   - Manter a saída fora do repositório: descartada pelo usuário, que indicou o diretório dentro dele.
   - Trocar o autor `luiz2801` por um nome: descartada, porque o nome real não é conhecido. Fica a pergunta ao usuário.
   - Adicionar slide de resultados e de encerramento: não feito, por alterar o conteúdo e depender de escolha do usuário.
+
+## D-021: Notebook de clusterização ao longo do tempo em `docs/`, com Mermaid via `mermaid.js`
+
+- **Data:** 2026-11-05
+- **Decidido por:** o usuário, em resposta a perguntas, pediu um notebook com o diagrama do StoCFL e outro do CFL e escolheu o local e a renderização. Claude decidiu os detalhes triviais e reversíveis (nome, exemplos, iframe).
+- **Situação:** vigente
+- **Contexto:** o usuário pediu uma representação em Mermaid de como os clientes se agrupam ao longo do tempo no StoCFL, e depois que ela fosse salva num notebook, junto com a versão para o CFL.
+- **Decisão:**
+  - Criar `docs/clusterizacao-ao-longo-do-tempo.ipynb`, escolha do usuário. O notebook cobre os dois algoritmos, então não fica em um subprojeto só (mesmo raciocínio da D-018).
+  - Renderizar com células de código que carregam `mermaid.js` (versão 10.9.1, CDN jsDelivr), escolha do usuário.
+  - Claude pôs o `mermaid.js` dentro de um `iframe` com `srcdoc`, porque o Jupyter e o VS Code não executam `<script>` em saídas HTML comuns.
+  - Os exemplos são ilustrativos, não execuções reais: StoCFL com 8 clientes e quatro rotações de MNIST; CFL com os 10 clientes do notebook (0 a 4 rotacionados em 180°). O número da rodada de divisão do CFL (`r*`) é arbitrário.
+  - O notebook é salvo sem saídas.
+- **Alternativas consideradas:**
+  - `projetos/` ou a raiz como local: descartadas pelo usuário, em favor de `docs/`.
+  - Blocos ```` ```mermaid ```` em células Markdown: descartada pelo usuário, porque no Jupyter puro apareceriam como texto.
+  - Imagem estática (mermaid.ink ou `mmdc`): descartada pelo usuário; também não há `mmdc` no ambiente.
+  - Um arquivo `.md` de diagrama como os de cada projeto: descartada, porque o pedido foi um notebook.
