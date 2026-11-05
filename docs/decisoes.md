@@ -331,6 +331,7 @@ Para cada decisão, a entrada segue este modelo:
   - Claude pôs o `mermaid.js` dentro de um `iframe` com `srcdoc`, porque o Jupyter e o VS Code não executam `<script>` em saídas HTML comuns.
   - Os exemplos são ilustrativos, não execuções reais: StoCFL com 8 clientes e quatro rotações de MNIST; CFL com os 10 clientes do notebook (0 a 4 rotacionados em 180°). O número da rodada de divisão do CFL (`r*`) é arbitrário.
   - O notebook é salvo sem saídas.
+  - Revisão no mesmo dia, a pedido do usuário (a primeira versão, com as rodadas lado a lado, ficou ruim de ler): as rodadas passaram a ser linhas, de cima para baixo, as uniões ganharam borda grossa, e o `iframe` ajusta a própria altura depois do desenho. Claude decidiu isso por ser só apresentação.
 - **Alternativas consideradas:**
   - `projetos/` ou a raiz como local: descartadas pelo usuário, em favor de `docs/`.
   - Blocos ```` ```mermaid ```` em células Markdown: descartada pelo usuário, porque no Jupyter puro apareceriam como texto.
