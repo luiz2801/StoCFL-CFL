@@ -5,7 +5,7 @@ Duas apresentações em LaTeX (classe Beamer), uma para cada algoritmo:
 | Arquivo | Assunto | Slides |
 |---|---|---|
 | [apresentacao-cfl.tex](apresentacao-cfl.tex) | CFL clássico (Sattler et al., 2021), divisivo, com o cosseno entre atualizações | 17 |
-| [apresentacao-stocfl.tex](apresentacao-stocfl.tex) | StoCFL (Zeng et al., 2025), aglomerativo, com participação parcial | 18 |
+| [apresentacao-stocfl.tex](apresentacao-stocfl.tex) | StoCFL (Zeng et al., 2025), aglomerativo, com participação parcial | 20 |
 
 As apresentações resumem o que está em [docs/guia.md](../docs/guia.md) (seções 3 e 4) e nos artigos em [docs/](../docs/). Elas descrevem o estado atual do código, incluindo as correções descritas no guia.
 

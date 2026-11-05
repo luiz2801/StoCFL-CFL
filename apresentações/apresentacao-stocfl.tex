@@ -87,13 +87,62 @@
 
 \begin{frame}{Uma rodada do SFCC}
   \begin{enumerate}
-    \item O servidor sorteia $m$ clientes e agrupa-os pelo cluster atual.
-    \item Para cada cluster sorteado, o centro é a \textbf{média dos $\Psi$ de todos os membros},
-      não só dos sorteados na rodada.
-    \item Calcula-se o cosseno entre os centros de todos os pares de clusters sorteados.
+    \item O servidor sorteia $m$ clientes. Só os sorteados que \textbf{nunca enviaram}
+      $\Psi$ calculam e enviam o seu agora.
+    \item Cada sorteado é associado ao seu cluster atual. Os clusters que contêm algum sorteado
+      são os \textbf{clusters da rodada}.
+    \item O centro de cada cluster da rodada é a média dos $\Psi$ de \textbf{todos os seus
+      membros}, mesmo os que não foram sorteados agora, porque o $\Psi$ deles já está no servidor.
+    \item Calcula-se o cosseno entre os centros dos clusters da rodada, e só entre eles.
     \item Os pares são percorridos do maior cosseno ao menor. Se $\cos > \tau$, os dois clusters
       são \textbf{fundidos}. No primeiro par que não passa de $\tau$, a rodada para.
   \end{enumerate}
+\end{frame}
+
+\begin{frame}{Quem envia $\Psi$ e quem entra na matriz de cosseno}
+  Há três situações para um cliente em uma rodada:
+
+  \vspace{0.5em}
+  \begin{center}
+    \small
+    \begin{tabular}{@{}p{4.6cm}cc@{}}
+      \toprule
+      Situação do cliente & Envia $\Psi$ agora? & Está na matriz? \\
+      \midrule
+      Sorteado pela primeira vez & sim & sim \\
+      Sorteado, já enviou antes & não & sim \\
+      Não sorteado, cluster não sorteado & não & não \\
+      \bottomrule
+    \end{tabular}
+  \end{center}
+
+  \vspace{0.3em}
+  \begin{itemize}
+    \item A matriz tem uma linha por \textbf{cluster da rodada}, e não por cliente.
+    \item Todo cliente de um cluster que já foi fundido foi sorteado antes, então já enviou $\Psi$.
+      Clientes nunca sorteados continuam sozinhos, sem $\Psi$, e ficam fora da matriz.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Exemplo: seis clientes, duas rodadas}
+  \small
+  \begin{tabular}{@{}clll@{}}
+    \toprule
+    Rodada & Sorteados & Enviam $\Psi$ agora & Matriz (clusters) \\
+    \midrule
+    1 & 1, 2, 3 & 1, 2, 3 & $\{1\},\{2\},\{3\}$ \\
+    2 & 2, 4, 5 & 4, 5 (o cliente 2 já enviou) & $\{1,2\},\{4\},\{5\}$ \\
+    \bottomrule
+  \end{tabular}
+
+  \vspace{0.6em}
+  \begin{itemize}
+    \item \textbf{Rodada 1:} suponha $\cos(\Psi_1,\Psi_2) > \tau$. O cluster $\{1,2\}$ é formado.
+    \item \textbf{Rodada 2:} o cliente 2 é sorteado, então o cluster $\{1,2\}$ entra na matriz.
+      Seu centro usa $\Psi_1$ e $\Psi_2$, embora o cliente 1 não tenha sido sorteado.
+    \item O cliente 3 já enviou $\Psi_3$, mas seu cluster não foi sorteado: fica fora da matriz.
+    \item O cliente 6 nunca foi sorteado: não enviou $\Psi$ e não aparece em nenhuma matriz.
+  \end{itemize}
 \end{frame}
 
 \begin{frame}{Fusão em cadeia (single linkage)}
