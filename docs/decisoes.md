@@ -368,3 +368,18 @@ Para cada decisão, a entrada segue este modelo:
   - PlotPy (biblioteca científica baseada em Qt): descartada pelo usuário, em favor do Plotly. Ela abre janelas desktop, não renderiza no notebook e exige PyQt.
   - Manter o matplotlib: descartada pelo usuário, que pediu a troca.
   - Escala log no painel do nº de clusters, que Claude tinha usado por padrão para não comprimir a faixa de 4 a 10 clusters: descartada pelo usuário em 2026-11-05, que pediu escala linear.
+
+## D-024: Notebook de teste de m com `τ = 0.9` e `m` = 5%
+
+- **Data:** 2026-11-05
+- **Decidido por:** o usuário, que editou os parâmetros do notebook `teste-fracao-clientes.ipynb`. Claude apenas registrou a mudança e atualizou a documentação.
+- **Situação:** vigente. Altera os parâmetros da D-022 (`τ = 0.5` e `m` até 10%).
+- **Contexto:** o usuário rodou o notebook com outros parâmetros e pediu o commit.
+- **Decisão:**
+  - `TAU = 0.9` (antes 0.5) e `FRACOES = [1.0, 0.5, 0.25, 0.1, 0.05]` (antes sem 0.05, ou seja, 10 clientes por rodada a mais).
+  - O notebook é commitado **sem as saídas das células** (política 6 do `CLAUDE.md`). O arquivo no disco do usuário mantém as saídas; só o commit as omite.
+  - A tabela de resultados do guia (4.11) continua sendo da execução com `τ = 0.5`, e o texto agora diz isso. Os resultados com `τ = 0.9` não foram registrados.
+- **Alternativas consideradas:**
+  - Commitar o notebook com as saídas: descartada, porque a política 6 proíbe commitar saídas de execução e o diff teria ~1.400 linhas de HTML e JSON de gráficos.
+  - Limpar as saídas no arquivo do usuário: descartada, porque apagaria resultados que ele pode querer ver e o pedido foi só de commit.
+  - Registrar no guia os resultados com `τ = 0.9`: não feita, porque os números só existem nas saídas do notebook e não foram conferidos.

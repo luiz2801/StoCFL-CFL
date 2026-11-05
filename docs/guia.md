@@ -666,7 +666,7 @@ Observações de ambiente:
 - Os scripts usam GPU se `torch.cuda.is_available()`, e CPU caso contrário.
 - Em `StoCFL-FCC+CFL.py`, `--batch_size` e `--obbs` omitidos valem `None`, e os loaders usam o dataset inteiro como um único batch. Os outros argumentos sem default (`--n`, `--com_round`, `--num_per_round`, `--seed`) são obrigatórios na prática.
 
-**Teste da fração de clientes por rodada (`m`).** O notebook [teste-fracao-clientes.ipynb](StoCFL/teste-fracao-clientes.ipynb) roda `StoCFL-FCC+CFL.py --train 0` por `subprocess` em Rotated MNIST (`n = 200`, `k = 4`, `τ = 0.5`, 50 rodadas, seed 0) com `m` = 100%, 50%, 25% e 10%, e mede nº de clusters, ARI, pureza e cobertura por rodada a partir do `cluster.pkl` e do log. Execução de 2026-11-05 (1 seed, 1 execução por `m`, GPU), em ~5 min no total:
+**Teste da fração de clientes por rodada (`m`).** O notebook [teste-fracao-clientes.ipynb](StoCFL/teste-fracao-clientes.ipynb) roda `StoCFL-FCC+CFL.py --train 0` por `subprocess` em Rotated MNIST (`n = 200`, `k = 4`, `τ = 0.5`, 50 rodadas, seed 0) com `m` = 100%, 50%, 25% e 10%, e mede nº de clusters, ARI, pureza e cobertura por rodada a partir do `cluster.pkl` e do log. Execução de 2026-11-05 com `τ = 0.5` (1 seed, 1 execução por `m`, GPU), em ~5 min no total. Depois dela, o notebook passou a vir com `τ = 0.9` e `m` = 5% a mais na lista (D-024); os resultados dessa configuração não estão registrados aqui, e a tabela abaixo continua valendo só para `τ = 0.5`:
 
 | `m` | Clientes/rodada | Clusters finais | 1ª rodada com 4 clusters | ARI final |
 |---|---|---|---|---|
