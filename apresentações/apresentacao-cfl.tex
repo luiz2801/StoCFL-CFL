@@ -100,7 +100,7 @@
 \begin{frame}{Dois critérios de norma}
   Seja $\Delta W_i$ a atualização do cliente $i$ no cluster $c$.
   \begin{align*}
-    \text{média:}\quad & \mathrm{mean\_norm} = \left\| \sum_{i \in c} \frac{|D_i|}{|D_c|}\, \Delta W_i \right\|
+    \text{média:}\quad & \mathrm{mean\_norm} = \left\| \frac{1}{|c|} \sum_{i \in c} \Delta W_i \right\|
       \quad \text{(perto de um estacionário do FL)}\\[0.6em]
     \text{máximo:}\quad & \mathrm{max\_norm} = \max_{i \in c} \| \Delta W_i \|
       \quad \text{(algum cliente ainda está longe do seu ótimo)}
@@ -109,6 +109,7 @@
   \begin{block}{Condição para considerar a divisão}
     $\mathrm{mean\_norm} < \varepsilon_1 \quad \text{e} \quad \mathrm{max\_norm} > \varepsilon_2$
   \end{block}
+  \small O artigo pondera a média por $|D_i|/|D_c|$. O notebook usa a média simples, como o Algoritmo 5.
 \end{frame}
 
 \begin{frame}{Intuição}

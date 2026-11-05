@@ -29,7 +29,7 @@
   \begin{enumerate}
     \item Problema: clusterização com participação parcial
     \item Representação do cliente: o gradiente normalizado $\Psi$
-    \item Clusterização estocástica (SFCC): fusão de clusters pelo cosseno
+    \item Clusterização estocástica (SFCC, \emph{stochastic federated client clustering}): fusão de clusters pelo cosseno
     \item Treino bi-nível (Bi-CFL): modelo de cluster e modelo global
     \item Casos limite, cenários do repositório e resultados
     \item Correções feitas, limitações e comparação com o CFL
@@ -152,7 +152,7 @@
       $\lambda$ grande & Modelos de cluster próximos do modelo global \\
       $\tau = 1$ & Nenhuma fusão: um cluster por cliente, como o Ditto \\
       $\tau = -1$ & Um único cluster, como o FedProx \\
-      $\lambda = 0$ e $\tau = -1$ & FedAvg \\
+      $\lambda = 0$ e $\tau = -1$ & FedAvg (v1 do artigo) \\
       \bottomrule
     \end{tabular}
   \end{center}
@@ -238,7 +238,7 @@
       Direção & divisivo & aglomerativo \\
       Participação & todos os clientes & parcial \\
       Sinal de similaridade & $\Delta W$ da rodada & $\Psi$, calculado uma vez \\
-      Quando agrupa & após o FL convergir & desde a primeira rodada \\
+      Quando agrupa & quando as normas convergem & desde a primeira rodada \\
       Controle do número de clusters & $\varepsilon_1$, $\varepsilon_2$ & $\tau$ \\
       Garantia teórica & Teorema da Separação & só empírica \\
       \bottomrule

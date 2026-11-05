@@ -286,7 +286,7 @@ Para cada decisão, a entrada segue este modelo:
   - Usar a classe Beamer, com `aspectratio=169` e o tema Madrid.
   - Fazer duas apresentações separadas: `apresentacao-cfl.tex` e `apresentacao-stocfl.tex`.
   - O conteúdo segue `docs/guia.md` (seções 3 e 4) e os artigos, e inclui as correções e as limitações registradas no guia.
-  - Os PDFs e os arquivos auxiliares não são versionados, e a compilação indicada no README usa um diretório de saída fora do repositório.
+  - Os PDFs e os arquivos auxiliares não são versionados. *(O diretório de saída fora do repositório foi substituído pela D-020.)*
 - **Alternativas consideradas:**
   - Nome "apresentaçãoes", exatamente como digitado: descartada por ser provavelmente um erro de digitação. Se for intencional, o diretório pode ser renomeado.
   - Uma única apresentação com os dois algoritmos: descartada, porque o pedido separou as duas apresentações.
@@ -304,3 +304,17 @@ Para cada decisão, a entrada segue este modelo:
   - Instalar `texlive-lang-portuguese` com `apt`: descartada por exigir privilégio de administrador e uma mudança no sistema, fora do repositório. Fica como opção para o usuário, se quiser a hifenização.
   - Usar `babel` com `english`: descartada, porque deixaria a hifenização em inglês, que é pior para o texto em português.
 
+## D-020: Saída das apresentações em `saida-apresentacoes/`, ignorada pelo git, e ajustes de conteúdo
+
+- **Data:** 2026-11-05
+- **Decidido por:** o usuário pediu compilar em `/home/luiz/cfl_stocfl/saida-apresentacoes` e corrigir o que a revisão apontou. Claude fez os ajustes de texto, por serem triviais e reversíveis.
+- **Situação:** vigente. Substitui a parte da D-018 que punha a saída fora do repositório.
+- **Contexto:** a saída já estava na raiz do repositório, contra o README, e aparecia como não rastreada.
+- **Decisão:**
+  - Compilar em `saida-apresentacoes/`, na raiz, e listá-la no `.gitignore`.
+  - Slide "Dois critérios" do CFL: `mean_norm` com média simples, como em `compute_mean_update_norm` e no Algoritmo 5, com nota de que o artigo pondera por `|D_i|/|D_c|`.
+  - StoCFL: SFCC expandida no roteiro, "FedAvg" qualificado como "v1 do artigo", e "Quando agrupa" do CFL reescrito como "quando as normas convergem".
+- **Alternativas consideradas:**
+  - Manter a saída fora do repositório: descartada pelo usuário, que indicou o diretório dentro dele.
+  - Trocar o autor `luiz2801` por um nome: descartada, porque o nome real não é conhecido. Fica a pergunta ao usuário.
+  - Adicionar slide de resultados e de encerramento: não feito, por alterar o conteúdo e depender de escolha do usuário.
