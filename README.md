@@ -40,7 +40,7 @@ cfl_stocfl/
   ```
 
 - O [requirements.txt](requirements.txt) da raiz reúne as dependências dos três projetos (`fedlab==1.2.1`, `torch`, `torchvision`, `scikit-learn`, `cvxopt`, `spacy`, `pandas`, `matplotlib`, `Pillow` e outros). Os `requirements.txt` dos subprojetos continuam como estavam.
-- Instalado em 2026-11-05: Python 3.12.3, torch 2.15.0 (build `cu132`, com CUDA; os scripts usam a GPU se houver), torchvision 0.29.2, `fedlab` 1.2.1, scikit-learn 1.9.1, numpy 2.5.4, pandas 3.1.1, matplotlib 3.11.2, spacy 3.8.18, cvxopt 1.3.3 e Pillow 13.0.0. O guia (seção 4.11) registra que o StoCFL já tinha sido testado antes com torch 2.15 em CPU.
+- Instalado em 2026-11-05: Python 3.12.3, torch 2.15.0 (build `cu132`, com CUDA; os scripts usam a GPU se houver), torchvision 0.29.2, `fedlab` 1.2.1, scikit-learn 1.9.1, numpy 2.5.4, pandas 3.1.1, matplotlib 3.11.2, plotly 7.1.0, nbformat 5.11.1, spacy 3.8.18, cvxopt 1.3.3 e Pillow 13.0.0. O guia (seção 4.11) registra que o StoCFL já tinha sido testado antes com torch 2.15 em CPU.
 - A raiz é o único repositório git (branch `main`, sem remote). Os subprojetos `clustered-federated-learning`, `StoCFL` e `ISODATA-python` não têm `.git` próprio; o histórico original deles foi removido, e a autoria está nos créditos abaixo.
 
 ## Créditos

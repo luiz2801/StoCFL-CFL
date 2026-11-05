@@ -356,3 +356,14 @@ Para cada decisão, a entrada segue este modelo:
   - Torch só para CPU: descartada pelo usuário; a máquina tem uma RTX A4000 e os scripts usam a GPU se houver.
   - Descrever as dependências só no README, sem arquivo: descartada pelo usuário, em favor do `requirements.txt` na raiz.
   - Notebook em `docs/`, ou importando o servidor: descartadas. O script não é importável (o código principal está sob `__main__`), e importar exigiria alterar o código.
+
+## D-023: Gráficos do notebook de teste de m em Plotly
+
+- **Data:** 2026-11-05
+- **Decidido por:** o usuário pediu os gráficos em "plotpy" e, perguntado qual biblioteca era, escolheu o Plotly.
+- **Situação:** vigente. Altera os gráficos da D-022, que usavam matplotlib.
+- **Contexto:** o notebook `teste-fracao-clientes.ipynb` plotava com matplotlib.
+- **Decisão:** trocar por Plotly (3 painéis com `make_subplots`: nº de clusters em escala log, ARI e cobertura), com a mesma paleta e com traços e marcadores distintos por `m`. `plotly` 7.1.0 e `nbformat` 5.11.1 (exigido por `fig.show()` em notebook) entram no `requirements.txt` da raiz e no `.venv`. O `matplotlib` continua nos requisitos, porque o CFL e o ISODATA o usam.
+- **Alternativas consideradas:**
+  - PlotPy (biblioteca científica baseada em Qt): descartada pelo usuário, em favor do Plotly. Ela abre janelas desktop, não renderiza no notebook e exige PyQt.
+  - Manter o matplotlib: descartada pelo usuário, que pediu a troca.
