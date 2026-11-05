@@ -920,6 +920,8 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 
 ### 4.17 Reproduzindo os experimentos do artigo com este repositório
 
+**Desde a D-014, o código segue o texto do artigo, e os resultados de treino ficam abaixo das tabelas publicadas** (seção 8), que parecem ter vindo do código original (4.12 #12). A clusterização continua correta. Para chegar perto das tabelas, use o código original, até o commit `3159d55`.
+
 Os parâmetros abaixo são os do artigo; os comandos são **aproximados**, porque o artigo não informa vários hiperparâmetros do FEMNIST.
 
 | Experimento | Parâmetros do artigo | Comando aproximado | Cuidados |
@@ -1022,7 +1024,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 
 Como as fórmulas foram verificadas: o texto dos PDFs foi extraído com `pdftotext`. Onde os símbolos gregos saíram truncados (por exemplo, no Teorema 1), as expressões foram conferidas com a versão HTML do arXiv. As tabelas de resultados foram copiadas do PDF publicado do StoCFL (recorte na Tabela 1).
 
-O que **não** foi verificado: treino real do StoCFL em label skew, shifted, hybrid e FEMNIST, e os experimentos do artigo do CFL (label swap, CIFAR, AG News).
+O que **não** foi verificado: treino real do StoCFL em label skew, shifted, hybrid, CIFAR e FEMNIST (este último só rodou com dados falsos), e os experimentos do artigo do CFL (label swap, CIFAR, AG News).
 
 **Verificação com dados sintéticos (2026-11-04).** Os trechos abaixo são o código real do repositório, extraído por AST e executado em ambientes temporários fora do repositório. Eles mostram a correção lógica, e não o desempenho. Os scripts não foram versionados (D-013 em [decisoes.md](decisoes.md)).
 
@@ -1046,3 +1048,14 @@ O que **não** foi verificado: treino real do StoCFL em label skew, shifted, hyb
 | StoCFL: operações do treino | MNIST real, 40 clientes | `train` real: cada cliente parte do resultado do anterior. `train_alone_prox` bate com a linha 21 do Alg. 1 (erro de 7e-9). Com `obep=1` e batch cheio, `ψ = η∇ℓ`. |
 | StoCFL: variantes, cenário da seção 5.1 | 400 clientes, 10%, 50 rodadas, τ=0.5, λ=0.05, 2 a 3 seeds | Código: global ~0.91, cluster ~0.94, ARI 1.0. Com FedAvg de verdade: global ~0.68, cluster ~0.90. Centro com todos os membros, `Ψ` do artigo e `θ` em `ω₀` não mudaram a partição nem a acurácia além de 0.0001. A Tabela 4 do artigo traz 92.65 e 95.86. |
 | StoCFL: Tabela 1 | 1200 clientes, `\|D\| = 200`, 10%, 100 rodadas, 1 seed | StoCFL 96.65 (artigo: 96.71). `gmodel` encadeado 95.00 (FedAvg no artigo: 94.96). FedAvg de verdade 78.04 e um único cluster com termo proximal sem encadear 77.98 (FedProx no artigo: 77.82). O artigo não informa o μ do FedProx. |
+
+**Depois das correções de D-014 (2026-11-04).** Mesmo ambiente, com scikit-learn 1.9. A clusterização e o notebook rodaram com os scripts e as células reais. O treino do StoCFL usou as classes reais extraídas por AST, sem GPU e sem gravar em disco.
+
+| O que | Configuração | Resultado |
+|---|---|---|
+| CFL: notebook inteiro | Todas as células, seed 42 | Roda sem erro. Uma divisão, com os grupos `[0–4]` e `[5–9]`. |
+| CFL: limiares | `ε1 = 0.2`, `ε2 = 0.8`, SGD puro, Alg. 1, 80 rodadas, 13 seeds | Todas dividem, a 1ª divisão sempre acerta e nenhum cluster mistura grupos. 11 terminam exatamente nos 2 grupos, e 2 têm uma divisão extra dentro de um grupo. Acurácia final de 0.64 a 0.73. Sem divisão, o FL fica em ~0.60. Testado com `γ_max = 0`; o valor 0.5 não rejeitaria nenhuma dessas tentativas, porque todos os limites ficaram acima de 0.71. |
+| StoCFL: clusterização da seção 5.1 | Scripts reais, 50 rodadas, 10% por rodada, τ = 0.5 | Rotated, Shifted e Pathological (400 clientes): 4 clusters e 1 cliente ainda não sorteado. Hybrid (200 clientes): 2 clusters e 2 clientes ainda não sorteados. ARI 1.0 em todos, nos clusters com mais de um membro. Confirma a afirmação do artigo de que o algoritmo encontra o número correto de clusters. |
+| StoCFL: treino, cenário da seção 5.1 | Rotated MNIST, 400 clientes, 10%, 50 rodadas, λ = 0.05, 3 seeds | Global ~0.68 e cluster ~0.90, contra 92.65 e 95.86 na Tabela 4 do artigo. |
+| StoCFL: treino, Tabela 1 | Rotated MNIST, 1200 clientes, 10%, 100 rodadas, λ = 0.05, 1 seed | Global 78.04 e cluster 90.99, contra 94.96 (FedAvg) e 96.71 (StoCFL) no artigo. Antes das correções, eram 95.00 e 96.65. |
+| StoCFL: fluxo | CIFAR com 8 clientes e 2 rodadas; FEMNIST com pickles LEAF falsos | Os scripts rodam até o fim. A acurácia não foi medida. |

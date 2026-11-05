@@ -255,3 +255,23 @@ Para cada decisão, a entrada segue este modelo:
   - 84→10: descartada. Reduz mais o modelo sem motivo, e 120 já existia como entrada do classificador.
   - Manter as três camadas: descartada. Contradiz o artigo.
 
+## D-017: Detalhes de implementação das correções de D-014
+
+- **Data:** 2026-11-04
+- **Decidido por:** Claude, por serem escolhas triviais e reversíveis, em pontos que o artigo não especifica e que não mudam o algoritmo declarado.
+- **Situação:** vigente
+- **Contexto:** seguir o texto dos artigos deixou alguns detalhes em aberto.
+- **Decisão:**
+  - `Ψ` é calculado em modo `eval`, para que o dropout do `CNN_FEMNIST` não torne a representação aleatória. O artigo define `Ψ` como função de `D`.
+  - `--obep` foi removido, porque deixou de ter sentido. `--obbs` ficou, só para acumular o gradiente em lotes menores, sem mudar o resultado.
+  - A cópia de `ω₀` para um cluster sem modelo é feita sob demanda, para não ocupar memória com `N` modelos.
+  - O notebook exige `len(idc) > 1` antes de bipartir, porque a Definição 1 do artigo pede os dois lados não vazios.
+  - `Server.cluster_clients` transcreve o Algoritmo 1 em vez de usar `linkage="single"` do scikit-learn. O resultado foi o mesmo em 1500 matrizes, e o CFL deixa de depender da biblioteca.
+  - A regra de fusão de modelos de dois clusters fica como estava, porque o artigo não a declara (D-014).
+  - As saídas das células 9 e 12 do notebook foram removidas, porque descreviam o algoritmo antigo, e a política 6 não permite commitar saídas de execução.
+  - Os scripts de verificação não foram versionados, como na D-013.
+- **Alternativas consideradas:**
+  - `Ψ` em modo `train`: descartada. Com dropout, dois cálculos no mesmo cliente dariam resultados diferentes.
+  - Inicializar os `N` modelos em `ω₀` já no início: descartada. O efeito é o mesmo, com custo de memória ou de código.
+  - Reexecutar o notebook e commitar as novas saídas: descartada pela política 6.
+
