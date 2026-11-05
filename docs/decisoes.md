@@ -383,3 +383,19 @@ Para cada decisão, a entrada segue este modelo:
   - Commitar o notebook com as saídas: descartada, porque a política 6 proíbe commitar saídas de execução e o diff teria ~1.400 linhas de HTML e JSON de gráficos.
   - Limpar as saídas no arquivo do usuário: descartada, porque apagaria resultados que ele pode querer ver e o pedido foi só de commit.
   - Registrar no guia os resultados com `τ = 0.9`: não feita, porque os números só existem nas saídas do notebook e não foram conferidos.
+
+## D-025: Merge com o histórico do remoto, mantendo a versão local
+
+- **Data:** 2026-11-05
+- **Decidido por:** o usuário pediu "resolve os conflitos com um merge e dá push", depois de ver as opções. Claude escolheu a versão de cada arquivo em conflito.
+- **Situação:** vigente
+- **Contexto:** o push foi rejeitado porque o `origin/main` (`006b840`, um único commit, "Add CFL and StoCFL projects with reference papers and guide") não tinha ancestral em comum com o histórico local. O merge deu conflito add/add em 22 arquivos.
+- **Decisão:**
+  - `git merge --allow-unrelated-histories`, com a versão **local** (`--ours`) em todos os 22 arquivos. A versão do remoto de 17 deles já está no histórico local, em commits antigos. Nos outros 5 (`docs/guia.md`, `ISODATAKit.py`, `README.md` e `main.py` do ISODATA-python e o notebook do CFL), o remoto tem uma versão anterior às correções, por exemplo um guia que ainda diz que nada foi executado.
+  - Manter `projetos/ISODATA-GNR602/`, que só existe no remoto, e avisar no `projetos/README.md` que é código de terceiros, sem licença identificada e não integrado.
+  - Push normal (fast-forward depois do merge), sem `--force`.
+- **Alternativas consideradas:**
+  - `push --force-with-lease`: descartada, porque apagaria o `006b840` e o `ISODATA-GNR602/`.
+  - Push para outra branch: descartada pelo usuário, que pediu o merge.
+  - Versão do remoto nos 5 arquivos que só ela tem: descartada, porque desfaria correções e a documentação atual.
+  - Apagar o `ISODATA-GNR602/`: descartada, porque o arquivo não é meu nem foi citado como lixo. Fica a decisão de integrá-lo ou removê-lo para o usuário.
