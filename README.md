@@ -16,6 +16,7 @@ cfl_stocfl/
 │   ├── clustered-federated-learning/   # CFL (notebook Jupyter)
 │   ├── StoCFL/                         # StoCFL (scripts CLI, FedLab)
 │   └── ISODATA-python/                 # ISODATA como ferramenta de linha de comando
+├── apresentações/                      # slides em LaTeX (Beamer) do CFL e do StoCFL
 ├── isodata.pdf                         # artigo original do ISODATA (Ball & Hall, 1965)
 └── .venv/                              # ambiente virtual Python 3.12 (apenas kernel Jupyter)
 ```

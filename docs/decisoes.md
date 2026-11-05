@@ -275,3 +275,32 @@ Para cada decisão, a entrada segue este modelo:
   - Inicializar os `N` modelos em `ω₀` já no início: descartada. O efeito é o mesmo, com custo de memória ou de código.
   - Reexecutar o notebook e commitar as novas saídas: descartada pela política 6.
 
+## D-018: Apresentações em Beamer, um arquivo por algoritmo, em `apresentações/`
+
+- **Data:** 2026-11-05
+- **Decidido por:** Claude, por ser uma escolha trivial e reversível, que não afeta o comportamento dos algoritmos. O usuário pediu "um diretório novo chamado apresentaçãoes" com uma apresentação do StoCFL e outra do CFL clássico, em LaTeX.
+- **Situação:** vigente
+- **Contexto:** o pedido não definiu a classe LaTeX, a estrutura de arquivos nem a localização. O nome pedido tem a grafia "apresentaçãoes", que parece erro de digitação de "apresentações".
+- **Decisão:**
+  - Criar `apresentações/` na raiz do repositório, com o acento correto, e um `README.md` de índice.
+  - Usar a classe Beamer, com `aspectratio=169` e o tema Madrid.
+  - Fazer duas apresentações separadas: `apresentacao-cfl.tex` e `apresentacao-stocfl.tex`.
+  - O conteúdo segue `docs/guia.md` (seções 3 e 4) e os artigos, e inclui as correções e as limitações registradas no guia.
+  - Os PDFs e os arquivos auxiliares não são versionados, e a compilação indicada no README usa um diretório de saída fora do repositório.
+- **Alternativas consideradas:**
+  - Nome "apresentaçãoes", exatamente como digitado: descartada por ser provavelmente um erro de digitação. Se for intencional, o diretório pode ser renomeado.
+  - Uma única apresentação com os dois algoritmos: descartada, porque o pedido separou as duas apresentações.
+  - `diapositivos` ou outro documento que não seja Beamer: descartada, porque Beamer é a classe mais usada para apresentações em LaTeX e o pedido não indicou outra.
+  - Diretório `projetos/apresentações/`: descartada, porque as apresentações cobrem os dois projetos e não pertencem a um só.
+
+## D-019: Apresentações sem o pacote `babel` em português
+
+- **Data:** 2026-11-05
+- **Decidido por:** Claude, por ser uma escolha trivial e reversível, feita porque o ambiente não tem o pacote necessário. Instalar pacotes do sistema não foi feito sem pedido.
+- **Situação:** vigente
+- **Contexto:** `\usepackage[brazil]{babel}` falhou com "Unknown option 'brazil'": o arquivo `brazil.ldf` não existe neste ambiente. O pacote que o fornece, `texlive-lang-portuguese`, não está instalado.
+- **Decisão:** remover a linha do `babel` dos dois arquivos. O texto é em português, escrito diretamente, e só a hifenização do português fica de fora. O README de `apresentações/` registra isso.
+- **Alternativas consideradas:**
+  - Instalar `texlive-lang-portuguese` com `apt`: descartada por exigir privilégio de administrador e uma mudança no sistema, fora do repositório. Fica como opção para o usuário, se quiser a hifenização.
+  - Usar `babel` com `english`: descartada, porque deixaria a hifenização em inglês, que é pior para o texto em português.
+
