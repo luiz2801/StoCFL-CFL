@@ -363,7 +363,8 @@ Para cada decisão, a entrada segue este modelo:
 - **Decidido por:** o usuário pediu os gráficos em "plotpy" e, perguntado qual biblioteca era, escolheu o Plotly.
 - **Situação:** vigente. Altera os gráficos da D-022, que usavam matplotlib.
 - **Contexto:** o notebook `teste-fracao-clientes.ipynb` plotava com matplotlib.
-- **Decisão:** trocar por Plotly (3 painéis com `make_subplots`: nº de clusters em escala log, ARI e cobertura), com a mesma paleta e com traços e marcadores distintos por `m`. `plotly` 7.1.0 e `nbformat` 5.11.1 (exigido por `fig.show()` em notebook) entram no `requirements.txt` da raiz e no `.venv`. O `matplotlib` continua nos requisitos, porque o CFL e o ISODATA o usam.
+- **Decisão:** trocar por Plotly (3 painéis com `make_subplots`: nº de clusters, ARI e cobertura, todos em escala linear), com a mesma paleta e com traços e marcadores distintos por `m`. `plotly` 7.1.0 e `nbformat` 5.11.1 (exigido por `fig.show()` em notebook) entram no `requirements.txt` da raiz e no `.venv`. O `matplotlib` continua nos requisitos, porque o CFL e o ISODATA o usam.
 - **Alternativas consideradas:**
   - PlotPy (biblioteca científica baseada em Qt): descartada pelo usuário, em favor do Plotly. Ela abre janelas desktop, não renderiza no notebook e exige PyQt.
   - Manter o matplotlib: descartada pelo usuário, que pediu a troca.
+  - Escala log no painel do nº de clusters, que Claude tinha usado por padrão para não comprimir a faixa de 4 a 10 clusters: descartada pelo usuário em 2026-11-05, que pediu escala linear.
