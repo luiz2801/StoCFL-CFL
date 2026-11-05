@@ -18,7 +18,8 @@ cfl_stocfl/
 │   └── ISODATA-python/                 # ISODATA como ferramenta de linha de comando
 ├── apresentações/                      # slides em LaTeX (Beamer) do CFL e do StoCFL
 ├── isodata.pdf                         # artigo original do ISODATA (Ball & Hall, 1965)
-└── .venv/                              # ambiente virtual Python 3.12 (apenas kernel Jupyter)
+├── requirements.txt                    # dependências do ambiente único (.venv)
+└── .venv/                              # ambiente virtual Python 3.12 único, com tudo para rodar os três projetos
 ```
 
 ## Projetos
@@ -31,8 +32,15 @@ cfl_stocfl/
 
 ## Ambiente
 
-- O `.venv/` da raiz tem só o kernel Jupyter (Python 3.12). Não tem `torch`, `numpy`, `scikit-learn` nem `fedlab`, então não serve para rodar os projetos de aprendizado federado.
-- Os projetos de aprendizado federado foram testados com Python 3.12, PyTorch 2.15 em CPU e `fedlab==1.2.1` (ver [guia, seção 4.11](docs/guia.md)).
+- O `.venv/` da raiz é o **único ambiente** do repositório e serve para rodar o CFL, o StoCFL e o ISODATA, além dos notebooks (o kernel Jupyter é o `.venv`). Para criá-lo ou recriá-lo:
+
+  ```bash
+  python3 -m venv .venv
+  .venv/bin/pip install -r requirements.txt
+  ```
+
+- O [requirements.txt](requirements.txt) da raiz reúne as dependências dos três projetos (`fedlab==1.2.1`, `torch`, `torchvision`, `scikit-learn`, `cvxopt`, `spacy`, `pandas`, `matplotlib`, `Pillow` e outros). Os `requirements.txt` dos subprojetos continuam como estavam.
+- Instalado em 2026-11-05: Python 3.12.3, torch 2.15.0 (build `cu132`, com CUDA; os scripts usam a GPU se houver), torchvision 0.29.2, `fedlab` 1.2.1, scikit-learn 1.9.1, numpy 2.5.4, pandas 3.1.1, matplotlib 3.11.2, spacy 3.8.18, cvxopt 1.3.3 e Pillow 13.0.0. O guia (seção 4.11) registra que o StoCFL já tinha sido testado antes com torch 2.15 em CPU.
 - A raiz é o único repositório git (branch `main`, sem remote). Os subprojetos `clustered-federated-learning`, `StoCFL` e `ISODATA-python` não têm `.git` próprio; o histórico original deles foi removido, e a autoria está nos créditos abaixo.
 
 ## Créditos

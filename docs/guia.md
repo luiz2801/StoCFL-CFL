@@ -2,7 +2,7 @@
 
 Este guia explica os dois códigos de *Clustered Federated Learning* deste diretório: o que cada algoritmo faz, quais funções fazem o quê, o fluxo de execução, as variáveis e o efeito de cada uma no resultado, além de bugs conhecidos e orientações para quem for modificar o código, seja uma pessoa ou um agente de IA.
 
-> Todas as referências `arquivo:linha` são relativas a `cfl_stocfl/projetos/`. O guia foi escrito a partir da leitura do código **e dos dois artigos** (os PDFs em `docs/`: CFL no *IEEE TNNLS* 2021 e StoCFL na *Neural Networks* 2025). O `.venv` da raiz só tem o kernel Jupyter (não tem torch, numpy, sklearn nem fedlab), então não serve para rodar o código. As verificações por execução foram feitas em 2026-11-04, em ambientes temporários fora do repositório (ver o fim da seção 8).
+> Todas as referências `arquivo:linha` são relativas a `cfl_stocfl/projetos/`. O guia foi escrito a partir da leitura do código **e dos dois artigos** (os PDFs em `docs/`: CFL no *IEEE TNNLS* 2021 e StoCFL na *Neural Networks* 2025). O `.venv` da raiz é o ambiente único do repositório e, desde 2026-11-05, tem tudo para rodar o código (`requirements.txt` da raiz; ver a seção 4.11). As verificações por execução de 2026-11-04 foram feitas em ambientes temporários fora do repositório (ver o fim da seção 8).
 >
 > Onde ler o quê: as seções 3.1–3.8 e 4.1–4.14 descrevem **o código**. As seções **3.9–3.10** e **4.15–4.17** descrevem **os artigos** (teoria, experimentos, hiperparâmetros recomendados) e o **mapa artigo ↔ código**, isto é, onde a implementação segue ou diverge do que o artigo propõe.
 
@@ -25,7 +25,8 @@ Este guia explica os dois códigos de *Clustered Federated Learning* deste diret
 
 ```
 cfl_stocfl/
-├── .venv/                              # Python 3.12, só kernel Jupyter (sem torch/fedlab)
+├── requirements.txt                    # dependências do ambiente único
+├── .venv/                              # Python 3.12 único, com torch, fedlab etc.
 ├── docs/
 │   ├── Clustered_Federated_Learning_...pdf # artigo do CFL (IEEE TNNLS, 2021)
 │   ├── StoCFL.pdf                      # artigo do StoCFL (Neural Networks, 2025)
@@ -661,9 +662,20 @@ python StoCFL-FCC+CFL.py --n 200 --com_round 200 --num_per_round 20 --batch_size
 Observações de ambiente:
 - `spacy` é obrigatório mesmo sem NLP: `trainer.py` importa `leaf.dataloader → leaf.pickle_dataset → leaf.nlp_utils.util → spacy`.
 - `torch ≥ 2.6` usa `torch.load(weights_only=True)` por padrão. Os `get_dataset` passam `weights_only=False` para carregar os `BaseDataset`, o que exige `torch ≥ 1.13`.
-- Testado com Python 3.12, torch 2.15 em CPU, scikit-learn 1.9 e `fedlab==1.2.1`. O `.venv` da raiz não tem pacotes de ML e não serve para rodar o projeto.
+- Testado com Python 3.12, torch 2.15, scikit-learn 1.9 e `fedlab==1.2.1`. O `.venv` da raiz tem tudo isso (`pip install -r requirements.txt` na raiz; torch 2.15.0 com CUDA, e os scripts usam a GPU se houver). Rode os scripts com `../../.venv/bin/python` a partir de `projetos/StoCFL/`.
 - Os scripts usam GPU se `torch.cuda.is_available()`, e CPU caso contrário.
 - Em `StoCFL-FCC+CFL.py`, `--batch_size` e `--obbs` omitidos valem `None`, e os loaders usam o dataset inteiro como um único batch. Os outros argumentos sem default (`--n`, `--com_round`, `--num_per_round`, `--seed`) são obrigatórios na prática.
+
+**Teste da fração de clientes por rodada (`m`).** O notebook [teste-fracao-clientes.ipynb](StoCFL/teste-fracao-clientes.ipynb) roda `StoCFL-FCC+CFL.py --train 0` por `subprocess` em Rotated MNIST (`n = 200`, `k = 4`, `τ = 0.5`, 50 rodadas, seed 0) com `m` = 100%, 50%, 25% e 10%, e mede nº de clusters, ARI, pureza e cobertura por rodada a partir do `cluster.pkl` e do log. Execução de 2026-11-05 (1 seed, 1 execução por `m`, GPU), em ~5 min no total:
+
+| `m` | Clientes/rodada | Clusters finais | 1ª rodada com 4 clusters | ARI final |
+|---|---|---|---|---|
+| 100% | 200 | 4 | 1 | 1.000 |
+| 50% | 100 | 4 | 11 | 1.000 |
+| 25% | 50 | 4 | 20 | 1.000 |
+| 10% | 20 | 6 | não atingiu | 0.987 |
+
+Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% dos clientes ainda não tinha sido sorteado na rodada 50 (cobertura 0.99), então a clusterização não terminou. Isso mostra que a rapidez da convergência segue a cobertura (4.1, 4.5), mas com uma só seed, a diferença exata entre os `m` pode ser ruído de amostragem. Custos observados: a rodada 0 com `m = 100%` calcula 19.900 cossenos entre vetores de ~1,6 M de parâmetros, e o script grava `psi.pkl` (~1,3 GB) a cada rodada.
 
 ### 4.12 Bugs e limitações conhecidos (StoCFL)
 

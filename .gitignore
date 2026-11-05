@@ -3,3 +3,6 @@ __pycache__/
 *.py[cod]
 .ipynb_checkpoints/
 saida-apresentacoes/
+projetos/StoCFL/logs/
+projetos/StoCFL/datasets/mnist/
+projetos/StoCFL/datasets/rotated_*/

@@ -990,7 +990,7 @@ O esqueleto tem 22 linhas, incluindo o calendário do ISODATA, e o adaptador tem
 
 ## A.15 Como rodar
 
-Requer Python 3.12 e NumPy, além de Pillow para o protótipo (usados aqui: Python 3.12.3, NumPy 2.5.4 e Pillow 13.0.0). O `.venv` da raiz não tem esses pacotes.
+Requer Python 3.12 e NumPy, além de Pillow para o protótipo (usados aqui: Python 3.12.3, NumPy 2.5.4 e Pillow 13.0.0). O `.venv` da raiz tem esses pacotes desde 2026-11-05 (versões mais novas do que as citadas), mas o comando abaixo usa um ambiente descartável.
 
 ```bash
 python3 -m venv /tmp/toy && /tmp/toy/bin/pip install numpy pillow

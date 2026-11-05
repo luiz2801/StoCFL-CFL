@@ -1,0 +1,22 @@
+# Ambiente único do repositório (.venv da raiz): roda CFL, StoCFL e ISODATA.
+# Os requirements.txt dos subprojetos continuam como estavam.
+
+# StoCFL
+fedlab==1.2.1
+torch
+torchvision
+tqdm
+scikit-learn
+cvxopt
+spacy
+
+# CFL (notebook) e notebooks de análise
+numpy
+pandas
+matplotlib
+
+# ISODATA
+Pillow
+
+# Jupyter (kernel do .venv)
+ipykernel

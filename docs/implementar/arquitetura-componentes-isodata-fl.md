@@ -116,7 +116,7 @@ Mantém o estado dos clusters e aplica a lógica de Ball & Hall adaptada:
 
 Verificado em 2026-11-04:
 
-* O `.venv/` da raiz não tem `numpy`, `torch`, `scikit-learn` nem `fedlab` (README da raiz). O CFL e o StoCFL foram testados com Python 3.12, PyTorch 2.15 e `fedlab==1.2.1` ([guia, seção 4.11](../guia.md)).
+* O `.venv/` da raiz é o ambiente único e, desde 2026-11-05, tem `numpy`, `torch`, `scikit-learn` e `fedlab` (README da raiz). O CFL e o StoCFL foram testados com Python 3.12, PyTorch 2.15 e `fedlab==1.2.1` ([guia, seção 4.11](../guia.md)).
 * O repositório não tem testes automatizados. Só o StoCFL tem `requirements.txt`; o CFL não tem ([guia, seção 3.7 item 5](../guia.md)).
 * **`BaseFederatedServer` não tem correspondente no código.** O `Server` do CFL (`fl_devices.py`), com pesos vivos em `client.W`, e o `StandaloneServer` do StoCFL, com vetores 1-D, têm estruturas bem diferentes. Uma classe base comum é uma hipótese de design, não algo que o código atual sustente. A alternativa mais simples, funções ou uma classe pura sobre vetores 1-D, não foi avaliada.
 

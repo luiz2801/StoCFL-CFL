@@ -164,7 +164,7 @@ Hoje o repositório não tem testes automatizados.
 
 | ID | Problema | Solução proposta | Justificativa |
 |---|---|---|---|
-| P-COD-1 | **Os testes de redução precisam dos originais rodando, em ambientes incompatíveis.** O StoCFL pede Python 3.8–3.10 e `fedlab==1.2.1`; o notebook do CFL precisa das correções de compatibilidade; o `.venv` da raiz não serve para nenhum dos dois | Um ambiente descartável para cada original, usado **só para gerar saídas de referência uma vez**. Partições e métricas ficam salvas em JSON, e os testes comparam com esse arquivo | O teste do dia a dia não pode depender de um ambiente de 2022. Guia 3.7, 4.11 e seção 6 |
+| P-COD-1 | **Os testes de redução precisam dos originais rodando, em ambientes incompatíveis.** O StoCFL pede Python 3.8–3.10 e `fedlab==1.2.1`; o notebook do CFL precisa das correções de compatibilidade; o `.venv` da raiz (Python 3.12, com `fedlab==1.2.1` desde 2026-11-05) roda o StoCFL como está neste repositório, mas isso não foi verificado para os originais sem as correções | Um ambiente descartável para cada original, usado **só para gerar saídas de referência uma vez**. Partições e métricas ficam salvas em JSON, e os testes comparam com esse arquivo | O teste do dia a dia não pode depender de um ambiente de 2022. Guia 3.7, 4.11 e seção 6 |
 | P-COD-2 | Os subprojetos não são importáveis | Portar trechos curtos (8.6) | Nome de arquivo com `+`, notebook, importações com efeitos colaterais |
 | P-COD-3 | O CFL original não declara licença | Reescrever a partir do artigo, sem copiar, e confirmar a origem do "MIT" (DP-17) | 8.6 |
 | P-COD-4 | O repositório não tem testes | Criar a suíte de 8.7 desde a Fase 1 | Sem isso, "reproduz o CFL" fica só na palavra |

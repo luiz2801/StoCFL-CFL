@@ -337,3 +337,22 @@ Para cada decisão, a entrada segue este modelo:
   - Blocos ```` ```mermaid ```` em células Markdown: descartada pelo usuário, porque no Jupyter puro apareceriam como texto.
   - Imagem estática (mermaid.ink ou `mmdc`): descartada pelo usuário; também não há `mmdc` no ambiente.
   - Um arquivo `.md` de diagrama como os de cada projeto: descartada, porque o pedido foi um notebook.
+
+## D-022: Ambiente único no `.venv` da raiz e notebook de teste da fração de clientes (m) do StoCFL
+
+- **Data:** 2026-11-05
+- **Decidido por:** o usuário, em resposta a perguntas, escolheu o cenário, o modo de execução, o local e o ambiente. Claude decidiu os detalhes triviais e reversíveis, listados abaixo.
+- **Situação:** vigente. Substitui a descrição anterior do `.venv` da raiz como "apenas kernel Jupyter" (README da raiz e guia).
+- **Contexto:** o usuário pediu um pipeline de testes em `.ipynb` com `m` em 100%, 50%, 25% e 10% e no máximo 50 rodadas. O ambiente não tinha `torch` nem `fedlab`, e o usuário quis que o `.venv` da raiz fosse o único ambiente do projeto, com tudo para rodar qualquer cenário.
+- **Decisão:**
+  - Notebook `projetos/StoCFL/teste-fracao-clientes.ipynb`, que chama `StoCFL-FCC+CFL.py` por `subprocess` e lê `cluster.pkl` e o log principal. O código do StoCFL não foi alterado.
+  - Cenário Rotated MNIST com `n = 200` (`k = 4`), `--train 0` (só clusterização), `τ = 0.5`, no máximo 50 rodadas.
+  - `.venv` da raiz como único ambiente, com `requirements.txt` na raiz que une StoCFL, CFL, ISODATA e Jupyter; torch do PyPI com CUDA (2.15.0, build `cu132`). Os `requirements.txt` dos subprojetos ficam como estavam.
+  - Claude decidiu, por serem triviais e reversíveis: `SEEDS = [0]` por padrão (cada seed gera uma partição nova de ~750 MB; editável); métricas de nº de clusters, ARI, pureza, clusters mistos, cobertura e rodada de estabilização; reaproveitar execuções concluídas (`REEXECUTAR = False`); ignorar no git `projetos/StoCFL/logs/`, `datasets/mnist/` e `datasets/rotated_*/`; o nome do notebook; e atualizar três frases obsoletas sobre o `.venv` em documentos de planejamento (`docs/implementar/`).
+- **Alternativas consideradas:**
+  - Rotated MNIST com `n = 400` ou Rotated CIFAR-10: descartadas pelo usuário. O `n = 400` usa mais memória (cada `Ψ` tem ~6,5 MB), e o CIFAR-10 é mais pesado.
+  - Rodar com `--train 1`: descartada pelo usuário; o foco é o efeito de `m` na clusterização, e o treino ficaria bem mais lento, com resultados abaixo do artigo (D-014).
+  - Criar `projetos/StoCFL/.venv`: descartada pelo usuário, que quis um único ambiente na raiz.
+  - Torch só para CPU: descartada pelo usuário; a máquina tem uma RTX A4000 e os scripts usam a GPU se houver.
+  - Descrever as dependências só no README, sem arquivo: descartada pelo usuário, em favor do `requirements.txt` na raiz.
+  - Notebook em `docs/`, ou importando o servidor: descartadas. O script não é importável (o código principal está sob `__main__`), e importar exigiria alterar o código.
