@@ -44,18 +44,18 @@ python StoCFL-FCC+CFL.py --n 200 \
 
 ### Efeito da fração de clientes por rodada (m)
 
-O notebook [teste-fracao-clientes.ipynb](teste-fracao-clientes.ipynb) roda a clusterização (`StoCFL-FCC+CFL.py --train 0`) em Rotated MNIST com `n = 200` e 50 rodadas, com `τ = 0.9`, variando `m` em 100%, 50%, 25%, 10% e 5% (200, 100, 50, 20 e 10 clientes por rodada). Ele chama o script por `subprocess`, sem alterar o código do StoCFL, lê o `cluster.pkl` de cada execução e mostra, em gráficos interativos do Plotly, por rodada, o nº de clusters, o ARI e a pureza contra os grupos reais e a fração de clientes já observados, além da rodada em que a partição para de mudar.
+O notebook [teste-fracao-clientes.ipynb](teste-fracao-clientes.ipynb) roda a clusterização (`StoCFL-FCC+CFL.py --train 0`) em Rotated MNIST com `n = 240` e 50 rodadas, com `τ = 0.9`, variando `m` em 100%, 50%, 25%, 10% e 5% (240, 120, 60, 24 e 12 clientes por rodada) e o nº de grupos reais `k` em `KS = [4, 8, 16]` (D-029). Ele chama o script por `subprocess`, sem alterar o código do StoCFL, lê o `cluster.pkl` de cada execução e mostra, em gráficos interativos do Plotly, por rodada, o nº de clusters, o ARI e a pureza contra os grupos reais e a fração de clientes já observados, além da rodada em que a partição para de mudar.
 
 - Use o kernel `.venv` da raiz (ver o [README da raiz](../../README.md#ambiente)) e abra o notebook a partir desta pasta.
-- Na primeira execução, o MNIST é baixado em `datasets/mnist/` e as partições rotacionadas são gravadas em `datasets/rotated_mnist_200_<seed>/` (~750 MB por seed).
-- Cada execução grava `psi.pkl` (~1,3 GB com 200 clientes) a cada rodada em `logs/`. Execuções concluídas são reaproveitadas, a menos que `REEXECUTAR = True`.
+- Na primeira execução, o MNIST é baixado em `datasets/mnist/` e as partições rotacionadas são gravadas em `datasets/rotated_mnist_240_<seed>/` (`k = 4`) e `datasets/rotated_mnist_240_<seed>_k<k>/` (outros `k`) (~900 MB por seed e por `k`).
+- Cada execução grava `psi.pkl` (~1,6 GB com 240 clientes) a cada rodada em `logs/`. Execuções concluídas são reaproveitadas, a menos que `REEXECUTAR = True`.
 - `datasets/mnist/`, `datasets/rotated_*/` e `logs/` são ignorados pelo git.
 
 ### Busca de τ
 
-A seção 5 do mesmo notebook procura o `τ` que melhor recupera os `k = 4` grupos reais (o gabarito), para `m` = 100%, 25% e 10%. Ela roda uma varredura grossa em `τ` = 0.05, 0.25, 0.5, 0.75 e 1.0 e depois até 6 bisseções: a cada passo avalia o ponto médio do maior intervalo entre a borda do conjunto de `τ` com maior ARI final e o vizinho avaliado, parando se o intervalo ficar menor que 0.005. Mostra o intervalo ótimo, o `τ` sugerido (centro do intervalo) e gráficos de nº de clusters (escala log, porque vai de 1 a 200), ARI e pureza em função de `τ`, com uma faixa de fundo no intervalo ótimo de cada `m` (D-028).
+A seção 5 do mesmo notebook procura o `τ` que melhor recupera os `k` grupos reais (o gabarito), para cada `k` de `TAU_KS` (por padrão, `KS`) e `m` = 100%, 25% e 10%. Ela roda uma varredura grossa em `τ` = 0.05, 0.25, 0.5, 0.75 e 1.0 e depois até 6 bisseções: a cada passo avalia o ponto médio do maior intervalo entre a borda do conjunto de `τ` com maior ARI final e o vizinho avaliado, parando se o intervalo ficar menor que 0.005. Mostra o intervalo ótimo, o `τ` sugerido (centro do intervalo) e gráficos de nº de clusters (escala log, porque vai de 1 a 200), ARI e pureza em função de `τ`, com uma faixa de fundo no intervalo ótimo de cada `m` (D-028).
 
-- Cada `τ` é uma execução do script com `--tau` diferente (~1,3 GB em `logs/` cada; até 11 execuções por `m`). Os resultados ficam em `logs/busca-tau.json`, e reexecutar a célula reaproveita o que já foi rodado.
+- Cada `τ` é uma execução do script com `--tau` diferente (~1,6 GB em `logs/` cada; até 11 execuções por par `k`, `m`, ou seja, até 99 execuções e ~160 GB com `KS = [4, 8, 16]`: reduza `TAU_KS` ou `TAU_FRACOES` se faltar espaço). Os resultados ficam em `logs/busca-tau.json`, e reexecutar a célula reaproveita o que já foi rodado.
 - Só a primeira seed (`SEEDS[0]`) é usada. A varredura e a bisseção supõem que o ARI varia de forma razoavelmente suave em `τ`, o que vale para uma seed, mas pode não valer entre seeds.
 
 ## Citation

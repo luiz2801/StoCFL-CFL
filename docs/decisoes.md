@@ -445,3 +445,22 @@ Para cada decisão, a entrada segue este modelo:
 - **Alternativas consideradas:**
   - Linear cortado em ~12 clusters, com anotação do ponto de 200: descartada pelo usuário, que preferiu a escala log; esconderia o ponto extremo.
   - Linear sem o `τ = 1.0` na plotagem: descartada pelo usuário, porque perderia a referência de "cada cliente é um cluster".
+
+## D-029: Gabarito com mais grupos (`--k`) e lista `KS` no notebook de teste de m
+
+- **Data:** 2026-11-06
+- **Decidido por:** o usuário pediu "um gabarito com mais clusters em vez de só 4, em uma lista iterável, como nos casos anteriores" e, perguntado, escolheu parametrizar o script, a lista `[4, 8, 16]` e `n = 240`. Claude decidiu, por serem triviais e reversíveis, os nomes e os detalhes abaixo.
+- **Situação:** vigente. Altera o cenário da D-022 (`n = 200`, `k = 4`) e o código do `StoCFL-FCC+CFL.py`.
+- **Contexto:** o script fixava `k = 4` (rotações 0°, 90°, 180°, 270°) no código, então o notebook só testava 4 grupos reais.
+- **Decisão:**
+  - `StoCFL-FCC+CFL.py` ganhou `--k`. No MNIST, `k` ângulos igualmente espaçados (`360·i/k`) e `shards = n / k`. O default continua 4 (MNIST) e 2 (CIFAR), então o comportamento sem `--k` não muda; no CIFAR só vale 2. Exige `n % k == 0`.
+  - Para `k` diferente do padrão, a pasta de dados ganha `_k{k}` e a de logs `-k{k}` (`rotated_mnist_240_0_k8`), para dados e logs de `k` diferentes não se misturarem. Com o `k` padrão os nomes antigos ficam iguais.
+  - O notebook passa a ter `KS = [4, 8, 16]` e `N = 240` (divisível por 4, 8 e 16), com `TAU_KS = list(KS)` para a busca de τ, como já havia `FRACOES` e `TAU_FRACOES`. O gabarito virou a função `verdade(k)`, e as seções 1 a 3 e 5 iteram sobre `k`, com uma figura por `k`. A chave do cache de `busca-tau.json` ganhou `n` e `k`.
+  - As saídas antigas do notebook (n = 200) ficam no arquivo do usuário até ele reexecutar; o commit leva o notebook sem saídas (política 6).
+  - Com `n = 240`, os logs e dados de `n = 200` não são reaproveitados, nem para `k = 4`.
+- **Alternativas consideradas:**
+  - Notebook gerando as partições, sem mudar o StoCFL: descartada pelo usuário; a pasta de dados só é identificada por `n` e `seed`, então `k` diferentes colidiriam.
+  - Misturar rotação e rótulos (como a ablação de 8 clusters do artigo): descartada pelo usuário; muda o cenário, não só o nº de grupos.
+  - `K = [4, 5, 8, 10]` e `[2, 4, 8]`: descartadas pelo usuário em favor de `[4, 8, 16]`.
+  - `n = 200` com `K = [4, 8, 10]` e `n` proporcional a `k` (200, 400, 800): descartadas pelo usuário; a segunda custaria ~5 GB por rodada no `n = 800`.
+  - Sempre incluir `k` nos nomes de logs e dados: descartada por Claude, porque invalidaria o reaproveitamento das execuções existentes com o nome antigo.

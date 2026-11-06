@@ -455,10 +455,11 @@ Os três definem **sua própria cópia** da classe `StandaloneServer` com a mesm
 __main__                                                    StoCFL-FCC+CFL.py:186
  ├─ argparse → args
  ├─ setup_seed(args.seed)                                   functional.py:173
- ├─ args.root = ./datasets/{dataset}/ ; args.save_dir = ./datasets/rotated_{dataset}_{n}_{seed}/
- ├─ [--process 1] RotatedMNIST.pre_process(shards=n/4)      datasets.py:145
+ ├─ args.k = --k (default: 4 mnist, 2 cifar); exige n % k == 0 e, no cifar, k = 2
+ ├─ args.root = ./datasets/{dataset}/ ; args.save_dir = ./datasets/rotated_{dataset}_{n}_{seed}[_k{k}]/   (sufixo só se k ≠ padrão)
+ ├─ [--process 1] RotatedMNIST.pre_process(thetas=[360·i/k], shards=n/k)   datasets.py:145
  │               RotatedCIFAR10Partitioner.pre_process(shards=n/2)  datasets.py:254
- ├─ model = SimpleLinear (mnist, k=4) | CNN_CIFAR10 (cifar, k=2)
+ ├─ model = SimpleLinear (mnist) | CNN_CIFAR10 (cifar)
  ├─ trainer = RotatedMNISTTrainer(model, args)              trainer.py:231  (serve para mnist E cifar)
  ├─ os.mkdir(./logs/runs-rotated-...)  ; Logger
  └─ StandaloneServer(model, cuda, trainer, args).main()     StoCFL-FCC+CFL.py:52
@@ -550,13 +551,13 @@ Os Partitioners geram, em `--process 1`, um arquivo `data{cid}.pkl` (um `BaseDat
 | Classe | Linha | Geração |
 |---|---|---|
 | `BaseDataset` | [datasets.py:11](StoCFL/datasets.py#L11) | Dataset trivial `(x, y)`. |
-| `RotatedMNIST` | [datasets.py:135](StoCFL/datasets.py#L135) | Para cada θ ∈ {0, 90, 180, 270}, faz `random_slicing` do MNIST inteiro em `shards` partes IID. Cliente `cid = índice_θ·shards + shard`. Teste: 1 arquivo por θ. |
+| `RotatedMNIST` | [datasets.py:135](StoCFL/datasets.py#L135) | Para cada θ em `thetas` (default {0, 90, 180, 270}; o script passa `k` ângulos igualmente espaçados, `360·i/k`), faz `random_slicing` do MNIST inteiro em `shards` partes IID. Cliente `cid = índice_θ·shards + shard`. Teste: 1 arquivo por θ. |
 | `RotatedCIFAR10Partitioner` | [datasets.py:240](StoCFL/datasets.py#L240) | Igual, com θ ∈ {0, 180}, normalização `(0.5, 0.5, 0.5)`, baixa o CIFAR. |
 | `ShiftedMNISTPartitioner` | [datasets.py:186](StoCFL/datasets.py#L186) | Shifts {0,3,6,9} × `shards=100`. |
 | `HybridMNISTPartitioner` | [datasets.py:22](StoCFL/datasets.py#L22) | 100 partes IID do MNIST (ids 0–99) + 100 do FashionMNIST (ids 100–199); o teste usa os datasets torchvision originais. |
 | `ComplexMNISTPartitioner` | [datasets.py:81](StoCFL/datasets.py#L81) | ⚠️ Não usado e quebrado (`label_skew_parition(..., slice=50)` não aceita `slice`). |
 
-Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que rotacionadas e com outra partição aleatória. Por cliente: MNIST tem `60000 / (n/4)` amostras e CIFAR tem `50000 / (n/2)`.
+Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que rotacionadas e com outra partição aleatória. Por cliente: MNIST tem `60000 / (n/k)` amostras (`k = 4` por padrão) e CIFAR tem `50000 / (n/2)`.
 
 | Modelo | Arquivo | Arquitetura | Usado em |
 |---|---|---|---|
@@ -604,8 +605,9 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 
 | Variável | Script | Efeito |
 |---|---|---|
-| `--n` | FCC+CFL | Nº de clientes. Precisa ser divisível por 4 (mnist) ou 2 (cifar). Mais clientes = menos dados por cliente = ψ mais ruidoso. Faz parte do nome do diretório de dados. |
-| `--dataset` | FCC+CFL | `mnist` define k=4, `SimpleLinear` e rotações {0,90,180,270}; `cifar` define k=2, `CNN_CIFAR10` e rotações {0,180}. |
+| `--n` | FCC+CFL | Nº de clientes. Precisa ser divisível por `k` (4 no mnist por padrão, 2 no cifar). Mais clientes = menos dados por cliente = ψ mais ruidoso. Faz parte do nome do diretório de dados. |
+| `--dataset` | FCC+CFL | `mnist` define `SimpleLinear` e `k = 4` por padrão (rotações {0,90,180,270}); `cifar` define `CNN_CIFAR10` e `k = 2` (rotações {0,180}). |
+| `--k` | FCC+CFL | Nº de grupos de rotação (D-029). Default 4 (mnist) ou 2 (cifar), que mantêm os nomes antigos de dados e logs. No mnist, outro `k` gera `k` ângulos igualmente espaçados (`k = 8`: 0°, 45°, ...) e acrescenta `_k{k}` à pasta de dados e `-k{k}` à pasta de logs. No cifar só vale 2. Exige `n % k == 0`. |
 | `--seed` | FCC+CFL, FEMNIST | Seeds e **partição dos dados** (está no `save_dir`). Sem default: precisa ser passado. Em FCC.py é fixo `0`. |
 | `--process` | FCC, FCC+CFL | `1` gera as partições (rodar uma vez por combinação dataset/n/seed). Default é `1` em FCC.py e `0` em FCC+CFL. |
 | `--setting` | FCC | `fskewed` / `lskewed` / `shifted` / `rotated`: escolhe o Trainer. |
@@ -666,7 +668,7 @@ Observações de ambiente:
 - Os scripts usam GPU se `torch.cuda.is_available()`, e CPU caso contrário.
 - Em `StoCFL-FCC+CFL.py`, `--batch_size` e `--obbs` omitidos valem `None`, e os loaders usam o dataset inteiro como um único batch. Os outros argumentos sem default (`--n`, `--com_round`, `--num_per_round`, `--seed`) são obrigatórios na prática.
 
-**Teste da fração de clientes por rodada (`m`).** O notebook [teste-fracao-clientes.ipynb](StoCFL/teste-fracao-clientes.ipynb) roda `StoCFL-FCC+CFL.py --train 0` por `subprocess` em Rotated MNIST (`n = 200`, `k = 4`, `τ = 0.5`, 50 rodadas, seed 0) com `m` = 100%, 50%, 25% e 10%, e mede nº de clusters, ARI, pureza e cobertura por rodada a partir do `cluster.pkl` e do log. Execução de 2026-11-05 com `τ = 0.5` (1 seed, 1 execução por `m`, GPU), em ~5 min no total. Depois dela, o notebook passou a vir com `τ = 0.9` e `m` = 5% a mais na lista (D-024); os resultados dessa configuração não estão registrados aqui, e a tabela abaixo continua valendo só para `τ = 0.5`:
+**Teste da fração de clientes por rodada (`m`).** O notebook [teste-fracao-clientes.ipynb](StoCFL/teste-fracao-clientes.ipynb) roda `StoCFL-FCC+CFL.py --train 0` por `subprocess` em Rotated MNIST (`n = 200`, `k = 4`, `τ = 0.5`, 50 rodadas, seed 0) com `m` = 100%, 50%, 25% e 10%, e mede nº de clusters, ARI, pureza e cobertura por rodada a partir do `cluster.pkl` e do log. Execução de 2026-11-05 com `τ = 0.5` (1 seed, 1 execução por `m`, GPU), em ~5 min no total. Depois dela, o notebook passou a vir com `τ = 0.9` e `m` = 5% a mais na lista (D-024), e depois com `n = 240` e a lista `KS = [4, 8, 16]` de grupos reais (D-029; o `k = 4` de `n = 240` não reaproveita a partição de `n = 200`); os resultados dessa configuração não estão registrados aqui, e a tabela abaixo continua valendo só para `τ = 0.5`:
 
 | `m` | Clientes/rodada | Clusters finais | 1ª rodada com 4 clusters | ARI final |
 |---|---|---|---|---|
@@ -677,7 +679,7 @@ Observações de ambiente:
 
 Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% dos clientes ainda não tinha sido sorteado na rodada 50 (cobertura 0.99), então a clusterização não terminou. Isso mostra que a rapidez da convergência segue a cobertura (4.1, 4.5), mas com uma só seed, a diferença exata entre os `m` pode ser ruído de amostragem. Custos observados: a rodada 0 com `m = 100%` calcula 19.900 cossenos entre vetores de ~1,6 M de parâmetros, e o script grava `psi.pkl` (~1,3 GB) a cada rodada.
 
-**Busca de τ (seção 5 do mesmo notebook).** Rotated MNIST, `n = 200`, 50 rodadas, seed 0, `m` = 100%, 25% e 10%, `τ` em 0.05, 0.25, 0.5, 0.75 e 1.0 mais 6 bisseções (D-026). O critério é o ARI final contra os 4 grupos reais. Execução de 2026-11-06 (33 execuções, 1 seed, GPU):
+**Busca de τ (seção 5 do mesmo notebook).** A execução abaixo é de antes da lista `KS` (D-029): Rotated MNIST, `n = 200`, `k = 4`, 50 rodadas, seed 0, `m` = 100%, 25% e 10%, `τ` em 0.05, 0.25, 0.5, 0.75 e 1.0 mais 6 bisseções (D-026). O critério é o ARI final contra os 4 grupos reais. Execução de 2026-11-06 (33 execuções, 1 seed, GPU):
 
 | `m` | Clusters finais no ótimo | ARI máx | Intervalo de `τ` ótimo avaliado | `τ` sugerido (centro) | Borda inferior em | Borda superior em |
 |---|---|---|---|---|---|---|

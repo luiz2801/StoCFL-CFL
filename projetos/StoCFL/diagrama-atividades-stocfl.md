@@ -21,10 +21,10 @@ flowchart TD
     Ini(("Início")):::node0
 
     %% ---------- Preparação ----------
-    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obbs, tau, train, seed, dataset) e chamar setup_seed"]:::sc
+    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obbs, tau, train, seed, dataset, k) e chamar setup_seed"]:::sc
     D0{"process == 1?"}:::ctl
-    P3["pre_process: rotacionar o dataset e gravar n partições<br/>(MNIST: 0°, 90°, 180°, 270° · CIFAR-10: 0°, 180°)"]:::sc
-    P4["Escolher modelo e trainer<br/>mnist: k=4, SimpleLinear · cifar: k=2, CNN_CIFAR10<br/>RotatedMNISTTrainer(model, args)"]:::sc
+    P3["pre_process: rotacionar o dataset e gravar n partições<br/>(MNIST: k ângulos 360°·i/k, padrão 0°, 90°, 180°, 270° · CIFAR-10: 0°, 180°)"]:::sc
+    P4["Escolher modelo e trainer<br/>mnist: SimpleLinear · cifar: CNN_CIFAR10 (k = --k; padrão 4 e 2)<br/>RotatedMNISTTrainer(model, args)"]:::sc
     P5["Criar a pasta de logs e o Logger, registrar os argumentos"]:::sc
     P6["StandaloneServer: cada cliente em seu próprio cluster<br/>psi = {}, cluster_parameters = {}<br/>gmodel = anchor = modelo inicial"]:::sv
 
@@ -127,6 +127,6 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 
 | Script | Dados e modelo | Trainer | Diferenças no laço |
 | --- | --- | --- | --- |
-| `StoCFL-FCC+CFL.py` | MNIST rotacionado (`SimpleLinear`, k=4) ou CIFAR-10 rotacionado (`CNN_CIFAR10`, k=2) | `RotatedMNISTTrainer` | `train=1` por padrão. Grava `psi.pkl`, `cluster.pkl` e `accuracy.pkl` a cada rodada. |
+| `StoCFL-FCC+CFL.py` | MNIST rotacionado (`SimpleLinear`, k=4 por padrão, ou o `--k` passado) ou CIFAR-10 rotacionado (`CNN_CIFAR10`, k=2) | `RotatedMNISTTrainer` | `train=1` por padrão. Grava `psi.pkl`, `cluster.pkl` e `accuracy.pkl` a cada rodada. |
 | `StoCFL-FCC.py` | MNIST em quatro configurações (`--setting`: fskewed, lskewed, shifted, rotated), `SimpleLinear` | Um trainer por configuração | `train=0` por padrão, só agrupamento. Grava o histórico de clusters ao final. Com `train=1`, chama `client_trainer.evaluate`. Entre os trainers de `trainer.py`, só o `ShiftedMNISTTrainer` define esse método, e ele usa `range(id_list)` sobre uma lista. |
 | `StoCFL-FEMNIST.py` | FEMNIST (3597 clientes), `CNN_FEMNIST` | `FEMNISTTrainer` | `train=0` por padrão. Mede o modelo global no teste global do FEMNIST e cada cluster no teste dos seus clientes. A medição global roda antes de `gmodel` ser carregado no modelo do servidor, então reflete o `gmodel` da rodada anterior. |

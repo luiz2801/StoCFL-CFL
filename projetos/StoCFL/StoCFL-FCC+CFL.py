@@ -204,6 +204,7 @@ if __name__ == "__main__":
     parser.add_argument("--seed", type=int)
 
     parser.add_argument("--dataset", type=str, default="cifar") # mnist, cifar
+    parser.add_argument("--k", type=int, default=None) # number of rotation groups (mnist: default 4, angles 360*i/k; cifar: only 2)
     # datset
     parser.add_argument("--process", type=int, default=0)
 
@@ -213,31 +214,37 @@ if __name__ == "__main__":
     #args.seed = 0 # [0, 42, 1998, 4421380, 789190]
     setup_seed(args.seed)
     
+    default_k = 4 if args.dataset == "mnist" else 2
+    if args.k is None:
+        args.k = default_k
+    assert args.dataset == "mnist" or args.k == 2, "cifar only supports k=2"
+    assert args.n % args.k == 0, "n must be divisible by k"
+    # the default k keeps the original names; another k gets a suffix so the datasets and logs of different k do not mix
+    k_tag = "" if args.k == default_k else "_k{}".format(args.k)
+
     args.root = "./datasets/{}/".format(args.dataset)
-    args.save_dir = "./datasets/rotated_{}_{}_{}/".format(args.dataset, args.n, args.seed)
+    args.save_dir = "./datasets/rotated_{}_{}_{}{}/".format(args.dataset, args.n, args.seed, k_tag)
 
     if args.process:
         print("Preprocessing datasets...")
         if args.dataset == "mnist":
             dataset = RotatedMNIST(args.root, args.save_dir)
             # dataset = RotatedMNISTPartitioner(args.root, args.save_dir)
-            dataset.pre_process(shards=int(args.n/4))
+            dataset.pre_process(thetas=[360 * i / args.k for i in range(args.k)], shards=args.n // args.k)
         if args.dataset == "cifar":
             dataset = RotatedCIFAR10Partitioner(args.root, args.save_dir)
             dataset.pre_process(shards=int(args.n/2))
     
     if args.dataset == "mnist":
-        args.k = 4
         model = SimpleLinear()
         trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available())
 
     if args.dataset == "cifar":
-        args.k = 2
         model = CNN_CIFAR10()
         trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available())
     
     args.time_stamp = time.strftime('%m-%d-%H:%M', time.localtime())
-    dir = "./logs/runs-rotated-{}-n{}-p{}-seed{}-lambda{}-time-{}".format(args.dataset, args.n, args.num_per_round,args.seed, args.mu, args.time_stamp)
+    dir = "./logs/runs-rotated-{}-n{}-p{}-seed{}-lambda{}{}-time-{}".format(args.dataset, args.n, args.num_per_round,args.seed, args.mu, k_tag.replace("_", "-"), args.time_stamp)
     os.makedirs(dir, exist_ok=True)
     args.exp_logger = Logger("StoCFL", "{}/rotated_{}.log".format(dir, args.dataset))
     args.exp_logger.info(str(args))
