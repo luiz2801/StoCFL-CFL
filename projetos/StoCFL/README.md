@@ -51,6 +51,13 @@ O notebook [teste-fracao-clientes.ipynb](teste-fracao-clientes.ipynb) roda a clu
 - Cada execução grava `psi.pkl` (~1,3 GB com 200 clientes) a cada rodada em `logs/`. Execuções concluídas são reaproveitadas, a menos que `REEXECUTAR = True`.
 - `datasets/mnist/`, `datasets/rotated_*/` e `logs/` são ignorados pelo git.
 
+### Busca de τ
+
+A seção 5 do mesmo notebook procura o `τ` que melhor recupera os `k = 4` grupos reais (o gabarito), para `m` = 100%, 25% e 10%. Ela roda uma varredura grossa em `τ` = 0.05, 0.25, 0.5, 0.75 e 1.0 e depois até 6 bisseções: a cada passo avalia o ponto médio do maior intervalo entre a borda do conjunto de `τ` com maior ARI final e o vizinho avaliado, parando se o intervalo ficar menor que 0.005. Mostra o intervalo ótimo, o `τ` sugerido (centro do intervalo) e gráficos de nº de clusters, ARI e pureza em função de `τ`.
+
+- Cada `τ` é uma execução do script com `--tau` diferente (~1,3 GB em `logs/` cada; até 11 execuções por `m`). Os resultados ficam em `logs/busca-tau.json`, e reexecutar a célula reaproveita o que já foi rodado.
+- Só a primeira seed (`SEEDS[0]`) é usada. A varredura e a bisseção supõem que o ARI varia de forma razoavelmente suave em `τ`, o que vale para uma seed, mas pode não valer entre seeds.
+
 ## Citation
 
 If you find this repo helpful to your research, please cite our paper:

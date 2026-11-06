@@ -677,6 +677,20 @@ Observações de ambiente:
 
 Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% dos clientes ainda não tinha sido sorteado na rodada 50 (cobertura 0.99), então a clusterização não terminou. Isso mostra que a rapidez da convergência segue a cobertura (4.1, 4.5), mas com uma só seed, a diferença exata entre os `m` pode ser ruído de amostragem. Custos observados: a rodada 0 com `m = 100%` calcula 19.900 cossenos entre vetores de ~1,6 M de parâmetros, e o script grava `psi.pkl` (~1,3 GB) a cada rodada.
 
+**Busca de τ (seção 5 do mesmo notebook).** Rotated MNIST, `n = 200`, 50 rodadas, seed 0, `m` = 100%, 25% e 10%, `τ` em 0.05, 0.25, 0.5, 0.75 e 1.0 mais 6 bisseções (D-026). O critério é o ARI final contra os 4 grupos reais. Execução de 2026-11-06 (33 execuções, 1 seed, GPU):
+
+| `m` | Clusters finais no ótimo | ARI máx | Intervalo de `τ` ótimo avaliado | `τ` sugerido (centro) | Borda inferior em | Borda superior em |
+|---|---|---|---|---|---|---|
+| 100% | 4 | 1.000 | 0.344 a 0.906 | 0.625 | (0.3125, 0.3438] | [0.9062, 0.9375) |
+| 25% | 4 | 1.000 | 0.344 a 0.906 | 0.625 | (0.3125, 0.3438] | [0.9062, 0.9375) |
+| 10% | 6 | 0.987 | 0.312 a 0.906 | 0.609 | (0.2812, 0.3125] | [0.9062, 0.9375) |
+
+- **`τ` baixo demais** (≤ 0.25 com `m` = 100% e 25%): tudo se funde num cluster só (ARI 0, pureza 0.25). Em 0.3125 sobram 2 ou 3 clusters, com grupos misturados (fusão irreversível, 4.9). Com `m` = 10% já em 0.05 há só 3 clusters, porque nem todos os clientes foram sorteados.
+- **`τ` alto demais:** em 0.9375 já há mais clusters que grupos (5, 9 e 11 para `m` = 100%, 25% e 10%), sem misturar grupos (pureza 1.0). Em `τ = 1.0` nenhum par se funde (200 clusters, ARI 0), como previsto em 4.9.
+- **Faixa ampla:** os `τ` de 0.34 a 0.91 dão a mesma partição nos três `m`, então neste cenário o `τ = 0.5` do artigo e o `τ = 0.9` atual do notebook estão dentro da faixa, e a faixa não depende de `m`. As bordas são conhecidas só até o vizinho avaliado (as bisseções pararam em 6 passos, com intervalos de ~0.03).
+- Com `m` = 10% o ARI máximo é 0.987 e há 6 clusters, pelo mesmo motivo da tabela acima: clientes ainda não sorteados na rodada 50. Isso é efeito de `m`, não de `τ`.
+- Só uma seed: as bordas podem mudar com outra partição dos dados.
+
 ### 4.12 Bugs e limitações conhecidos (StoCFL)
 
 1. **Corrigido em 2026-11-04.** `StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importavam, porque pediam `femnist` de `settings.py`, onde ele está comentado.

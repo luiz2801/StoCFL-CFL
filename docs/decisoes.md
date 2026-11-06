@@ -399,3 +399,23 @@ Para cada decisão, a entrada segue este modelo:
   - Push para outra branch: descartada pelo usuário, que pediu o merge.
   - Versão do remoto nos 5 arquivos que só ela tem: descartada, porque desfaria correções e a documentação atual.
   - Apagar o `ISODATA-GNR602/`: descartada, porque o arquivo não é meu nem foi citado como lixo. Fica a decisão de integrá-lo ou removê-lo para o usuário.
+
+## D-026: Busca de τ no notebook de teste de m
+
+- **Data:** 2026-11-06
+- **Decidido por:** o usuário, em resposta a perguntas, escolheu o local, as frações `m`, o critério e o orçamento. Claude decidiu os detalhes triviais e reversíveis, listados abaixo.
+- **Situação:** vigente
+- **Contexto:** o usuário quis testar vários valores de `τ` para ver como os clientes se agrupam, começando em 1.0 e 0.05 e depois fazendo uma busca binária com os melhores resultados.
+- **Decisão:**
+  - Nova seção 5 em `teste-fracao-clientes.ipynb`, com `m` em 100%, 25% e 10% (`TAU_FRACOES`).
+  - O critério é um cenário ideal como gabarito: os `k = 4` grupos reais. O melhor `τ` é o de maior ARI final contra o gabarito.
+  - Varredura grossa em `TAU_GRADE = [0.05, 0.25, 0.5, 0.75, 1.0]` e até 6 bisseções.
+  - Claude decidiu, por serem triviais e reversíveis: bissecar o maior intervalo entre a borda do conjunto ótimo (empates em ARI formam um intervalo) e o vizinho avaliado, parando abaixo de `TAU_LARGURA_MIN = 0.005`; sugerir o centro do intervalo ótimo; cache em `logs/busca-tau.json`, porque o nome da pasta de logs do script não traz o `τ`; esperar a virada do minuto entre execuções do mesmo `m`, porque o script nomeia a pasta só até o minuto e duas execuções no mesmo minuto cairiam na mesma pasta; gráfico com nº de clusters em escala linear (D-023); uma só seed; manter os `psi.pkl` de cada execução (~1,3 GB, cerca de 43 GB no total).
+  - O código do StoCFL não foi alterado.
+- **Alternativas consideradas:**
+  - Notebook novo: descartada pelo usuário, que pediu uma seção no notebook atual.
+  - Só `m` = 100%: descartada pelo usuário, que pediu uma lista de `m`.
+  - Critério pelo nº de clusters igual a `k` (monótono em `τ`) ou pelo maior intervalo com `k = 4`: descartadas pelo usuário em favor do gabarito. O nº de clusters continua nas tabelas e nos gráficos.
+  - Começar só em 1.0 e 0.05: descartada pelo usuário, porque os dois extremos podem dar o mesmo resultado (cada cliente num cluster, ou todos juntos) e a bisseção não teria como se orientar.
+  - Apagar os `psi.pkl` depois de ler as métricas: não feita, para manter as execuções reaproveitáveis e inspecionáveis; há espaço em disco.
+  - Instalar `nbconvert` para executar o notebook: não feita; a verificação rodou as mesmas células como script.
