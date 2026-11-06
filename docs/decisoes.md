@@ -419,3 +419,14 @@ Para cada decisão, a entrada segue este modelo:
   - Começar só em 1.0 e 0.05: descartada pelo usuário, porque os dois extremos podem dar o mesmo resultado (cada cliente num cluster, ou todos juntos) e a bisseção não teria como se orientar.
   - Apagar os `psi.pkl` depois de ler as métricas: não feita, para manter as execuções reaproveitáveis e inspecionáveis; há espaço em disco.
   - Instalar `nbconvert` para executar o notebook: não feita; a verificação rodou as mesmas células como script.
+
+## D-027: Comentários do notebook de teste de m
+
+- **Data:** 2026-11-06
+- **Decidido por:** Claude, por ser trivial e reversível. O usuário pediu "melhora os comentários no notebook", sem dizer quais células.
+- **Situação:** vigente
+- **Contexto:** os comentários de `teste-fracao-clientes.ipynb` eram poucos e curtos, principalmente nas funções de métricas e na busca de τ.
+- **Decisão:** comentários melhorados em todas as células de código (parâmetros, execução, métricas, gráficos e busca de τ). Nenhuma linha de código mudou; conferido comparando o código sem comentários antes e depois. As saídas das células foram preservadas, editando o JSON do notebook em vez de usar o `NotebookEdit`, que as apagaria.
+- **Alternativas consideradas:**
+  - Só a seção 5 (a busca de τ): descartada, porque o pedido não a restringia e as seções 1 a 3 também tinham pouco comentário.
+  - Comentar linha a linha: descartada, para manter a densidade parecida com a do resto do repositório.
