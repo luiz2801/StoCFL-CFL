@@ -464,3 +464,15 @@ Para cada decisão, a entrada segue este modelo:
   - `K = [4, 5, 8, 10]` e `[2, 4, 8]`: descartadas pelo usuário em favor de `[4, 8, 16]`.
   - `n = 200` com `K = [4, 8, 10]` e `n` proporcional a `k` (200, 400, 800): descartadas pelo usuário; a segunda custaria ~5 GB por rodada no `n = 800`.
   - Sempre incluir `k` nos nomes de logs e dados: descartada por Claude, porque invalidaria o reaproveitamento das execuções existentes com o nome antigo.
+
+## D-030: Relatório de m, k e τ em `docs/relatorio-m-k-tau.md`
+
+- **Data:** 2026-11-06
+- **Decidido por:** Claude, por serem escolhas triviais e reversíveis (o pedido do usuário foi "gera um relatório explicando a relação de m, k e τ" no notebook de teste de `m`, sem formato nem local).
+- **Situação:** vigente.
+- **Contexto:** o notebook `teste-fracao-clientes.ipynb` tinha resultados de 15 execuções (`k` = 4, 8, 16 × 5 valores de `m`) e a busca de `τ`, mas a análise estava só nas saídas, e o guia dizia que esses resultados não estavam registrados.
+- **Decisão:** relatório em Markdown em `docs/`, escrito em português, com base só nas saídas já existentes no notebook (nenhuma execução nova, nenhum código alterado). Separa fatos medidos de hipóteses (por exemplo, os cossenos entre grupos não foram medidos). O guia (4.11) e o README de `docs/` passam a apontar para ele.
+- **Alternativas consideradas:**
+  - Documento no Claude Docs ou artefato publicado: descartada, porque o pedido não pediu um documento externo e a política do repositório mantém a documentação em `docs/`.
+  - Copiar os resultados para dentro do guia: descartada, porque o guia ficaria longo; o guia só referencia o relatório.
+  - Rodar novas execuções (outras seeds, `m` = 50% e 5% na busca de `τ`): descartada, porque custa ~1,6 GB por execução e não foi pedida; fica listada como limite do relatório.
