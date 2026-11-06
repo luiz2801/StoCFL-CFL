@@ -430,3 +430,18 @@ Para cada decisão, a entrada segue este modelo:
 - **Alternativas consideradas:**
   - Só a seção 5 (a busca de τ): descartada, porque o pedido não a restringia e as seções 1 a 3 também tinham pouco comentário.
   - Comentar linha a linha: descartada, para manter a densidade parecida com a do resto do repositório.
+
+## D-028: Gráficos da busca de τ com escala log no nº de clusters
+
+- **Data:** 2026-11-06
+- **Decidido por:** o usuário, que pediu para consertar o gráfico da busca de τ ("está muito ruim") e, perguntado como resolver o eixo do nº de clusters, escolheu a escala log. As demais melhorias (limites dos eixos, faixas do `τ` ótimo, marcadores) foram de Claude, por serem triviais e reversíveis.
+- **Situação:** vigente. Substitui, só para o gráfico da seção 5, a escolha de escala linear registrada na D-026 (que seguia a D-023, sobre o gráfico por rodada).
+- **Contexto:** em função de `τ`, o nº de clusters vai de 1 a 200 (`τ = 1.0`: cada cliente é um cluster). Em escala linear, esse ponto achatava os valores de 1 a 11 numa linha colada no zero. Além disso, as curvas de `m` = 100% e 25% coincidem em ARI e pureza e uma escondia a outra.
+- **Decisão:**
+  - Painel de nº de clusters em escala log, com marcas em 1, 2, 4, 10, 20, 50, 100 e 200. A D-023 continua valendo para o gráfico por rodada (seção 3), que tem faixa de 4 a 10 clusters.
+  - Eixo x de 0 a 1.04; ARI de -0.05 a 1.05; pureza de 0.2 a 1.05.
+  - Faixa colorida de fundo com o intervalo de `τ` de maior ARI de cada `m`; marcadores de tamanhos diferentes por `m`.
+  - Só o código de plotagem mudou. Os dados e a busca não foram alterados, e o gráfico não foi executado no notebook (as saídas antigas ficam no arquivo do usuário até ele reexecutar a célula); o código foi testado com os dados da tabela do guia.
+- **Alternativas consideradas:**
+  - Linear cortado em ~12 clusters, com anotação do ponto de 200: descartada pelo usuário, que preferiu a escala log; esconderia o ponto extremo.
+  - Linear sem o `τ = 1.0` na plotagem: descartada pelo usuário, porque perderia a referência de "cada cliente é um cluster".
