@@ -476,3 +476,21 @@ Para cada decisão, a entrada segue este modelo:
   - Documento no Claude Docs ou artefato publicado: descartada, porque o pedido não pediu um documento externo e a política do repositório mantém a documentação em `docs/`.
   - Copiar os resultados para dentro do guia: descartada, porque o guia ficaria longo; o guia só referencia o relatório.
   - Rodar novas execuções (outras seeds, `m` = 50% e 5% na busca de `τ`): descartada, porque custa ~1,6 GB por execução e não foi pedida; fica listada como limite do relatório.
+
+## D-031: Branch `dropout-stocfl` e plano do dropout com retorno no StoCFL
+
+- **Data:** 2026-11-09
+- **Decidido por:** o usuário definiu a ideia (um sorteio de dropout separado do sorteio de `m`, com o cliente voltando ao treinamento depois) e pediu a branch e o documento. Claude decidiu, por serem triviais e reversíveis, o nome da branch, o nome e o local do plano, o uso de `unittest` nos testes e a forma do processo de disponibilidade (rodada de retorno sem sorteio, para limitar a ausência).
+- **Situação:** vigente. Nada foi implementado; as escolhas de design ainda abertas estão em P1 a P7 do plano e vão virar decisões próprias quando o usuário responder.
+- **Contexto:** o usuário quis testar o efeito do dropout do MimiC no StoCFL. A análise mostrou que o terceiro padrão do MimiC (pesos aleatórios novos a cada rodada) tem a mesma distribuição que o `random.sample` do StoCFL, então não muda nenhum resultado. Um dropout sem retorno e sem memória no tempo também equivale a um `m` menor. A simulação de 2026-11-09 mostrou que só a queda **por grupo de rotação, com retorno**, produz um regime que variar `m` não reproduz (algum grupo sem sobrevivente em ~80% das rodadas). Os números do plano vêm do processo especificado, com rodada de retorno sem sorteio; uma primeira simulação, sem essa garantia, deu 0,643 de disponibilidade e 83,1% de rodadas com grupo vazio.
+- **Decisão:**
+  - Trabalhar na branch `dropout-stocfl`, criada a partir de `main`.
+  - O `drop` é um processo de disponibilidade independente do sorteio de `m`, com gerador próprio, e o cliente que cai volta depois de até `L` rodadas.
+  - O plano está em [plano-dropout-stocfl.md](plano-dropout-stocfl.md). Com `--drop 0` (padrão) o comportamento atual não muda.
+- **Alternativas consideradas:**
+  - Implementar o terceiro padrão do MimiC ao pé da letra: descartada, porque equivale ao sorteio uniforme atual (verificado por simulação) e não muda resultados.
+  - Dropout sem retorno ou sorteado de novo a cada rodada, sem memória: descartada pelo usuário (o cliente deve voltar) e por ser equivalente a um `m` menor.
+  - Copiar o código de `mimic_codes/`: descartada, porque o diretório não tem arquivo de licença e o processo deste plano é diferente dos três padrões do MimiC.
+  - Trabalhar direto na `main`: descartada, porque o usuário pediu uma branch e a mudança altera o código do algoritmo.
+  - Plano em Claude Docs ou artefato publicado: descartada, porque a documentação do repositório fica em `docs/` (D-030).
+  - `pytest` nos testes: descartada, porque não está instalado no `.venv` e `unittest` basta.
