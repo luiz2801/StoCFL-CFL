@@ -518,3 +518,21 @@ Para cada decisão, a entrada segue este modelo:
   - Mínimo de sobreviventes (o MimiC usa 2) e promoção de clientes extras: não se aplica, porque `m` é completado entre os disponíveis.
   - Os três scripts de uma vez: adiada pelo usuário; segue o precedente do `--k` (D-029).
   - Seção nova no `teste-fracao-clientes.ipynb`: descartada pelo usuário, que tem alterações pendentes nesse notebook, e ele é a referência reproduzível dos resultados de `m`.
+
+## D-033: Detalhes de implementação do módulo `availability.py` e dos seus testes
+
+- **Data:** 2026-11-09
+- **Decidido por:** Claude, por serem escolhas triviais e reversíveis que não alteram o comportamento do algoritmo (a especificação do processo está em D-032 e no plano, seção 5.2).
+- **Situação:** vigente.
+- **Contexto:** o plano fixa a classe `Availability(n, drop, rounds, seed)`, o método `step()` e os testes T1 a T5, mas deixa em aberto a forma do retorno, a organização dos testes e a verificação de que o teste detecta defeitos.
+- **Decisão:**
+  - `step()` devolve uma `list` de `bool` de tamanho `n` (`up[c]`). O estado fica em `down_left` e `grace`, listas de tamanho `n`, como na especificação.
+  - Os testes ficam em `projetos/StoCFL/tests/test_availability.py`, sem `__init__.py`, e importam `availability` a partir da pasta do StoCFL (`../../.venv/bin/python -m unittest tests/test_availability.py -v`, como no plano).
+  - T3 foi dividido em dois testes. O primeiro confere a ausência máxima e a cobertura de `1..L_max`. O segundo usa `drop = 0,99`, em que, sem a rodada de retorno, as ausências se emendariam e passariam de `L_max`, e então a garantia "há uma rodada disponível entre duas ausências" é de fato testada.
+  - Foi acrescentado um teste fora da lista T1 a T5: o `step()` não consome o gerador global (`random.getstate()` igual antes e depois), porque o plano exige gerador próprio.
+  - Verificação do teste: um mutante do módulo sem a rodada de retorno (`grace` sempre falso) foi rodado contra os testes e falhou em 3 deles (os dois T3 e o T4), então os testes detectam a falta da rodada de retorno. O mutante foi descartado e não está no repositório.
+  - Comentários do módulo em inglês e curtos, como o resto do código do StoCFL.
+- **Alternativas consideradas:**
+  - Devolver um `set` dos indisponíveis ou um array numpy: descartada, porque o módulo não depende de `numpy` e a lista indexada por cliente é o que o laço de `main` usa (`up[c]`).
+  - `pytest`: já descartado em D-031 (não está no `.venv`).
+  - Um só teste T3: descartada, porque, com `drop` baixo, o teste de ausência máxima passaria mesmo sem a rodada de retorno.

@@ -567,10 +567,11 @@ Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que ro
 | `CNN_MNIST`, `AlexNet_CIFAR10` | models/cnn.py | importados, não usados | — |
 | `models/model.py` | — | duplicatas (ConvNet, MLP, ...) | não usado |
 
-### 4.8 `functional.py`
+### 4.8 `functional.py` e `availability.py`
 
 | Função | Linha | Uso |
 |---|---|---|
+| `Availability(n, drop, rounds, seed).step()` | [availability.py:25](StoCFL/availability.py#L25) | Processo de disponibilidade dos clientes, com retorno (dropout, [plano](plano-dropout-stocfl.md) e D-032). `step()` é chamado uma vez por rodada e devolve `up[c]` para os `n` clientes: cada cliente disponível cai com probabilidade `drop` e fica fora `L ~ U{1..rounds}` rodadas; a rodada seguinte à ausência é de retorno (disponível, sem sorteio), então a ausência consecutiva nunca passa de `rounds`. Gerador próprio (`random.Random("drop-{seed}")`), sem `torch`; com `drop = 0` devolve todos disponíveis sem sorteio. Valida `0 ≤ drop < 1` e `rounds ≥ 1` (`ValueError`). **Ainda não é usado por nenhum script.** Testes: `../../.venv/bin/python -m unittest tests/test_availability.py -v`, a partir de `projetos/StoCFL/`. |
 | `cosine_sim(a, b)` | [functional.py:54](StoCFL/functional.py#L54) | Cosseno (eps=1e-6). **Métrica de similaridade usada.** |
 | `dt_matrix(lista)` | [functional.py:77](StoCFL/functional.py#L77) | Matriz triangular superior de `cosine_sim`. A linha comentada permite trocar para `dt`. |
 | `dt(a, b)` | [functional.py:59](StoCFL/functional.py#L59) | Alternativa (norma mínima no segmento entre gradientes normalizados, estilo MGDA). Não usada. |
