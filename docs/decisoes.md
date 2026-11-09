@@ -481,7 +481,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário definiu a ideia (um sorteio de dropout separado do sorteio de `m`, com o cliente voltando ao treinamento depois) e pediu a branch e o documento. Claude decidiu, por serem triviais e reversíveis, o nome da branch, o nome e o local do plano, o uso de `unittest` nos testes e a forma do processo de disponibilidade (rodada de retorno sem sorteio, para limitar a ausência).
-- **Situação:** vigente. Nada foi implementado; as escolhas de design ainda abertas estão em P1 a P7 do plano e vão virar decisões próprias quando o usuário responder.
+- **Situação:** vigente, com uma parte substituída por [D-032](#d-032-escolhas-de-design-do-dropout-com-retorno-no-stocfl): o sorteio de `m` deixa de ser independente do `drop` e passa a ser feito só entre os clientes disponíveis. Nada foi implementado.
 - **Contexto:** o usuário quis testar o efeito do dropout do MimiC no StoCFL. A análise mostrou que o terceiro padrão do MimiC (pesos aleatórios novos a cada rodada) tem a mesma distribuição que o `random.sample` do StoCFL, então não muda nenhum resultado. Um dropout sem retorno e sem memória no tempo também equivale a um `m` menor. A simulação de 2026-11-09 mostrou que só a queda **por grupo de rotação, com retorno**, produz um regime que variar `m` não reproduz (algum grupo sem sobrevivente em ~80% das rodadas). Os números do plano vêm do processo especificado, com rodada de retorno sem sorteio; uma primeira simulação, sem essa garantia, deu 0,643 de disponibilidade e 83,1% de rodadas com grupo vazio.
 - **Decisão:**
   - Trabalhar na branch `dropout-stocfl`, criada a partir de `main`.
@@ -494,3 +494,27 @@ Para cada decisão, a entrada segue este modelo:
   - Trabalhar direto na `main`: descartada, porque o usuário pediu uma branch e a mudança altera o código do algoritmo.
   - Plano em Claude Docs ou artefato publicado: descartada, porque a documentação do repositório fica em `docs/` (D-030).
   - `pytest` nos testes: descartada, porque não está instalado no `.venv` e `unittest` basta.
+
+## D-032: Escolhas de design do dropout com retorno no StoCFL
+
+- **Data:** 2026-11-09
+- **Decidido por:** o usuário respondeu as pendências P1 a P7 do plano e, depois de ver a simulação do desenho escolhido, confirmou "manter como decidido" e o escopo "só `StoCFL-FCC+CFL.py` primeiro". Claude interpretou as respostas ambíguas e decidiu os detalhes triviais listados abaixo.
+- **Situação:** vigente. Substitui em parte a D-031 (o sorteio de `m` passa a ser entre os disponíveis). Nada foi implementado.
+- **Contexto:** o plano ([plano-dropout-stocfl.md](plano-dropout-stocfl.md)) deixava sete escolhas abertas. As respostas do usuário combinam disponibilidade conhecida (quem caiu não é sorteado e outro entra no lugar) com queda por cliente. Claude simulou esse desenho antes de implementar e avisou que o efeito esperado é pequeno: o `drop` atrasa a observação dos clientes em poucas rodadas (some por volta da rodada 25), e só com `m` grande o nº de participantes cai de fato (157,5 em vez de 240 com `m = 100%`, `d = 0,1` e `L ~ U[1,10]`). Só presença e cobertura foram medidas, não o ARI.
+- **Decisão:**
+  - **P1:** o `drop` age na seleção. O cliente que cai não pode ser sorteado, e outro entra no lugar. A fase `train` (cliente observado mas sem treinar) saiu do escopo, e o `gmodel` não é tocado.
+  - **P2:** cada cliente cai sozinho. A lei por grupo de rotação saiu do escopo (o grupo de rotação é o gabarito dos dados, não o cluster que o algoritmo descobre).
+  - **P3:** a duração `L` da ausência é sorteada com distribuição uniforme, um sorteio por queda. Interpretação de Claude: inteiro em `{1, …, L_max}`, com `L_max` em `--drop_rounds`.
+  - **P4:** qualquer cliente pode cair, não só os sorteados em `m`. O processo de disponibilidade roda para os `N` clientes.
+  - **P5:** reformulada, porque o usuário não entendeu a pergunta original. Com P1 e P4, só faltam clientes se houver menos de `m` disponíveis. Claude decidiu usar todos os disponíveis e pular a rodada se nenhum estiver disponível.
+  - **P6:** `StoCFL-FCC+CFL.py` primeiro. Os outros dois scripts ficam para depois, só com a lei por cliente.
+  - **P7:** notebook novo, `teste-dropout.ipynb`.
+  - Claude decidiu, por serem triviais e reversíveis: os nomes das flags (`--drop`, `--drop_rounds`), o estado inicial com todos disponíveis, o formato do log e do `availability.pkl`.
+- **Alternativas consideradas:**
+  - Fase `train` do `drop` (cliente na matriz que não treina): descartada, porque o cliente que cai nem é sorteado.
+  - Lei por grupo de rotação: descartada pelo usuário em favor da queda por cliente. Fica como extensão possível (mapear cliente → grupo no módulo de disponibilidade).
+  - Duração fixa `L`: descartada pelo usuário em favor do sorteio uniforme.
+  - Só os sorteados em `m` podem cair, sem reposição: descartada pelo usuário (qualquer cliente pode cair). Também foi oferecida de novo depois da simulação, e ele manteve a reposição.
+  - Mínimo de sobreviventes (o MimiC usa 2) e promoção de clientes extras: não se aplica, porque `m` é completado entre os disponíveis.
+  - Os três scripts de uma vez: adiada pelo usuário; segue o precedente do `--k` (D-029).
+  - Seção nova no `teste-fracao-clientes.ipynb`: descartada pelo usuário, que tem alterações pendentes nesse notebook, e ele é a referência reproduzível dos resultados de `m`.
