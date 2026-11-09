@@ -70,7 +70,15 @@ Os testes unitários do [availability.py](availability.py) rodam sem GPU, a part
 ../../.venv/bin/python -m unittest tests/test_availability.py -v
 ```
 
-O notebook `teste-dropout.ipynb`, que vai comparar execuções com e sem `--drop` em várias seeds, ainda **não existe** (passo 4 do plano).
+### Efeito do dropout na clusterização
+
+O notebook [teste-dropout.ipynb](teste-dropout.ipynb) compara a clusterização (`StoCFL-FCC+CFL.py --train 0`) **sem dropout** e **com dropout** (`--drop` = 0.05 e 0.1, `--drop_rounds 10`, ou seja, ausências de 1 a 10 rodadas) em Rotated MNIST com `n = 240`, 50 rodadas, `τ = 0.75` e 10 seeds (0 a 9), para `m` = 100% e 50% e `k` = 8 e 16 grupos reais (D-035). Ele chama o script por `subprocess`, sem alterar o código do StoCFL, lê o `cluster.pkl`, o `availability.pkl` e o log de cada execução e mostra, em gráficos interativos do Plotly: o nº de clusters, o ARI, a cobertura e os participantes por rodada (média e faixa mín–máx entre as seeds), a distribuição do resultado final por seed, **matrizes de confusão** (grupo real × grupo previsto somada nas seeds, e cluster × grupo real por seed) e a diferença dropout − sem dropout por seed com o teste de Wilcoxon.
+
+- Use o kernel `.venv` da raiz (ver o [README da raiz](../../README.md#ambiente)) e abra o notebook a partir desta pasta.
+- A grade completa são **120 execuções** (2 `k` × 2 `m` × 3 cenários × 10 seeds): cada uma grava `psi.pkl` (~1,6 GB) a cada rodada em `logs/` (~190 GB no total), e as partições de dados ocupam ~1,8 GB (`k = 8`) e ~3,6 GB (`k = 16`) por seed (~54 GB). A célula de execução confere o espaço livre antes de começar, e `APAGAR_PSI = True` apaga o `psi.pkl` de cada execução concluída (a análise não o usa). Reduza `SEEDS`, `KS`, `FRACOES` ou `DROPS` para uma grade menor.
+- Execuções concluídas com os mesmos parâmetros, **inclusive `τ`** (lido da linha de argumentos do log, já que o nome da pasta não o traz), são reaproveitadas, a menos que `REEXECUTAR = True`. As execuções sem dropout do notebook de `m` (`τ = 0.9`) não são reaproveitadas.
+- `τ = 0.75` fica na borda inferior da janela de `k = 16` no [relatório de m, k e τ](../../docs/relatorio-m-k-tau.md): algumas seeds podem fundir grupos vizinhos, com e sem dropout. O notebook mostra isso (`seeds_colapso`, matrizes de confusão).
+- `datasets/rotated_*/` e `logs/` são ignorados pelo git. O notebook é versionado **sem saídas de execução**.
 
 ### Efeito da fração de clientes por rodada (m)
 

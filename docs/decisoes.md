@@ -499,7 +499,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário respondeu as pendências P1 a P7 do plano e, depois de ver a simulação do desenho escolhido, confirmou "manter como decidido" e o escopo "só `StoCFL-FCC+CFL.py` primeiro". Claude interpretou as respostas ambíguas e decidiu os detalhes triviais listados abaixo.
-- **Situação:** vigente. Substitui em parte a D-031 (o sorteio de `m` passa a ser entre os disponíveis). Implementação em andamento: módulo e integração no `StoCFL-FCC+CFL.py` feitos (ver D-033 e D-034); faltam o notebook, os outros dois scripts e as execuções.
+- **Situação:** vigente. Substitui em parte a D-031 (o sorteio de `m` passa a ser entre os disponíveis). Implementação em andamento: módulo e integração no `StoCFL-FCC+CFL.py` feitos (ver D-033 e D-034); o notebook foi feito (D-035); faltam os outros dois scripts e as execuções completas.
 - **Contexto:** o plano ([plano-dropout-stocfl.md](plano-dropout-stocfl.md)) deixava sete escolhas abertas. As respostas do usuário combinam disponibilidade conhecida (quem caiu não é sorteado e outro entra no lugar) com queda por cliente. Claude simulou esse desenho antes de implementar e avisou que o efeito esperado é pequeno: o `drop` atrasa a observação dos clientes em poucas rodadas (some por volta da rodada 25), e só com `m` grande o nº de participantes cai de fato (157,5 em vez de 240 com `m = 100%`, `d = 0,1` e `L ~ U[1,10]`). Só presença e cobertura foram medidas, não o ARI.
 - **Decisão:**
   - **P1:** o `drop` age na seleção. O cliente que cai não pode ser sorteado, e outro entra no lugar. A fase `train` (cliente observado mas sem treinar) saiu do escopo, e o `gmodel` não é tocado.
@@ -558,3 +558,32 @@ Para cada decisão, a entrada segue este modelo:
   - Reindentar o bloco de treino com `if self.args.train and cid_this_round`: descartada, porque o diff ficaria maior sem mudar o comportamento.
   - Criar `Availability` só com `drop > 0`: descartada, porque o plano a cria em `__init__` e assim valores inválidos falham sempre.
   - Gravar a linha `unavailable` depois da `Starting round`: descartada, porque a disponibilidade é decidida antes do sorteio e a linha fica dentro do mesmo ramo `drop > 0`.
+
+## D-035: Notebook `teste-dropout.ipynb`: cenários, matrizes de confusão e smoke test
+
+- **Data:** 2026-11-09
+- **Decidido por:** o usuário escolheu os cenários (pedido e respostas a duas perguntas); Claude decidiu, por serem triviais e reversíveis, os detalhes de implementação listados abaixo.
+- **Situação:** vigente. Cumpre o passo 4 do plano e a P7 de [D-032](#d-032-escolhas-de-design-do-dropout-com-retorno-no-stocfl). Substitui a grade sugerida na seção 9 do plano.
+- **Contexto:** o usuário pediu que o notebook rodasse os cenários com 10 seeds e 50 rodadas, com e sem dropout, e plotasse matriz de confusão e gráficos em Plotly. O pedido deixava em aberto `m`, `d`, `L`, `k` e `τ`, e Claude perguntou.
+- **Decisão (do usuário):**
+  - `m` = 100% e 50% (240 e 120 clientes por rodada), `n = 240`, 50 rodadas, 10 seeds, `--train 0` (Claude seguiu o plano nesse último).
+  - Duração da ausência uniforme em 1 a 10 rodadas (`--drop_rounds 10`; o mínimo de 1 é o desenho de D-032, não há flag para ele).
+  - `d` = 0,05 e 0,1, além de `d = 0` (StoCFL sem dropout). O usuário perguntou o que era `d` (probabilidade de um cliente disponível cair em cada rodada), e Claude explicou antes de ele escolher.
+  - `k` = 8 e 16, com `τ = 0,75`. Claude recomendou `k = 4` com `τ = 0,625`, o centro da janela do [relatório de m, k e τ](relatorio-m-k-tau.md), e avisou que o `τ = 0,75` é o menor `τ` que recuperou os grupos para `k = 16` (em 0,7188 tudo colapsou em 1 cluster). O usuário manteve `τ = 0,75`, então algumas seeds podem colapsar, com e sem dropout; o notebook mostra isso (coluna `seeds_colapso`, matrizes de confusão) e a leitura avisa.
+  - Só criar o notebook e rodar o smoke test, sem executar a grade completa (120 execuções).
+- **Decisão (de Claude, trivial e reversível):**
+  - Notebook novo `projetos/StoCFL/teste-dropout.ipynb`, versionado sem saídas, com as funções de métricas copiadas do `teste-fracao-clientes.ipynb` (que não foi editado). As seeds são 0 a 9.
+  - **Reaproveitamento de execuções** pela linha `Namespace(...)` do log (`n`, `m`, `seed`, `k`, `μ`, `τ`, `train`, `drop`, `drop_rounds`), porque o nome da pasta de logs não traz o `τ`. Logs de antes da flag `--drop` valem como `drop = 0`. Das 120 execuções, 2 já existem (seed 0, `m` = 100%, `k` = 8 e 16, sem dropout, da busca de `τ`).
+  - **Disco:** a célula de execução estima o espaço (`psi.pkl` de ~1,6 GB por execução e ~0,23 GB de dados por `k` e seed) e para se faltar. Opção `APAGAR_PSI` (padrão `False`) apaga o `psi.pkl` de cada execução concluída, porque a análise não o usa. Os dados de `k = 8` e `k = 16` ocupam 1,8 GB e 3,6 GB por seed (~54 GB para 10 seeds), e a grade completa usa ~190 GB de `psi.pkl`.
+  - **Gráficos (Plotly):** por `k`, painéis de nº de clusters, ARI, cobertura e participantes por rodada, com uma coluna por `m`, uma linha por cenário (média entre as seeds e faixa mín–máx); caixas com um ponto por seed para ARI, nº de clusters e rodada estável finais; tabela dropout − sem dropout por seed com Wilcoxon (24 testes, sem correção para comparações múltiplas; diferenças todas zero dão `p = 1`).
+  - **Matrizes de confusão** da partição final, um painel por cenário: (1) grupo real × grupo previsto (o grupo previsto de um cluster é o grupo real dominante), somada nas seeds e normalizada por linha; (2) cluster × grupo real de uma seed, com menu para trocar de seed. A matriz de pares (mesmo cluster × mesmo grupo, do scikit-learn) entra na tabela de resumo como pares misturados e separados, sem heatmap. A matriz (1) esconde fragmentação e clientes nunca sorteados (ficam na diagonal), e o notebook avisa disso.
+  - **Smoke test** com uma cópia reduzida (`n = 48`, 6 rodadas, seeds 0 e 1, `k` = 8 e 16, `m` = 100% e 50%, 3 cenários: 24 execuções, ~10 min com a geração dos dados): 15 células sem erro, 12 figuras, I5 do plano (cobertura do log = chaves de `psi.pkl`) em 24 de 24, e segunda execução reaproveitando as 24. Os gráficos foram conferidos só pela estrutura, não visualmente (sem `kaleido`). Os artefatos do teste (dados e logs de `n` = 8, 40 e 48) foram apagados, e os de `n = 240` não foram tocados.
+  - **Verificação feita antes de escrever o notebook:** `--process 0` e `--process 1` dão a mesma sequência de clientes sorteados (conferido com `n = 40`), então gerar os dados só quando faltam, como no notebook de `m`, não altera o sorteio.
+- **Alternativas consideradas:**
+  - Executar a grade completa agora: descartada pelo usuário ("rode o smoke test").
+  - Grade do plano (`m` = 100%, 50% e 10% × `d` = 0,1 e 0,2) ou só `m = 50%`: descartadas pelo usuário em favor de `m` = 100% e 50% e `d` = 0,05 e 0,1.
+  - `k = 4` com `τ = 0,625` (centro da janela) e `τ = 0,9`: recomendada por Claude a primeira e descartadas as duas pelo usuário em favor de `k` = 8 e 16 com `τ = 0,75`.
+  - Gerar os dados com uma execução de `--com_round 0`: descartada, porque `--process` não altera o sorteio.
+  - Apagar o `psi.pkl` por padrão: descartada, para não mudar o que o usuário vê em disco sem pedir.
+  - Heatmap da matriz de pares 2×2: descartada, porque a tabela de resumo já traz os pares misturados e separados.
+  - Reaproveitar sem checar o `τ`, como o notebook de `m`: descartada, porque esse notebook usa um `τ` por vez, e aqui o mesmo nome de pasta já abriga execuções de `τ` diferentes (0,9 e 0,75).

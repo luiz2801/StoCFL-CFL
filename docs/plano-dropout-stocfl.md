@@ -1,6 +1,6 @@
 # Plano: dropout com retorno no StoCFL
 
-- **Situação:** plano com as decisões tomadas ([D-032](decisoes.md)). **Passos 1 a 3 da seção 6 implementados em 2026-11-09** (baseline, `availability.py` com os testes e a integração no `StoCFL-FCC+CFL.py`, com os testes I1 a I4 da seção 8; detalhes em [D-033 e D-034](decisoes.md) e no [guia](guia.md), 4.11). Faltam os passos 4 a 6 e o teste I5.
+- **Situação:** plano com as decisões tomadas ([D-032](decisoes.md)). **Passos 1 a 4 da seção 6 implementados em 2026-11-09** (baseline, `availability.py` com os testes, a integração no `StoCFL-FCC+CFL.py` e o notebook `teste-dropout.ipynb`, com os testes I1 a I5 da seção 8 verificados em execuções pequenas; detalhes em [D-033, D-034 e D-035](decisoes.md) e no [guia](guia.md), 4.11). Faltam os passos 5 e 6 (os outros dois scripts e as execuções completas do notebook).
 - **Números de linha:** os do `StoCFL-FCC+CFL.py` neste documento são os do código **antes** da implementação (commit `ebb6390`). Para as linhas atuais, veja o [guia](guia.md), 4.4.
 - **Branch:** `dropout-stocfl` (a partir de `main`, em 2026-11-09).
 - **Fontes:** o artigo do MimiC (Sun, Mao e Zhang, *IEEE TMC*, 2024; PDF em `mimic_codes/MimiC.pdf`, fora do git) e o código do StoCFL lido em 2026-11-09 (`StoCFL-FCC+CFL.py`, `trainer.py`, `functional.py`).
@@ -142,7 +142,7 @@ Cada etapa é um commit atômico (política 6), com a documentação e o registr
 1. **Baseline (antes de editar o script).** Rodar `StoCFL-FCC+CFL.py` na `main` com uma configuração pequena e a mesma seed, e guardar fora do repositório o `cluster.pkl`, o `psi.pkl` e as linhas `client id this round`. É a referência do teste I1. Exemplo: `--n 40 --k 4 --dataset mnist --com_round 6 --num_per_round 8 --train 0 --seed 0 --process 1` (cria `datasets/rotated_mnist_40_0/`, ignorado pelo git).
 2. **Módulo `availability.py` e testes unitários** (`tests/test_availability.py`). Commit: módulo, testes e a linha nova em 4.8 do guia.
 3. **Integração no `StoCFL-FCC+CFL.py`**: flags, `self.availability`, o sorteio entre os disponíveis, a rodada vazia, as linhas de log, `availability.pkl` e o nome da pasta. Commit: código e a documentação da seção 7.
-4. **Notebook `teste-dropout.ipynb`**, sem saídas de execução no commit. Reaproveita as funções de métricas do `teste-fracao-clientes.ipynb` (copiadas, sem editar o original) e compara execuções com e sem `drop` em várias seeds (seção 9).
+4. **Notebook `teste-dropout.ipynb`**, sem saídas de execução no commit. Reaproveita as funções de métricas do `teste-fracao-clientes.ipynb` (copiadas, sem editar o original) e compara execuções com e sem `drop` em várias seeds (seção 9). **Feito em 2026-11-09** ([D-035](decisoes.md)), com uma grade diferente da sugerida na seção 9; só o smoke test foi executado.
 5. **Outros scripts**, depois de confirmado: o mesmo bloco em `StoCFL-FCC.py` (linha 57) e `StoCFL-FEMNIST.py` (linha 56), só com a lei por cliente.
 6. **Execuções e relatório**, como tarefa separada, depois da implementação.
 
@@ -191,7 +191,7 @@ Os testes unitários usam `unittest` (o `pytest` não está no `.venv`). A parti
 
 - **Alterações que não são deste plano:** `docs/clusterizacao-ao-longo-do-tempo.ipynb`, `projetos/StoCFL/teste-fracao-clientes.ipynb`, `projetos/StoCFL/teste-fracao-clientes copy.ipynb` e `mimic_codes/` estão sem commit e **não** fazem parte desta branch. Adicione arquivos ao commit por nome.
 - **Licença:** `mimic_codes/` não tem arquivo de licença. O processo da seção 5 é novo e foi escrito a partir do artigo, sem copiar o código do MimiC.
-- **Várias seeds:** sem pareamento (seção 2), uma só seed não separa o efeito do `drop` do ruído do sorteio. Cada seed gera uma nova partição dos dados (~750 MB), então planeje o disco. Os valores sugeridos para a grade, a confirmar na tarefa do relatório: `m` = 100%, 50% e 10%, `d` = 0,1 e 0,2, `L_max` = 10, `n = 240`, 50 rodadas, `τ = 0,9`, comparando com execuções sem `drop` da mesma seed.
+- **Várias seeds:** sem pareamento (seção 2), uma só seed não separa o efeito do `drop` do ruído do sorteio. Cada seed gera uma nova partição dos dados (~750 MB), então planeje o disco. Os valores sugeridos para a grade, a confirmar na tarefa do relatório: `m` = 100%, 50% e 10%, `d` = 0,1 e 0,2, `L_max` = 10, `n = 240`, 50 rodadas, `τ = 0,9`, comparando com execuções sem `drop` da mesma seed. **Para o notebook, o usuário escolheu outra grade ([D-035](decisoes.md)):** `m` = 100% e 50%, `d` = 0,05 e 0,1, `L_max` = 10, `k` = 8 e 16, `n = 240`, 50 rodadas, `τ = 0,75`, 10 seeds.
 - **Três cópias do servidor:** ao replicar nos outros scripts, aplicar o mesmo bloco da seção 5.3 e as mesmas flags. O módulo `availability.py` é único. Até lá, o guia (4.2) documenta que só o `StoCFL-FCC+CFL.py` tem `--drop`, como já acontece com o `--k` (D-029).
 - **Disco:** cada execução grava `psi.pkl` (~1,6 GB com 240 clientes) a cada rodada, e cada combinação de parâmetros repete esse custo.
 - **Início da execução:** todos começam disponíveis, então as primeiras rodadas têm disponibilidade acima de `a`.
