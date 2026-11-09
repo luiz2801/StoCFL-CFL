@@ -45,6 +45,8 @@ cfl_stocfl/
         ├── trainer.py                      # "clientes" simulados: um Trainer por cenário de dados
         ├── datasets.py                     # Partitioners: geram/carregam os dados de cada cliente (.pkl)
         ├── functional.py                   # similaridade de cosseno, ordenação de pares, seed
+        ├── availability.py                 # disponibilidade dos clientes com retorno (--drop, só no FCC+CFL); sem torch
+        ├── tests/test_availability.py      # testes unittest do availability.py
         ├── settings.py                     # utilitários legados (label skew, datasets antigos)
         ├── models/cnn.py, models/linear.py # modelos usados (models/model.py não é usado)
         ├── config/*.pkl, *_partition.py    # partições pré-computadas (legado, não usadas pelos scripts principais)
@@ -745,6 +747,7 @@ Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% do
 10. FedAvg sem ponderação por tamanho do dataset (irrelevante nos cenários sintéticos, que têm clientes de tamanho igual, mas não no FEMNIST).
 11. Custo: cada cliente sorteado treina **duas vezes** por rodada (cluster + global), mais a observação única. Os dados são relidos do disco a cada `get_data_loader`.
 12. **Modelo global encadeado (corrigido em 2026-11-04).** Nos cinco Trainers, o segundo laço de `train` reatribuía `gmodel` a cada cliente, e cada cliente partia do resultado do anterior. Isso não é o FedAvg do artigo (4.15.3), em que todos partem de `ω_t`, então agora todos partem do mesmo `gmodel`. **Consequência importante:** isso afasta os resultados dos números publicados. Com MNIST real nos parâmetros da Tabela 1 (1200 clientes, 10%, 100 rodadas, 1 seed), o `gmodel` encadeado dava 95.00, contra 94.96 da linha FedAvg do artigo, e o FedAvg de verdade dá 78.04, próximo da linha FedProx (77.82). Isso sugere que as tabelas do artigo vieram do código encadeado; é uma inferência, não prova. Esta correção segue o texto do artigo por decisão do usuário (D-014).
+13. **As três cópias de `StandaloneServer` deixaram de ser idênticas.** O `StoCFL-FCC+CFL.py` tem o dropout com retorno (`--drop` e `--drop_rounds`, 4.1), e o `StoCFL-FCC.py` e o `StoCFL-FEMNIST.py` ainda não (passo 5 do [plano](plano-dropout-stocfl.md)): eles sorteiam `num_per_round` entre todos os clientes. Com `--drop > 0`, quem tem ausências longas participa menos; com `--train 1`, isso muda quem contribui para o `gmodel` e para os modelos de cluster, e esse efeito não foi medido. O efeito do `--drop` sobre o ARI e o nº de clusters também não foi medido.
 
 ### 4.13 Código legado ou não usado
 
@@ -1031,7 +1034,7 @@ Para as 5 sementes, faça uma execução por valor de `--seed` (0, 42, 1998, 442
 ## 6. Orientações para agentes de IA e mantenedores
 
 **Antes de mudar algo:**
-- O `StandaloneServer` está **triplicado** (FCC, FCC+CFL, FEMNIST) e os métodos `_train_alone`/`train_alone_prox` estão **repetidos em 5 Trainers**. Toda mudança de algoritmo precisa ser aplicada em todas as cópias, ou o código deve ser refatorado primeiro.
+- O `StandaloneServer` está **triplicado** (FCC, FCC+CFL, FEMNIST) e os métodos `_train_alone`/`train_alone_prox` estão **repetidos em 5 Trainers**. Toda mudança de algoritmo precisa ser aplicada em todas as cópias, ou o código deve ser refatorado primeiro. Exceção atual: o `--drop` só existe no `StoCFL-FCC+CFL.py` (4.2 e 4.12 #13).
 - No CFL, os pesos (`client.W`) são **referências vivas** aos `Parameter`s do modelo, e `copy()` altera o modelo in-place.
 - No StoCFL, modelos são vetores 1-D. Use `SerializationTool` para ir e voltar de `nn.Module`.
 - Preserve os invariantes de 4.5, especialmente "id do cluster = menor id de cliente membro".
