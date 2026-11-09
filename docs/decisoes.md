@@ -587,3 +587,20 @@ Para cada decisão, a entrada segue este modelo:
   - Apagar o `psi.pkl` por padrão: descartada, para não mudar o que o usuário vê em disco sem pedir.
   - Heatmap da matriz de pares 2×2: descartada, porque a tabela de resumo já traz os pares misturados e separados.
   - Reaproveitar sem checar o `τ`, como o notebook de `m`: descartada, porque esse notebook usa um `τ` por vez, e aqui o mesmo nome de pasta já abriga execuções de `τ` diferentes (0,9 e 0,75).
+
+## D-036: Célula do `teste-dropout.ipynb` que grava os resultados em JSON
+
+- **Data:** 2026-11-09
+- **Decidido por:** o usuário pediu "quando acabar salva os resultados em um json", sem dizer onde nem o quê. Claude decidiu, por serem escolhas triviais e reversíveis, o local, o conteúdo e a forma.
+- **Situação:** vigente. Acrescenta uma seção ao notebook de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test), sem mudar os cenários.
+- **Contexto:** a grade completa (120 execuções, D-035) estava rodando em segundo plano, e o usuário quis os resultados num arquivo para analisar fora do notebook.
+- **Decisão:**
+  - Uma célula final (seção 7) grava `projetos/StoCFL/logs/resultados-dropout.json`, ao lado do `busca-tau.json`. O `logs/` é ignorado pelo git, então o JSON **não é versionado**, e o commit leva só a célula.
+  - O JSON é estrito (`allow_nan=False`; `NaN` vira `null`) e tem `parametros`, `execucoes` (métricas finais, a pasta de logs e `rotulos`, o cluster de cada cliente na partição final), `por_rodada`, `resumo`, `comparacao` (dropout − sem dropout com Wilcoxon) e `matrizes_grupo_real_x_previsto` (somadas nas seeds). Com os `rotulos` e as seeds dá para recalcular as matrizes e o ARI sem os logs.
+  - Para isso, o notebook passou a guardar a tabela de Wilcoxon em `comparacao` e as matrizes somadas em `matrizes_soma`. Nada mais nas células anteriores mudou.
+  - A célula foi testada fora do notebook sobre 3 execuções reais já concluídas (seed 0, `k = 8`, `m = 100%`), enquanto a grade rodava, e depois vai rodar sobre a grade completa, reaproveitando as execuções. Editar o arquivo do notebook não afetou a grade em andamento, que usa a cópia carregada na memória do `nbclient`.
+- **Alternativas consideradas:**
+  - Script avulso fora do repositório: descartada, porque o resultado não seria reproduzível pelo usuário.
+  - Versionar o JSON (por exemplo em `docs/`): descartada por ora, porque não foi pedido e é um resultado de execução; pode ser feito depois se o usuário quiser.
+  - Um CSV por tabela: descartada, porque o usuário pediu um JSON e as tabelas têm formatos diferentes.
+  - Gravar só o resumo: descartada, porque sem as métricas por rodada e os rótulos finais não dá para refazer os gráficos nem as matrizes.

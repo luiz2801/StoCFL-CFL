@@ -78,6 +78,7 @@ O notebook [teste-dropout.ipynb](teste-dropout.ipynb) compara a clusterização 
 - A grade completa são **120 execuções** (2 `k` × 2 `m` × 3 cenários × 10 seeds): cada uma grava `psi.pkl` (~1,6 GB) a cada rodada em `logs/` (~190 GB no total), e as partições de dados ocupam ~1,8 GB (`k = 8`) e ~3,6 GB (`k = 16`) por seed (~54 GB). A célula de execução confere o espaço livre antes de começar, e `APAGAR_PSI = True` apaga o `psi.pkl` de cada execução concluída (a análise não o usa). Reduza `SEEDS`, `KS`, `FRACOES` ou `DROPS` para uma grade menor.
 - Execuções concluídas com os mesmos parâmetros, **inclusive `τ`** (lido da linha de argumentos do log, já que o nome da pasta não o traz), são reaproveitadas, a menos que `REEXECUTAR = True`. As execuções sem dropout do notebook de `m` (`τ = 0.9`) não são reaproveitadas.
 - `τ = 0.75` fica na borda inferior da janela de `k = 16` no [relatório de m, k e τ](../../docs/relatorio-m-k-tau.md): algumas seeds podem fundir grupos vizinhos, com e sem dropout. O notebook mostra isso (`seeds_colapso`, matrizes de confusão).
+- A última célula grava `logs/resultados-dropout.json` com os parâmetros, as métricas finais e por rodada de cada execução (com a partição final), as tabelas de resumo e as matrizes de confusão somadas nas seeds. Como `logs/` é ignorado pelo git, o JSON não é versionado.
 - `datasets/rotated_*/` e `logs/` são ignorados pelo git. O notebook é versionado **sem saídas de execução**.
 
 ### Efeito da fração de clientes por rodada (m)
