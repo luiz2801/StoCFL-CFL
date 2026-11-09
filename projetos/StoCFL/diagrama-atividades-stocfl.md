@@ -1,6 +1,6 @@
 # Diagrama de atividades: StoCFL
 
-Fluxo do experimento de `StoCFL-FCC+CFL.py`, com o servidor `StandaloneServer` e o `RotatedMNISTTrainer` de `trainer.py`. Os três scripts de entrada (`StoCFL-FCC.py`, `StoCFL-FCC+CFL.py`, `StoCFL-FEMNIST.py`) usam o mesmo laço do servidor. A flag `train` separa os dois procedimentos do README:
+Fluxo do experimento de `StoCFL-FCC+CFL.py`, com o servidor `StandaloneServer` e o `RotatedMNISTTrainer` de `trainer.py`. Os três scripts de entrada (`StoCFL-FCC.py`, `StoCFL-FCC+CFL.py`, `StoCFL-FEMNIST.py`) usam o mesmo laço do servidor, exceto a disponibilidade de clientes (`--drop`, dropout com retorno), que só existe no `StoCFL-FCC+CFL.py`. A flag `train` separa os dois procedimentos do README:
 
 - `train=0`: só o agrupamento estocástico de clientes (FCC).
 - `train=1`: agrupamento mais o treino federado em dois níveis (FCC+CFL).
@@ -21,15 +21,18 @@ flowchart TD
     Ini(("Início")):::node0
 
     %% ---------- Preparação ----------
-    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obbs, tau, train, seed, dataset, k) e chamar setup_seed"]:::sc
+    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obbs, tau, train, seed, dataset, k, drop, drop_rounds) e chamar setup_seed"]:::sc
     D0{"process == 1?"}:::ctl
     P3["pre_process: rotacionar o dataset e gravar n partições<br/>(MNIST: k ângulos 360°·i/k, padrão 0°, 90°, 180°, 270° · CIFAR-10: 0°, 180°)"]:::sc
     P4["Escolher modelo e trainer<br/>mnist: SimpleLinear · cifar: CNN_CIFAR10 (k = --k; padrão 4 e 2)<br/>RotatedMNISTTrainer(model, args)"]:::sc
     P5["Criar a pasta de logs e o Logger, registrar os argumentos"]:::sc
-    P6["StandaloneServer: cada cliente em seu próprio cluster<br/>psi = {}, cluster_parameters = {}<br/>gmodel = anchor = modelo inicial"]:::sv
+    P6["StandaloneServer: cada cliente em seu próprio cluster<br/>psi = {}, cluster_parameters = {}<br/>gmodel = anchor = modelo inicial<br/>availability = Availability(n, drop, drop_rounds, seed)"]:::sv
 
     %% ---------- Rodada ----------
-    S1["Sortear num_per_round clientes (ordenados)"]:::sv
+    Ddrop{"drop #gt; 0?"}:::ctl
+    AV1["availability.step(): atualizar quem cai e quem volta<br/>gravar os indisponíveis no log (unavailable) e em availability.pkl"]:::sv
+    S1A["Sortear min(num_per_round, nº de disponíveis) clientes<br/>só entre os disponíveis (ordenados; nenhum disponível: lista vazia)"]:::sv
+    S1["Sortear num_per_round clientes entre todos (ordenados)"]:::sv
 
     subgraph RO["para cada sorteado que ainda não tem psi"]
         OB1["dataset_representation: gradiente da perda no anchor,<br/>em todo o dataset, sem treinar, e normalizado"]:::cl
@@ -72,22 +75,30 @@ flowchart TD
     end
 
     T5["Registrar as acurácias no log e em accuracy.pkl"]:::sv
+    Dvaz{"há participantes na rodada?"}:::ctl
+    TV["rodada vazia: accuracy_log recebe uma entrada com cluster e global vazios<br/>sem treino e sem avaliação, gmodel não muda"]:::sv
     Dend{"há mais rodadas?"}:::ctl
     Fim((("Fim"))):::node0
 
     Ini --> P1 --> D0
     D0 -->|"sim"| P3 --> P4
     D0 -->|"não"| P4
-    P4 --> P5 --> P6 --> S1
-    S1 --> OB1 --> OB2 --> K1 --> K2 --> Dk
+    P4 --> P5 --> P6 --> Ddrop
+    Ddrop -->|"sim"| AV1 --> S1A
+    Ddrop -->|"não"| S1
+    S1A --> OB1
+    S1 --> OB1
+    OB1 --> OB2 --> K1 --> K2 --> Dk
     Dk -->|"sim"| K3 --> Dtau
     Dk -->|"não"| K4
     Dtau -->|"sim"| U1 --> U2 --> K4
     Dtau -->|"não"| BRK --> K4
     K4 --> Dtrain
-    Dtrain -->|"sim"| T1 --> T2 --> L1 --> L2 --> T3 --> A1 --> A2 --> A3 --> T5 --> Dend
+    Dtrain -->|"sim"| Dvaz
+    Dvaz -->|"sim"| T1 --> T2 --> L1 --> L2 --> T3 --> A1 --> A2 --> A3 --> T5 --> Dend
+    Dvaz -->|"não"| TV --> Dend
     Dtrain -->|"não"| Dend
-    Dend -->|"sim, próxima rodada"| S1
+    Dend -->|"sim, próxima rodada"| Ddrop
     Dend -->|"não"| Fim
 
     style RO fill:none,stroke:#586a71,stroke-dasharray:6 4
@@ -116,6 +127,8 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 
 ## Como o fluxo funciona
 
+- **Disponibilidade opcional.** Com `drop > 0`, a cada rodada `availability.step()` decide quem está indisponível: um cliente disponível cai com probabilidade `drop` e fica fora de 1 a `drop_rounds` rodadas, e a rodada seguinte à ausência é de retorno (disponível, sem sorteio). Os `num_per_round` clientes são sorteados só entre os disponíveis, e, se houver menos disponíveis, participam todos. Com `drop = 0`, o sorteio é entre todos, como antes, e `availability` não é usada. O cliente que volta usa o `psi` já guardado e recebe os modelos atuais; o que está fora continua no seu cluster.
+- **Rodada vazia.** Se nenhum cliente estiver disponível, a lista da rodada é vazia: a observação e as uniões não fazem nada, `get_cluster` ainda grava a partição, e o treino é pulado (com `train = 1`, `accuracy_log` recebe uma entrada vazia, para ter uma por rodada).
 - **Agrupamento só por união.** Todo cliente começa num cluster próprio (`find_cluster_content[i] = [i]`). `unite` junta clusters e nada no código os divide de volta, então uma união errada não é desfeita.
 - **Representação calculada uma vez.** `psi[cid]` é calculado na primeira vez que o cliente é sorteado, como o gradiente normalizado da perda no `anchor` (o modelo inicial), sem treinar, e nunca é refeito. O centro de um cluster é a média dos `psi` de todos os seus membros, e um cluster sorteado nunca tem membro sem `psi`.
 - **Uniões em ordem de cosseno.** A matriz de cossenos é calculada uma vez por rodada. Os pares são percorridos do maior cosseno ao menor, e o primeiro par que não passa de `tau` encerra a rodada de uniões. Os cossenos não são recalculados depois de cada união.
@@ -127,6 +140,6 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 
 | Script | Dados e modelo | Trainer | Diferenças no laço |
 | --- | --- | --- | --- |
-| `StoCFL-FCC+CFL.py` | MNIST rotacionado (`SimpleLinear`, k=4 por padrão, ou o `--k` passado) ou CIFAR-10 rotacionado (`CNN_CIFAR10`, k=2) | `RotatedMNISTTrainer` | `train=1` por padrão. Grava `psi.pkl`, `cluster.pkl` e `accuracy.pkl` a cada rodada. |
+| `StoCFL-FCC+CFL.py` | MNIST rotacionado (`SimpleLinear`, k=4 por padrão, ou o `--k` passado) ou CIFAR-10 rotacionado (`CNN_CIFAR10`, k=2) | `RotatedMNISTTrainer` | `train=1` por padrão. Grava `psi.pkl`, `cluster.pkl` e `accuracy.pkl` a cada rodada. Único com `--drop` e `--drop_rounds` (dropout com retorno): com `drop > 0`, também grava `availability.pkl`. |
 | `StoCFL-FCC.py` | MNIST em quatro configurações (`--setting`: fskewed, lskewed, shifted, rotated), `SimpleLinear` | Um trainer por configuração | `train=0` por padrão, só agrupamento. Grava o histórico de clusters ao final. Com `train=1`, chama `client_trainer.evaluate`. Entre os trainers de `trainer.py`, só o `ShiftedMNISTTrainer` define esse método, e ele usa `range(id_list)` sobre uma lista. |
 | `StoCFL-FEMNIST.py` | FEMNIST (3597 clientes), `CNN_FEMNIST` | `FEMNISTTrainer` | `train=0` por padrão. Mede o modelo global no teste global do FEMNIST e cada cluster no teste dos seus clientes. A medição global roda antes de `gmodel` ser carregado no modelo do servidor, então reflete o `gmodel` da rodada anterior. |

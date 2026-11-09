@@ -28,7 +28,13 @@ sequenceDiagram
 
     Note over S,L: Rodadas de comunicação (com_round)
     loop a cada rodada
-        S->>S: sortear num_per_round clientes
+        alt drop maior que 0
+            S->>S: availability.step(), quem cai e quem volta nesta rodada
+            S->>L: "unavailable" e availability.pkl
+            S->>S: sortear min(num_per_round, nº de disponíveis) clientes entre os disponíveis
+        else drop igual a 0
+            S->>S: sortear num_per_round clientes entre todos
+        end
         S->>L: "Starting round" com os ids sorteados
 
         Note over S,T: Observação a partir do anchor
@@ -57,7 +63,12 @@ sequenceDiagram
         end
         S->>L: get_cluster grava cluster_rec.log e cluster.pkl
 
-        opt train == 1
+        opt train == 1 e nenhum cliente sorteado
+            S->>S: accuracy_log recebe uma entrada vazia, sem treino
+            S->>L: accuracy.pkl
+        end
+
+        opt train == 1 e há clientes sorteados
             Note over S,T: Treino em dois níveis
             S->>S: clusters sem modelo recebem deepcopy(anchor)
             S->>T: train(cid_this_round, cluster_models, gmodel)
@@ -90,6 +101,7 @@ sequenceDiagram
 
 ## Pontos de atenção
 
+- **Disponibilidade só no servidor.** `availability.step()` é uma chamada local do servidor, sem troca de mensagem com o trainer: o cliente indisponível simplesmente não entra na lista passada a `observe` e `train`. Só existe no `StoCFL-FCC+CFL.py` e só roda com `drop > 0`. Numa rodada sem nenhum cliente disponível, `observe` e `inter_cluster_union` recebem listas vazias e não fazem nada, e o treino é pulado.
 - **Trainer único.** Os clientes não existem como objetos. O servidor chama o trainer com uma lista de ids, e o trainer carrega os dados de cada cliente do disco quando precisa. Num sistema distribuído, as setas `observe` e `train` seriam mensagens de rede.
 - **`observe` é chamado sempre.** Quando todos os sorteados já têm `psi`, a lista `unobserved` é vazia e nenhum cliente calcula o gradiente. Por isso o laço de observação fica vazio nas rodadas em que não aparece nenhum cliente novo.
 - **Cosseno entre clusters, não entre clientes.** A matriz usa o centro de cada cluster sorteado, a média dos `psi` de todos os seus membros. Só clusters sorteados na rodada são comparados.

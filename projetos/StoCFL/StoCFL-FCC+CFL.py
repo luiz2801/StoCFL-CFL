@@ -24,6 +24,7 @@ from fedlab.utils.functional import get_best_gpu, load_dict, evaluate
 from functional import *
 from trainer import FEMNISTTrainer, ShiftedMNISTTrainer, RotatedMNISTTrainer, LabelSkewMNISTTrainer, FeatureSkewHybridMNISTTrainer
 from datasets import BaseDataset, RotatedMNIST, RotatedCIFAR10Partitioner
+from availability import Availability
 
 class StandaloneServer(ModelMaintainer):
     def __init__(self, model, cuda, client_trainer, args) -> None:
@@ -45,6 +46,7 @@ class StandaloneServer(ModelMaintainer):
 
         self.args = args # com_round, num_per_round
         self.client_id = [i for i in range(client_trainer.client_num)]
+        self.availability = Availability(self.client_num, args.drop, args.drop_rounds, args.seed)
 
         self.tau = args.tau
         self.anchor = SerializationTool.serialize_model(self._model)
@@ -52,8 +54,19 @@ class StandaloneServer(ModelMaintainer):
     def main(self): 
         cluster_log = [] # [cluster info at round i]
         accuracy_log = [] # [{"cluster":[],"global":[]}
+        availability_log = [] # [unavailable clients at round i]
         for round in range(self.args.com_round):
-            cid_this_round = sorted(random.sample(self.client_id, self.args.num_per_round))
+            if self.args.drop > 0:
+                up = self.availability.step()
+                available = [c for c in self.client_id if up[c]]
+                unavailable = [c for c in self.client_id if not up[c]]
+                self.args.exp_logger.info("Round {}/{}, unavailable {}".format(round, self.args.com_round, unavailable))
+                availability_log.append(unavailable)
+                torch.save(availability_log, "{}/availability.pkl".format(self.args.dir))
+                # fewer than num_per_round available: everyone available takes part (nobody: empty round)
+                cid_this_round = sorted(random.sample(available, min(self.args.num_per_round, len(available))))
+            else:
+                cid_this_round = sorted(random.sample(self.client_id, self.args.num_per_round))
             self.args.exp_logger.info("Starting round {}/{}, client id this round {}".format(round, self.args.com_round, cid_this_round))
 
             # anchor move
@@ -75,7 +88,11 @@ class StandaloneServer(ModelMaintainer):
             torch.save(cluster_log, "{}/cluster.pkl".format(self.args.dir))
 
             # clustered federated optimization
-            if self.args.train:
+            if self.args.train and not cid_this_round:
+                # empty round (nobody available): fedavg_aggregate needs a non-empty list, keep one entry per round
+                accuracy_log.append({"cluster": [], "global": []})
+                torch.save(accuracy_log, "{}/accuracy.pkl".format(self.args.dir))
+            elif self.args.train:
                 for id in cid_this_round:
                     if self.find_client_cluster[id] not in self.cluster_parameters.keys():
                         self.cluster_parameters[self.find_client_cluster[id]] = deepcopy(self.anchor)
@@ -205,6 +222,10 @@ if __name__ == "__main__":
 
     parser.add_argument("--dataset", type=str, default="cifar") # mnist, cifar
     parser.add_argument("--k", type=int, default=None) # number of rotation groups (mnist: default 4, angles 360*i/k; cifar: only 2)
+
+    # dropout with return (0 = off, the sampling of num_per_round is the same as before)
+    parser.add_argument("--drop", type=float, default=0.0) # probability that an available client drops in a round, in [0, 1)
+    parser.add_argument("--drop_rounds", type=int, default=1) # L_max: each absence lasts U{1..L_max} rounds
     # datset
     parser.add_argument("--process", type=int, default=0)
 
@@ -219,6 +240,9 @@ if __name__ == "__main__":
         args.k = default_k
     assert args.dataset == "mnist" or args.k == 2, "cifar only supports k=2"
     assert args.n % args.k == 0, "n must be divisible by k"
+    assert 0 <= args.drop < 1, "drop must be in [0, 1)"
+    assert args.drop_rounds >= 1, "drop_rounds must be >= 1"
+    assert args.drop == 0 or args.num_per_round <= args.n, "num_per_round must be <= n"
     # the default k keeps the original names; another k gets a suffix so the datasets and logs of different k do not mix
     k_tag = "" if args.k == default_k else "_k{}".format(args.k)
 
@@ -244,7 +268,9 @@ if __name__ == "__main__":
         trainer = RotatedMNISTTrainer(deepcopy(model), args, cuda=torch.cuda.is_available())
     
     args.time_stamp = time.strftime('%m-%d-%H:%M', time.localtime())
-    dir = "./logs/runs-rotated-{}-n{}-p{}-seed{}-lambda{}{}-time-{}".format(args.dataset, args.n, args.num_per_round,args.seed, args.mu, k_tag.replace("_", "-"), args.time_stamp)
+    # with dropout the logs get -drop{d}-r{L_max}, so they do not match the notebook's pattern for runs without it
+    drop_tag = "-drop{}-r{}".format(args.drop, args.drop_rounds) if args.drop > 0 else ""
+    dir = "./logs/runs-rotated-{}-n{}-p{}-seed{}-lambda{}{}{}-time-{}".format(args.dataset, args.n, args.num_per_round,args.seed, args.mu, k_tag.replace("_", "-"), drop_tag, args.time_stamp)
     os.makedirs(dir, exist_ok=True)
     args.exp_logger = Logger("StoCFL", "{}/rotated_{}.log".format(dir, args.dataset))
     args.exp_logger.info(str(args))

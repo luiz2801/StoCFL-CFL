@@ -1,6 +1,7 @@
 # Plano: dropout com retorno no StoCFL
 
-- **Situação:** plano com as decisões tomadas ([D-032](decisoes.md)). Nada foi implementado; o código do StoCFL não foi alterado.
+- **Situação:** plano com as decisões tomadas ([D-032](decisoes.md)). **Passos 1 a 3 da seção 6 implementados em 2026-11-09** (baseline, `availability.py` com os testes e a integração no `StoCFL-FCC+CFL.py`, com os testes I1 a I4 da seção 8; detalhes em [D-033 e D-034](decisoes.md) e no [guia](guia.md), 4.11). Faltam os passos 4 a 6 e o teste I5.
+- **Números de linha:** os do `StoCFL-FCC+CFL.py` neste documento são os do código **antes** da implementação (commit `ebb6390`). Para as linhas atuais, veja o [guia](guia.md), 4.4.
 - **Branch:** `dropout-stocfl` (a partir de `main`, em 2026-11-09).
 - **Fontes:** o artigo do MimiC (Sun, Mao e Zhang, *IEEE TMC*, 2024; PDF em `mimic_codes/MimiC.pdf`, fora do git) e o código do StoCFL lido em 2026-11-09 (`StoCFL-FCC+CFL.py`, `trainer.py`, `functional.py`).
 

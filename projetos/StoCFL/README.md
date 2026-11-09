@@ -40,7 +40,37 @@ python StoCFL-FCC+CFL.py --n 200 \
                          --process 1 
 ```
 
+### Dropout com retorno (opcional)
+
+O `StoCFL-FCC+CFL.py` aceita `--drop` e `--drop_rounds`, que tornam os clientes **indisponíveis por algumas rodadas**: a cada rodada, um cliente disponível cai com probabilidade `--drop` e fica fora de 1 a `--drop_rounds` rodadas (duração sorteada uniformemente), e depois volta. Quem está fora não é sorteado, e os `--num_per_round` clientes são sorteados só entre os disponíveis (se houver menos, participam todos; se não houver nenhum, a rodada é pulada). Com `--drop 0` (padrão), o comportamento é o de sempre. Os outros dois scripts ainda não têm essas flags. Detalhes no [guia técnico](../../docs/guia.md) (seções 4.1, 4.8 e 4.11) e no [plano](../../docs/plano-dropout-stocfl.md).
+
+```
+python StoCFL-FCC+CFL.py --n 240 \
+                         --k 4 \
+                         --dataset mnist \
+                         --com_round 50 \
+                         --num_per_round 120 \
+                         --train 0 \
+                         --tau 0.9 \
+                         --seed 0 \
+                         --process 1 \
+                         --drop 0.1 \
+                         --drop_rounds 10
+```
+
+A execução grava, além dos arquivos de sempre, o `availability.pkl` (indisponíveis por rodada) e a linha `unavailable` no log, e a pasta de logs ganha `-drop0.1-r10` no nome.
+
 ## Testes
+
+### Módulo de disponibilidade (`--drop`)
+
+Os testes unitários do [availability.py](availability.py) rodam sem GPU, a partir desta pasta e com o `.venv` da raiz:
+
+```
+../../.venv/bin/python -m unittest tests/test_availability.py -v
+```
+
+O notebook `teste-dropout.ipynb`, que vai comparar execuções com e sem `--drop` em várias seeds, ainda **não existe** (passo 4 do plano).
 
 ### Efeito da fração de clientes por rodada (m)
 

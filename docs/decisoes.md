@@ -481,7 +481,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário definiu a ideia (um sorteio de dropout separado do sorteio de `m`, com o cliente voltando ao treinamento depois) e pediu a branch e o documento. Claude decidiu, por serem triviais e reversíveis, o nome da branch, o nome e o local do plano, o uso de `unittest` nos testes e a forma do processo de disponibilidade (rodada de retorno sem sorteio, para limitar a ausência).
-- **Situação:** vigente, com uma parte substituída por [D-032](#d-032-escolhas-de-design-do-dropout-com-retorno-no-stocfl): o sorteio de `m` deixa de ser independente do `drop` e passa a ser feito só entre os clientes disponíveis. Nada foi implementado.
+- **Situação:** vigente, com uma parte substituída por [D-032](#d-032-escolhas-de-design-do-dropout-com-retorno-no-stocfl): o sorteio de `m` deixa de ser independente do `drop` e passa a ser feito só entre os clientes disponíveis. Implementação em andamento: módulo e integração no `StoCFL-FCC+CFL.py` feitos (ver D-033 e D-034).
 - **Contexto:** o usuário quis testar o efeito do dropout do MimiC no StoCFL. A análise mostrou que o terceiro padrão do MimiC (pesos aleatórios novos a cada rodada) tem a mesma distribuição que o `random.sample` do StoCFL, então não muda nenhum resultado. Um dropout sem retorno e sem memória no tempo também equivale a um `m` menor. A simulação de 2026-11-09 mostrou que só a queda **por grupo de rotação, com retorno**, produz um regime que variar `m` não reproduz (algum grupo sem sobrevivente em ~80% das rodadas). Os números do plano vêm do processo especificado, com rodada de retorno sem sorteio; uma primeira simulação, sem essa garantia, deu 0,643 de disponibilidade e 83,1% de rodadas com grupo vazio.
 - **Decisão:**
   - Trabalhar na branch `dropout-stocfl`, criada a partir de `main`.
@@ -499,7 +499,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário respondeu as pendências P1 a P7 do plano e, depois de ver a simulação do desenho escolhido, confirmou "manter como decidido" e o escopo "só `StoCFL-FCC+CFL.py` primeiro". Claude interpretou as respostas ambíguas e decidiu os detalhes triviais listados abaixo.
-- **Situação:** vigente. Substitui em parte a D-031 (o sorteio de `m` passa a ser entre os disponíveis). Nada foi implementado.
+- **Situação:** vigente. Substitui em parte a D-031 (o sorteio de `m` passa a ser entre os disponíveis). Implementação em andamento: módulo e integração no `StoCFL-FCC+CFL.py` feitos (ver D-033 e D-034); faltam o notebook, os outros dois scripts e as execuções.
 - **Contexto:** o plano ([plano-dropout-stocfl.md](plano-dropout-stocfl.md)) deixava sete escolhas abertas. As respostas do usuário combinam disponibilidade conhecida (quem caiu não é sorteado e outro entra no lugar) com queda por cliente. Claude simulou esse desenho antes de implementar e avisou que o efeito esperado é pequeno: o `drop` atrasa a observação dos clientes em poucas rodadas (some por volta da rodada 25), e só com `m` grande o nº de participantes cai de fato (157,5 em vez de 240 com `m = 100%`, `d = 0,1` e `L ~ U[1,10]`). Só presença e cobertura foram medidas, não o ARI.
 - **Decisão:**
   - **P1:** o `drop` age na seleção. O cliente que cai não pode ser sorteado, e outro entra no lugar. A fase `train` (cliente observado mas sem treinar) saiu do escopo, e o `gmodel` não é tocado.
@@ -536,3 +536,25 @@ Para cada decisão, a entrada segue este modelo:
   - Devolver um `set` dos indisponíveis ou um array numpy: descartada, porque o módulo não depende de `numpy` e a lista indexada por cliente é o que o laço de `main` usa (`up[c]`).
   - `pytest`: já descartado em D-031 (não está no `.venv`).
   - Um só teste T3: descartada, porque, com `drop` baixo, o teste de ausência máxima passaria mesmo sem a rodada de retorno.
+
+## D-034: Detalhes da integração do dropout no `StoCFL-FCC+CFL.py`
+
+- **Data:** 2026-11-09
+- **Decidido por:** Claude, por serem escolhas triviais e reversíveis que não alteram o comportamento do algoritmo com `--drop 0` (o desenho está em D-032 e no plano, seção 5). Nenhuma escolha de design precisou ser perguntada.
+- **Situação:** vigente.
+- **Contexto:** o plano fixa as flags, o sorteio entre os disponíveis, a rodada vazia, a linha `unavailable`, o `availability.pkl` e o sufixo da pasta de logs, mas deixa em aberto a validação das flags, a posição da linha de log e a forma de pular o treino.
+- **Decisão:**
+  - **Validação.** Com `assert` no `__main__`, no estilo das validações de `--k`: `0 <= drop < 1` e `drop_rounds >= 1`, e, **só com `drop > 0`**, `num_per_round <= n`. A última existe porque `min(m, disponíveis)` esconderia um `m > n`. Sem `--drop`, o `random.sample` continua levantando `ValueError` para `m > n`, e esse caminho não foi tocado.
+  - **`self.availability`** é criado sempre em `__init__`, como no plano, mas `step()` só é chamado com `drop > 0`.
+  - **Log.** No ramo `drop > 0`, a linha `Round {r}/{T}, unavailable [...]` sai antes da linha `Starting round`, e `availability.pkl` é regravado a cada rodada, como o `cluster.pkl`, com listas ordenadas de `int`.
+  - **Rodada vazia.** `if self.args.train and not cid_this_round: ... elif self.args.train:`, equivalente ao `if self.args.train and cid_this_round` do plano, sem reindentar o bloco de treino. Efeito colateral aceito: com `--drop 0`, `--num_per_round 0` e `--train 1`, que antes quebrava em `fedavg_aggregate([])`, a rodada passa a ser tratada como vazia. Essa configuração não era suportada.
+  - **Pasta de logs.** `-drop{d}-r{L_max}` depois do `-k{k}` e antes de `-time-`, com `d` no formato de `str(float)` (`0.1`).
+  - **Documentação.** Os números de linha do script no guia (4.3, 4.4 e 4.16) foram atualizados, inclusive a referência `:213` da 4.16, que já estava errada por uma linha (era 214) antes desta mudança. O plano mantém os números de linha antigos, com um aviso no topo. Em D-031 e D-032, só o campo "Situação" foi atualizado; o conteúdo não foi alterado.
+  - **Verificação dos testes I1 a I4** (resultados no guia, 4.11). O I4 do plano, com `n = 40` e seed 0, **não gerou nenhuma rodada vazia**, então não exercitou o ramo novo; o teste foi repetido com `n = 8` e `m = 4`, em que 4 de 15 rodadas ficaram vazias. O I5 (leitura pelo notebook) fica para o passo 4.
+  - **Mermaid.** A sintaxe dos dois diagramas foi conferida só por uma checagem estrutural em Python (nós definidos, `subgraph`/`end`, `alt`/`else`/`end`, aspas e `#gt;`), que passa nas versões novas e antigas e falha em versões quebradas de propósito. O `mermaid.js` não foi executado: não há `node` nem `mmdc` no ambiente, e a tentativa de renderizar com o `mermaid.js` 10.9.1 baixado no Firefox foi bloqueada pelo classificador de permissões, então o arquivo baixado foi apagado.
+- **Alternativas consideradas:**
+  - `ValueError` no lugar de `assert`: descartada, porque o script já valida `--k` com `assert`, e a validação antecipada evita preparar os dados antes de falhar.
+  - `num_per_round <= n` também com `--drop 0`: descartada, para não tocar o caminho com `--drop 0` (só mudaria o tipo do erro).
+  - Reindentar o bloco de treino com `if self.args.train and cid_this_round`: descartada, porque o diff ficaria maior sem mudar o comportamento.
+  - Criar `Availability` só com `drop > 0`: descartada, porque o plano a cria em `__init__` e assim valores inválidos falham sempre.
+  - Gravar a linha `unavailable` depois da `Starting round`: descartada, porque a disponibilidade é decidida antes do sorteio e a linha fica dentro do mesmo ramo `drop > 0`.
