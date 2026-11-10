@@ -239,17 +239,26 @@ class RotatedMNISTTrainer(SerialTrainer):
         
         self.client_num = args.n
         self.optimizer = torch.optim.SGD(self._model.parameters(), lr=self.args.lr)
+        self.batches = {} # (id, batch_size, type) -> list of (data, label) batches, read from disk only once
+
+    def get_batches(self, id, batch_size=None, type="train"):
+        # the files do not change during a run and the DataLoader has no shuffle, so the batches are always the same:
+        # keep them in memory (CPU) instead of reading the file and stacking the samples again at every call
+        key = (id, batch_size, type)
+        if key not in self.batches:
+            self.batches[key] = list(self.dataset.get_data_loader(id, batch_size, type))
+        return self.batches[key]
 
     def train(self, id_list, cluster_models, gmodel):
         updated_cmodels = []
         for id, cmodel in zip(tqdm(id_list), cluster_models):
-            train_loader = self.dataset.get_data_loader(id, self.args.batch_size)    
+            train_loader = self.get_batches(id, self.args.batch_size)
             cmodel  = self.train_alone_prox(cmodel, gmodel, train_loader)
             updated_cmodels.append(cmodel)
 
         gmodels = []
         for id in tqdm(id_list):
-            train_loader = self.dataset.get_data_loader(id, self.args.batch_size)  
+            train_loader = self.get_batches(id, self.args.batch_size)
             gmodels.append(self._train_alone(gmodel, train_loader))
 
         return updated_cmodels, gmodels
@@ -257,13 +266,13 @@ class RotatedMNISTTrainer(SerialTrainer):
     def observe(self, id_list, anchor):
         movements = []
         for id in id_list:
-            train_loader = self.dataset.get_data_loader(id, self.args.obbs)
+            train_loader = self.get_batches(id, self.args.obbs)
             move = dataset_representation(self, anchor, train_loader)
             movements.append(move)
         return movements
 
     def get_test_dataloader(self, cid):
-        data_loader = self.dataset.get_data_loader(cid, batch_size=4096, type="test")
+        data_loader = self.get_batches(cid, batch_size=4096, type="test")
         return data_loader
 
     def _train_alone(self, model_parameters, train_loader):

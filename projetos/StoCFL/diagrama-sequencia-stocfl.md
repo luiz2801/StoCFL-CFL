@@ -45,8 +45,8 @@ sequenceDiagram
         Note over S,T: Observação a partir do anchor
         S->>T: observe(unobserved, anchor)
         loop para cada sorteado que ainda não tem psi
-            T->>D: get_data_loader(cid, obbs)
-            D-->>T: DataLoader
+            T->>D: get_data_loader(cid, obbs), só na primeira vez
+            D-->>T: DataLoader, cujos lotes o trainer guarda em memória (get_batches)
             T->>T: dataset_representation, gradiente normalizado no anchor, sem treinar
         end
         T-->>S: representações normalizadas
@@ -78,13 +78,11 @@ sequenceDiagram
             S->>S: clusters sem modelo recebem deepcopy(anchor)
             S->>T: train(cid_this_round, cluster_models, gmodel)
             loop para cada cliente sorteado
-                T->>D: get_data_loader(cid, batch_size)
-                D-->>T: DataLoader
+                T->>T: get_batches(cid, batch_size), lotes já em memória
                 T->>T: train_alone_prox, parte do modelo do cluster com termo proximal em gmodel
             end
             loop para cada cliente sorteado
-                T->>D: get_data_loader(cid, batch_size)
-                D-->>T: DataLoader
+                T->>T: get_batches(cid, batch_size), lotes já em memória
                 T->>T: _train_alone, parte do gmodel da rodada
             end
             T-->>S: updated_cmodels e gmodels
@@ -93,9 +91,11 @@ sequenceDiagram
             loop para cada cluster sorteado
                 S->>S: cluster_parameters[cluster] = FedAvg dos modelos atualizados
                 S->>T: get_test_dataloader(int(cid0 * k / n))
-                T->>D: get_data_loader(rotação, 4096, "test")
-                D-->>T: DataLoader de teste
-                T-->>S: test_loader
+                opt primeiro uso deste teste
+                    T->>D: get_data_loader(rotação, 4096, "test")
+                    D-->>T: DataLoader de teste, cujos lotes ficam em memória
+                end
+                T-->>S: test_loader (lotes em memória)
                 S->>S: evaluate_recall do modelo do cluster e de gmodel (acurácia e recall por classe)
                 S->>L: acurácia e loss do cluster
             end
@@ -108,8 +108,9 @@ sequenceDiagram
 
 - **Disponibilidade só no servidor.** `availability.step()` é uma chamada local do servidor, sem troca de mensagem com o trainer: o cliente indisponível simplesmente não entra na lista passada a `observe` e `train`. Só existe no `StoCFL-FCC+CFL.py` e só roda com `drop > 0`. Numa rodada sem nenhum cliente disponível, `observe` e `inter_cluster_union` recebem listas vazias e não fazem nada, e o treino é pulado.
 - **Dados non-IID sem mudar o trainer.** Com `dirichlet_alpha`, só a preparação muda: `pre_process_dirichlet` grava os arquivos no mesmo formato, com um só teste (`k = 1`), e o trainer lê os dados como antes.
-- **Trainer único.** Os clientes não existem como objetos. O servidor chama o trainer com uma lista de ids, e o trainer carrega os dados de cada cliente do disco quando precisa. Num sistema distribuído, as setas `observe` e `train` seriam mensagens de rede.
+- **Trainer único.** Os clientes não existem como objetos. O servidor chama o trainer com uma lista de ids, e o trainer carrega os dados de cada cliente do disco na primeira vez que precisa e os mantém em memória (`get_batches`). Num sistema distribuído, as setas `observe` e `train` seriam mensagens de rede.
 - **`observe` é chamado sempre.** Quando todos os sorteados já têm `psi`, a lista `unobserved` é vazia e nenhum cliente calcula o gradiente. Por isso o laço de observação fica vazio nas rodadas em que não aparece nenhum cliente novo.
 - **Cosseno entre clusters, não entre clientes.** A matriz usa o centro de cada cluster sorteado, a média dos `psi` de todos os seus membros. Só clusters sorteados na rodada são comparados.
+- **Disco só na primeira vez.** O `RotatedMNISTTrainer` lê o arquivo de cada cliente e de cada teste uma vez por execução e guarda os lotes (`get_batches`). Com batch cheio e `obbs` omitido, a observação e o treino usam o mesmo lote, então no treino as setas para os dados só aparecem se `batch_size` for diferente de `obbs`. Os resultados não mudam: os arquivos não mudam durante a execução e o `DataLoader` não embaralha.
 - **Dois laços de treino separados.** No `train`, todos os clientes treinam primeiro o modelo do cluster, e só depois o modelo global. Nos dois laços, cada cliente parte do modelo enviado pelo servidor naquela rodada.
 - **Arquivos reescritos.** `cos_rec.log` e `cluster_rec.log` são apagados e recriados a cada rodada, então o disco guarda só o estado da última. O histórico completo dos clusters fica em `cluster.pkl`.

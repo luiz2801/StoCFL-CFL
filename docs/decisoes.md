@@ -873,7 +873,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-10
 - **Decidido por:** o usuário pediu o smoke test (passo 5 do [plano](plano-dropout-treino-stocfl.md)) com `n = 48`, 6 rodadas e seeds 0 e 1, e não a grade. Claude decidiu como verificar e o que fazer com os artefatos, por serem triviais e reversíveis.
-- **Situação:** vigente. Cumpre o passo 5 do plano.
+- **Situação:** vigente. Cumpre o passo 5 do plano. A estimativa de ~65 h e a opção de guardar o teste em memória foram resolvidas pela [D-049](#d-049-cache-de-lotes-no-rotatedmnisttrainer): o cache foi feito, e a estimativa medida em `n = 240` é de ~15 h.
 - **Contexto:** o smoke test precisa mostrar que as células rodam, que a segunda execução reaproveita tudo, que o treino não muda o sorteio nem a partição (V1) e a cobertura (V2/I5), e medir o tempo.
 - **Decisão (de Claude):**
   - Cópia reduzida feita trocando só `N`, `ROUNDS` e `SEEDS` na célula 1 (24 execuções: 2 seeds × 2 `α` × 2 `m` × 3 cenários), executada com o `nbclient`, sem editar o notebook versionado.
@@ -885,3 +885,23 @@ Para cada decisão, a entrada segue este modelo:
   - Uma execução de `n = 240` para medir o tempo real: não feita, porque o pedido limitou o passo 5 a `n = 48` e ela levaria ~40 min; a estimativa é por extrapolação dos tempos por cluster e por cliente.
   - Manter o JSON do smoke test em `logs/`: descartada, pelo risco de ser confundido com o da grade (mesmo nome) e por a trava do notebook usar os parâmetros dele.
   - Guardar em cache o teste no `RotatedMNISTTrainer` para acelerar a avaliação: não feita sem pedido; fica como pergunta ao usuário antes da grade.
+
+## D-049: Cache de lotes no `RotatedMNISTTrainer`
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário. Claude recomendou guardar em memória o teste e os dados de treino no `RotatedMNISTTrainer`, por ser uma mudança no código do StoCFL que não tinha sido pedida (D-048), e o usuário respondeu "aplique essas soluções e documente". Claude decidiu a forma, por ser trivial e reversível e não mudar o resultado (conferido).
+- **Situação:** vigente. Resolve a opção deixada em aberto na [D-048](#d-048-smoke-test-do-teste-dropout-treinoipynb) e corrige a estimativa de tempo dela.
+- **Contexto:** o `RotatedMNISTTrainer` relia do disco o arquivo do cliente a cada `get_data_loader` (duas vezes por cliente sorteado por rodada) e o teste de 10.000 imagens a cada avaliação (duas vezes por cluster avaliado). Com `τ = 0.84683` há 75 a 115 clusters avaliados por rodada, e a avaliação custava 0,235 s por cluster: 17,6 s dos 26,7 s da rodada com `m` = 100% (`n = 240`, `α = 0.5`).
+- **Decisão (de Claude, forma):**
+  - `get_batches(id, batch_size, type)` no `RotatedMNISTTrainer` guarda em `self.batches` a lista de lotes que o `DataLoader` do particionador produz, por `(id, batch_size, type)`. `observe`, `train` e `get_test_dataloader` passam a usá-la. Os lotes ficam na CPU e vão para a GPU a cada uso, como antes.
+  - **Sempre ligado, sem flag.** Não muda o resultado (os arquivos não mudam durante a execução e o `DataLoader` não embaralha), e o custo é memória: ~190 MB no MNIST com Dirichlet, ~750 MB no Rotated MNIST de 240 clientes com `k = 4`, ~3 GB com `k = 16`.
+  - **Só no `RotatedMNISTTrainer`**, o do `StoCFL-FCC+CFL.py`. Os particionadores em `datasets.py` e os outros Trainers não foram tocados.
+  - **Verificação:** regressão bit a bit nos dois caminhos (Dirichlet com `n = 240`, 6 rodadas, `m` = 100% e 50% com dropout; rotação com `n = 40`, com e sem dropout): `cluster.pkl`, `psi.pkl`, `availability.pkl`, `accuracy.pkl` e os três logs idênticos. Testes novos em `tests/test_trainer_cache.py` (mesmos lotes que o `DataLoader`, disco lido uma vez, chaves separadas por lote e tipo).
+  - **Medição** antes e depois na mesma máquina, uma execução por vez: 26,7 s → 8,3 s por rodada (`m` = 100%) e 17,9 s → 5,8 s (`m` = 50%); execuções completas de 50 rodadas em 7,8 e 4,3 min. As pastas das medições (~18 GB, no scratchpad da sessão) foram apagadas; não são execuções da grade.
+- **Correção de uma estimativa de Claude:** os ~65 h da D-048 vinham do smoke test de `n = 48` e superestimavam o treino. Medido em `n = 240`: ~45 h sem o cache e **~15 h com ele** para as 120 execuções de `τ = 0.84683` (seed 0; `α = 1.0` extrapolado de 6 rodadas).
+- **Alternativas consideradas:**
+  - Cache dentro de `RotatedMNIST.get_dataset` (em `datasets.py`): descartada, porque só evitaria a leitura do arquivo, e empilhar as 10.000 imagens do teste a cada avaliação continuaria; e mudaria uma classe usada por outros caminhos.
+  - Guardar os lotes na GPU: descartada; a transferência é barata e o `k = 16` ocuparia ~3 GB de memória da placa.
+  - Uma flag para desligar o cache: descartada, por não haver caso em que o resultado mude; se a memória faltar num cenário grande, a flag pode ser acrescentada.
+  - Parar de regravar o `psi.pkl` (1,5 GB) a cada rodada, ou calcular os cossenos na GPU: não feitas; mudam o que o script grava ou a aritmética dos cossenos, e não foram pedidas. São o que sobra do custo por rodada.
+  - Estender o cache aos outros Trainers: não feita, porque só o `StoCFL-FCC+CFL.py` é usado nas simulações, e os outros dois scripts têm caminhos quebrados (guia, 4.12).

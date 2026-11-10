@@ -479,8 +479,8 @@ __main__                                                    StoCFL-FCC+CFL.py:20
           │     ├─ log "Round r/T, unavailable [...]" e availability.pkl
           │     └─ random.sample(disponíveis, min(num_per_round, nº de disponíveis))
           │  [--drop 0]   random.sample(clientes, num_per_round)   (como antes)
-          ├─ trainer.observe(não_observados, anchor)        trainer.py:257
-          │     ├─ dataset.get_data_loader(id, obbs)        trainer.py:260
+          ├─ trainer.observe(não_observados, anchor)        trainer.py:266
+          │     ├─ get_batches(id, obbs)                    trainer.py:244  (lê o disco só na 1ª vez; depois, lotes em memória)
           │     └─ dataset_representation(self, anchor, loader)   trainer.py:21
           ├─ cluster_center (média dos ψ de todos os membros)   functional.py:86
           ├─ inter_cluster_union                            StoCFL-FCC+CFL.py:132
@@ -490,13 +490,13 @@ __main__                                                    StoCFL-FCC+CFL.py:20
           ├─ get_cluster (log + assert)                     StoCFL-FCC+CFL.py:194
           ├─ [--train 1, rodada sem participantes] accuracy_log recebe {"cluster": [], "global": []}; sem treino
           └─ [--train 1, com participantes]
-                ├─ trainer.train(cids, modelos_cluster, gmodel)        trainer.py:243
-                │     ├─ train_alone_prox (cluster, com μ)  trainer.py:284
-                │     └─ _train_alone (global)              trainer.py:269
+                ├─ trainer.train(cids, modelos_cluster, gmodel)        trainer.py:252  (dados por get_batches)
+                │     ├─ train_alone_prox (cluster, com μ)  trainer.py:293
+                │     └─ _train_alone (global)              trainer.py:278
                 ├─ gmodel ← fedavg(gmodels)
                 ├─ modelo[k] ← fedavg(updates do cluster k)
                 └─ evaluate_recall (functional.py:103; loss e acc iguais às do evaluate do fedlab, mais o recall por classe)
-                   com trainer.get_test_dataloader(⌊cid·k/n⌋)
+                   com trainer.get_test_dataloader(⌊cid·k/n⌋)   (trainer.py:274; os lotes do teste também ficam em memória)
 ```
 
 ### 4.4 Funções do servidor (`StandaloneServer`)
@@ -546,6 +546,7 @@ Cada Trainer herda de `fedlab.SerialTrainer` e simula **todos os clientes** com 
 | `train_alone_prox(params, gmodel, loader)` | treino com termo proximal `0.5·μ·‖w−w_g‖²` |
 | `_train_alone(params, loader)` | treino local simples |
 | `get_test_dataloader(cid)` | avaliação (só com `--train 1`) |
+| `get_batches(id, batch_size, type)` | só no `RotatedMNISTTrainer`: os lotes de um cliente (ou de um teste), lidos do disco uma vez e guardados em memória |
 | `evaluate(ids, model, crit)` | só em `StoCFL-FCC.py` com `--train 1` |
 | `dataset.pre_process()` | só em `StoCFL-FCC.py` com `--process 1` |
 
@@ -556,14 +557,16 @@ Todos usam `SGD(lr=args.lr)` **sem momentum** (`self.optimizer` compartilhado, s
 | `FEMNISTTrainer` | [trainer.py:34](StoCFL/trainer.py#L34) | FEMNIST (LEAF) | `--client_num` (3597) | não há | dataset inteiro, lote `obbs` | `batch_size` |
 | `ShiftedMNISTTrainer` | [trainer.py:117](StoCFL/trainer.py#L117) | MNIST com rótulo `(y+s) % 10`, `s ∈ {0,3,6,9}` | 400 (fixo) | `cid // 100` | 80% dos dados do cliente (`random_split`), lote cheio | **batch cheio** (ignora `batch_size`) |
 | `RotatedMNISTTrainer` | [trainer.py:231](StoCFL/trainer.py#L231) | Rotated MNIST **ou** CIFAR (via `args.dataset`) | `args.n` | `⌊cid·k/n⌋` | dataset inteiro, lote `obbs` | `batch_size` |
-| `LabelSkewMNISTTrainer` | [trainer.py:309](StoCFL/trainer.py#L309) | label skew: `k=4` grupos de classes `[0,1,2],[3,4],[5,6],[7,8,9]`; `k=10` um grupo por classe | ~400 (k=4) / ~1000 (k=10) | blocos contíguos de ~100 | dataset inteiro, lote `batch_size` | `batch_size` |
-| `FeatureSkewHybridMNISTTrainer` | [trainer.py:407](StoCFL/trainer.py#L407) | 100 clientes MNIST + 100 FashionMNIST | 200 (fixo) | `cid < 100` → MNIST | dataset inteiro, lote cheio | `batch_size` |
+| `LabelSkewMNISTTrainer` | [trainer.py:318](StoCFL/trainer.py#L318) | label skew: `k=4` grupos de classes `[0,1,2],[3,4],[5,6],[7,8,9]`; `k=10` um grupo por classe | ~400 (k=4) / ~1000 (k=10) | blocos contíguos de ~100 | dataset inteiro, lote `batch_size` | `batch_size` |
+| `FeatureSkewHybridMNISTTrainer` | [trainer.py:416](StoCFL/trainer.py#L416) | 100 clientes MNIST + 100 FashionMNIST | 200 (fixo) | `cid < 100` → MNIST | dataset inteiro, lote cheio | `batch_size` |
+
+**Cache de lotes no `RotatedMNISTTrainer`** ([trainer.py:244](StoCFL/trainer.py#L244), D-049). `get_batches(id, batch_size, type)` guarda em `self.batches`, por `(id, batch_size, type)`, a lista de lotes `(dados, rótulos)` que o `DataLoader` do particionador produz, e `observe`, `train` e `get_test_dataloader` passam a usá-la. O arquivo de cada cliente e de cada teste é lido **uma vez por execução**; antes, era relido e reempilhado a cada chamada (duas vezes por cliente sorteado por rodada no treino, e duas vezes por cluster avaliado no teste). Como os arquivos não mudam durante a execução e o `DataLoader` não embaralha, os lotes são sempre os mesmos, e os resultados ficam idênticos bit a bit (regressão em 4.11). Os lotes ficam na CPU e vão para a GPU a cada uso, como antes. Custo: a memória dos dados usados (~190 MB para o MNIST com `--dirichlet_alpha`, em que cada imagem está num só cliente; ~750 MB por 240 clientes de 1.000 amostras no Rotated MNIST com `k = 4`, e ~3 GB com `k = 16`). Os outros Trainers não têm cache. Testes em `tests/test_trainer_cache.py`.
 
 A observação é **um único gradiente** em todo o dataset do cliente, acumulado por lotes, então o tamanho do lote não muda o resultado (diferença de ~1e-8 no teste). O modelo fica em modo `eval`, para que o dropout do `CNN_FEMNIST` não torne `Ψ` aleatório: o artigo define `Ψ` como função de `D`, sem mencionar dropout.
 
 ### 4.7 Dados (`datasets.py`) e modelos
 
-Os Partitioners geram, em `--process 1`, um arquivo `data{cid}.pkl` (um `BaseDataset`) por cliente em `save_dir/train/` e um `data{g}.pkl` por grupo em `save_dir/test/`. Depois, `get_data_loader(id, batch_size, type)` faz `torch.load` **do disco a cada chamada** e cria um `DataLoader` **sem shuffle** (`batch_size=None` = batch com o dataset inteiro).
+Os Partitioners geram, em `--process 1`, um arquivo `data{cid}.pkl` (um `BaseDataset`) por cliente em `save_dir/train/` e um `data{g}.pkl` por grupo em `save_dir/test/`. Depois, `get_data_loader(id, batch_size, type)` faz `torch.load` **do disco a cada chamada** e cria um `DataLoader` **sem shuffle** (`batch_size=None` = batch com o dataset inteiro). O `RotatedMNISTTrainer` só o chama uma vez por cliente e por teste, e guarda os lotes em memória (`get_batches`, 4.6); os outros Trainers continuam lendo o disco a cada chamada.
 
 | Classe | Linha | Geração |
 |---|---|---|
@@ -778,9 +781,21 @@ Smoke test do notebook, em 2026-11-10 (passo 5; D-048), com uma cópia reduzida:
 | V1: o treino não muda o sorteio nem a partição | 4 execuções `--train 0` com os mesmos parâmetros (`α` = 0.5 e 1.0; `m` = 100% e 50%; com e sem dropout): `cluster.pkl`, sorteados e `availability.pkl` idênticos aos da execução `--train 1`. |
 | V2/I5, V3, V4 e saída padrão | Conferidas nas 24 execuções: cobertura do log = chaves do `psi.pkl`; acurácias do log = `accuracy.pkl`; 6 entradas por rodada; linhas `Global acc` da saída padrão = log. |
 | V6: modo `DADOS_JSON` | As mesmas 8 figuras e 2 tabelas, campo a campo, sem alterar o JSON. Com os logs apagados, o modo com logs para com `RuntimeError`. |
-| Tempo | 24 execuções em 24 min (43–87 s cada, com a geração dos dados). Por rodada, a avaliação custa ~0,22 s por cluster avaliado (dois `evaluate_recall` no teste de 10.000 imagens, que o script **relê do disco** a cada avaliação, 4.12 #11) e o treino ~0,09 s por cliente sorteado. |
+| Tempo | 24 execuções em 24 min (43–87 s cada, com a geração dos dados). Por rodada, a avaliação custa ~0,22 s por cluster avaliado (dois `evaluate_recall` no teste de 10.000 imagens, que o script **relia do disco** a cada avaliação; corrigido depois pelo cache de lotes, abaixo) e o treino ~0,09 s por cliente sorteado. |
 
-**Estimativa da grade completa (não medida em `n = 240`):** com `τ = 0.84683` o Monte Carlo prevê ~110 clusters, e quase todos são avaliados por rodada com `m = 100%`. Isso dá ~50 s por rodada com `m = 100%` (~42 min por execução) e ~27 s com `m = 50%` (~23 min), ou **~65 h para as 120 execuções**, três vezes o limite de ~21 h do plano (seção 3), que supunha poucos clusters. Os números do smoke test (`n = 48`, 6 rodadas) não dizem nada sobre o efeito do dropout. Os artefatos do smoke test (logs, o JSON e os dados de `n = 48`, ~0,9 GB) foram apagados.
+**Estimativa da grade completa:** a primeira, de ~65 h para as 120 execuções, foi uma extrapolação deste smoke test e **estava alta**: os clientes de `n = 240` têm um quinto das amostras dos de `n = 48`, e o treino custa menos. As medições em `n = 240` e a estimativa atual estão logo abaixo (cache de lotes). Os números do smoke test (`n = 48`, 6 rodadas) não dizem nada sobre o efeito do dropout. Os artefatos do smoke test (logs, o JSON e os dados de `n = 48`, ~0,9 GB) foram apagados.
+
+**Cache de lotes no `RotatedMNISTTrainer`, em 2026-11-10** (D-049; 4.6). Verificação e medição com `n = 240`, `--dirichlet_alpha 0.5`, seed 0, `τ = 0.84683`, `--train 1`, na GPU, uma execução por vez:
+
+| Verifica | Resultado |
+|---|---|
+| Regressão no caminho Dirichlet (6 rodadas; `m` = 100% sem dropout e `m` = 50% com `d = 0.1`), antes e depois do cache | `cluster.pkl`, `psi.pkl`, `availability.pkl`, o `accuracy.pkl` inteiro (acurácias e recalls de 451 e 318 avaliações), o log, o `cos_rec.log` e o `cluster_rec.log` idênticos. |
+| Regressão no caminho de rotação (`n = 40`, `k = 4`, 4 rodadas, `--train 1`, sem e com `--drop 0.3 --drop_rounds 3`) | Os mesmos arquivos idênticos aos do código anterior. |
+| Tempo por rodada (rodadas 1 em diante), antes → depois | `m` = 100%: 26,7 s → 8,3 s. A avaliação caiu de 17,6 s para 1,7 s (75 clusters avaliados: de 0,235 s para 0,023 s por cluster), e o resto (clusterização e treino) de 9,0 s para 6,6 s. `m` = 50% com `d = 0.1`: 17,9 s → 5,8 s. Rodada 0 com `m` = 100% (observa os 240 clientes e calcula 28.680 cossenos): 82 s → 49 s. |
+| Execuções completas de 50 rodadas, com o cache | `m` = 100% sem dropout: 469 s (7,8 min). `m` = 50% com `d = 0.1`: 257 s (4,3 min). Sem o cache seriam ~23 min e ~15 min (extrapolado das 6 rodadas medidas). |
+| `α = 1.0`, `τ = 0.84683` (6 rodadas, com o cache; 114 e 87 clusters avaliados por rodada) | 12,4 s por rodada com `m` = 100% e 8,1 s com `m` = 50%, ou ~11 min e ~7 min por execução de 50 rodadas (extrapolado). |
+
+**Estimativa da grade de 120 execuções com `τ = 0.84683`, com o cache: ~15 h** (`α = 0.5`: 30 execuções de ~7,8 min e 30 de ~4,3 min; `α = 1.0`: 30 de ~11 min e 30 de ~7 min), contra ~45 h sem o cache (as de `α = 1.0` sem o cache não foram medidas: 0,235 s por cluster avaliado mais o resto da rodada). Medido só na seed 0, e os cenários com dropout de `m` = 100% têm menos participantes e devem custar menos. O que sobra por rodada é a clusterização (os centros e os cossenos entre os 75 a 115 clusters sorteados, na CPU), os dois treinos por cliente e a regravação do `psi.pkl` de 1,5 GB. As pastas de logs das medições (~18 GB, fora do repositório) foram apagadas.
 
 **Notebook do dropout.** O [teste-dropout.ipynb](StoCFL/teste-dropout.ipynb) (passo 4 do [plano](plano-dropout-stocfl.md); D-035) roda `StoCFL-FCC+CFL.py --train 0` por `subprocess` em Rotated MNIST com `n = 240`, 50 rodadas, `τ = 0.75` e 10 seeds (0 a 9), **sem dropout** e com `--drop` = 0.05 e 0.1 (`--drop_rounds 10`), para `m` = 100% e 50% e `k` = 8 e 16: 120 execuções, ~190 GB de `psi.pkl` e ~54 GB de dados (`APAGAR_PSI = True` apaga o `psi.pkl` de cada execução concluída). Lê o `cluster.pkl`, o `availability.pkl` e o log, e mostra em Plotly: nº de clusters, ARI, cobertura e participantes por rodada (média e faixa mín–máx entre as seeds), o resultado final por seed, **matrizes de confusão** (grupo real × grupo previsto somada nas seeds, e cluster × grupo real por seed) e a diferença dropout − sem dropout por seed com o teste de Wilcoxon. Reaproveita execuções concluídas só se o `τ`, o `k`, o `m`, a seed e o `drop` registrados na linha de argumentos do log baterem (o nome da pasta não traz o `τ`). A última célula grava `logs/resultados-dropout.json` (~13 MB; o git ignora `logs/`, e a cópia versionada é a compactada em `docs/resultados/resultados-dropout.json.gz`, D-041) com os parâmetros, uma entrada por execução (métricas finais, a partição final e os dados brutos `rotulos_por_rodada`, `sorteados_por_rodada`, `indisponiveis_por_rodada` e `cossenos_entre_clusters`), as métricas de cada rodada, as duas tabelas de resumo e as matrizes de confusão somadas nas seeds. Com `DADOS_JSON = True` (célula 1), o notebook lê esse arquivo no lugar dos logs e só plota; sem as execuções e com o JSON desta grade já gravado, ele para com um aviso em vez de rodar tudo de novo (`REEXECUTAR = True` força a nova execução) (D-039).
 
@@ -848,7 +863,7 @@ Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% do
 8. **Corrigido em 2026-11-04.** Os centros de cluster usavam só os membros sorteados na rodada. Agora usam todos, como na Eq. 2 e na linha 9 do Alg. 1 do artigo (`cluster_center` em [functional.py](StoCFL/functional.py#L86)). Nenhum cluster sorteado tem membro sem `psi` (invariante 5 de 4.5).
 9. Fusões são irreversíveis e não há mecanismo de divisão.
 10. FedAvg sem ponderação por tamanho do dataset (irrelevante nos cenários sintéticos, que têm clientes de tamanho igual, mas não no FEMNIST nem com `--dirichlet_alpha`, em que os clientes de `n = 240` têm de 51 a 709 amostras). **Mantido de propósito** na simulação do dropout com treino (D-045): é o que o código e o artigo fazem, e ponderar mudaria o algoritmo. Consequência: um cliente pequeno pesa tanto quanto um grande no `gmodel` e no modelo do cluster.
-11. Custo: cada cliente sorteado treina **duas vezes** por rodada (cluster + global), mais a observação única. Os dados são relidos do disco a cada `get_data_loader`.
+11. Custo: cada cliente sorteado treina **duas vezes** por rodada (cluster + global), mais a observação única. Os dados são relidos do disco a cada `get_data_loader`, **exceto no `RotatedMNISTTrainer`** (o do `StoCFL-FCC+CFL.py`), que desde 2026-11-10 guarda os lotes em memória (4.6, D-049): a releitura do teste de 10.000 imagens a cada avaliação custava ~0,23 s por cluster avaliado e dominava a rodada quando há muitos clusters. O `psi.pkl` (~1,5 GB com 240 clientes) continua sendo regravado a cada rodada.
 12. **Modelo global encadeado (corrigido em 2026-11-04).** Nos cinco Trainers, o segundo laço de `train` reatribuía `gmodel` a cada cliente, e cada cliente partia do resultado do anterior. Isso não é o FedAvg do artigo (4.15.3), em que todos partem de `ω_t`, então agora todos partem do mesmo `gmodel`. **Consequência importante:** isso afasta os resultados dos números publicados. Com MNIST real nos parâmetros da Tabela 1 (1200 clientes, 10%, 100 rodadas, 1 seed), o `gmodel` encadeado dava 95.00, contra 94.96 da linha FedAvg do artigo, e o FedAvg de verdade dá 78.04, próximo da linha FedProx (77.82). Isso sugere que as tabelas do artigo vieram do código encadeado; é uma inferência, não prova. Esta correção segue o texto do artigo por decisão do usuário (D-014).
 13. **As três cópias de `StandaloneServer` deixaram de ser idênticas.** O `StoCFL-FCC+CFL.py` tem o dropout com retorno (`--drop` e `--drop_rounds`, 4.1), e o `StoCFL-FCC.py` e o `StoCFL-FEMNIST.py` ainda não (passo 5 do [plano](plano-dropout-stocfl.md)): eles sorteiam `num_per_round` entre todos os clientes. Com `--drop > 0`, quem tem ausências longas participa menos; com `--train 1`, isso muda quem contribui para o `gmodel` e para os modelos de cluster, e esse efeito não foi medido. O efeito do `--drop` sobre o ARI e o nº de clusters também não foi medido.
 

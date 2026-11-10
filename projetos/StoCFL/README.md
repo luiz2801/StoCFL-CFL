@@ -110,13 +110,21 @@ O notebook [teste-dropout.ipynb](teste-dropout.ipynb) compara a clusterização 
 - A última célula grava `logs/resultados-dropout.json` (~13 MB) com os parâmetros, as métricas finais e por rodada de cada execução, as tabelas de resumo, as matrizes de confusão somadas nas seeds e os **dados brutos de cada execução**, que bastam para replotar sem os logs: o cluster de cada cliente em cada rodada, os clientes sorteados e os indisponíveis por rodada e os cossenos entre os clusters da última rodada. Com `DADOS_JSON = True` o notebook lê esse arquivo no lugar dos logs e não grava nada. Sem as pastas de logs e com o JSON desta grade já gravado, o notebook **para com um aviso** em vez de rodar a grade de novo (`REEXECUTAR = True` força a nova execução). Como `logs/` é ignorado pelo git, a cópia versionada é a compactada em `docs/resultados/resultados-dropout.json.gz` (D-041); para restaurá-lo, `gunzip -c docs/resultados/resultados-dropout.json.gz > projetos/StoCFL/logs/resultados-dropout.json`, a partir da raiz.
 - `datasets/rotated_*/` e `logs/` são ignorados pelo git. O notebook é versionado **sem saídas de execução**.
 
+### Cache de lotes do `RotatedMNISTTrainer`
+
+O `RotatedMNISTTrainer` (o do `StoCFL-FCC+CFL.py`) lê o arquivo de cada cliente e de cada teste do disco uma vez por execução e guarda os lotes em memória (`get_batches`), sem mudar nenhum resultado (D-049; guia, seção 4.6). Os testes rodam sem GPU e sem dados:
+
+```
+../../.venv/bin/python -m unittest tests/test_trainer_cache.py -v
+```
+
 ### Efeito do dropout no aprendizado, com rótulos non-IID (Dirichlet)
 
 O notebook [teste-dropout-treino.ipynb](teste-dropout-treino.ipynb) roda o StoCFL completo (`StoCFL-FCC+CFL.py --train 1`) com `--dirichlet_alpha` 0.5 e 1.0, **sem dropout e com `--drop` 0.05 e 0.1** (`--drop_rounds 10`), `m` = 100% e 50%, 10 seeds, 50 rodadas, `n = 240` e `τ = 0.84683` (120 execuções; D-043 a D-047). Mostra, em Plotly, o nº e o tamanho dos clusters, a acurácia do modelo do cluster e do global (no teste balanceado e ponderada pela distribuição de rótulos do cluster, a partir do recall por classe) e os participantes por rodada, a distribuição final por seed, a diferença dropout − sem dropout com Wilcoxon e heatmaps cluster × classe.
 
 - Use o kernel `.venv` da raiz e abra o notebook a partir desta pasta. `APAGAR_PSI = True` (padrão) apaga o `psi.pkl` (~1,5 GB) de cada execução concluída.
 - Segue a política 7: grava `logs/resultados-dropout-treino.json` com os dados brutos; `DADOS_JSON = True` só lê o JSON e plota; sem os logs e com o JSON da grade já gravado, para com um aviso (`REEXECUTAR = True` força).
-- **A grade não foi executada.** O smoke test (`n = 48`, 6 rodadas, seeds 0 e 1) passou em 2026-11-10, e a grade completa deve levar ~65 h na GPU, porque com `τ = 0.84683` cada rodada avalia ~110 clusters (guia, 4.11).
+- **A grade não foi executada.** O smoke test (`n = 48`, 6 rodadas, seeds 0 e 1) passou em 2026-11-10, e a grade completa deve levar ~15 h na GPU (medido em `n = 240`, seed 0, com o cache de lotes do trainer; guia, 4.11).
 
 ### Escolha de τ com rótulos non-IID (Dirichlet)
 
