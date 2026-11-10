@@ -624,3 +624,20 @@ Para cada decisão, a entrada segue este modelo:
   - `APAGAR_PSI = True` para liberar disco: descartada, porque apagaria arquivos que o usuário não pediu para apagar (mesma razão de D-035).
   - Reduzir a grade (menos seeds ou `k`): descartada, porque o usuário pediu os valores decididos.
   - Incluir um cenário em que a cobertura não chegue a 100% (menos rodadas, `m` menor, `d` ou `L` maiores): não feita, porque mudaria a grade decidida; fica como sugestão ao usuário.
+
+## D-038: Cópia do `teste-dropout.ipynb` com as saídas, para avaliar os gráficos
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário pediu "Plote isso num notebook com gráficos interativos para eu avaliar". Claude decidiu, por serem triviais e reversíveis, o que "isso" significa, qual notebook usar e onde guardar o resultado.
+- **Situação:** vigente. Não muda o notebook nem o código, só gera uma cópia com saídas.
+- **Contexto:** a grade de 120 execuções terminou (D-037) e o usuário quis ver os resultados em gráficos interativos. O `teste-dropout.ipynb` já tem todos os gráficos (curvas por rodada, caixas por seed, matrizes de confusão e a tabela com Wilcoxon), mas é versionado sem saídas (D-035), então ao abri-lo não se vê nada até executá-lo.
+- **Decisão:**
+  - Entender "isso" como os resultados da grade já executada, e usar o notebook existente: executá-lo com o `nbclient` (as 120 execuções são reaproveitadas, 7 s, sem erro) e gravar a cópia em `projetos/StoCFL/logs/teste-dropout-executado.ipynb` (980 KB, 12 figuras Plotly e 2 tabelas).
+  - Guardar a cópia em `logs/`, que o git já ignora, ao lado do `resultados-dropout.json`. Não é versionada.
+  - A cópia serve só para ler: as células conferem que estão em `projetos/StoCFL/` (`assert` da célula 1) e param se forem reexecutadas de `logs/`, sem rodar nada.
+- **Alternativas consideradas:**
+  - Notebook novo que lê o `resultados-dropout.json`: descartada, porque duplicaria o código dos gráficos e passaria a divergir do notebook versionado.
+  - Gravar as saídas no próprio `teste-dropout.ipynb`: descartada, porque D-035 mantém o notebook sem saídas, e ~1 MB de saída entraria no histórico.
+  - Versionar a cópia (por exemplo em `docs/`): descartada por ora, porque não foi pedido e é um resultado de execução; pode ser feito depois.
+  - Guardar a cópia fora do repositório (scratchpad da sessão): descartada, porque o usuário não a encontraria.
+  - Guardá-la em `projetos/StoCFL/`: descartada, porque o git a mostraria como arquivo sem commit, junto com os arquivos do usuário.

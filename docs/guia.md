@@ -720,7 +720,7 @@ Verificação do notebook, em 2026-11-09, com uma cópia reduzida (`n = 48`, 6 r
 | Reaproveitamento de logs antigos | Com `τ = 0.75`, só duas execuções antigas de `n = 240` valem (seed 0, `m = 100%`, `k` = 8 e 16, sem dropout, da busca de `τ` do notebook de `m`); com `τ = 0.9` valem as do notebook de `m`. Logs anteriores à flag `--drop` valem como `drop = 0`. |
 | Célula do JSON | Testada fora do notebook sobre 3 execuções reais de `n = 240` (seed 0, `k = 8`, `m = 100%`, os 3 cenários): JSON estrito (sem `NaN`), nº de clusters de cada partição igual ao da execução e 50 linhas por rodada e por execução. |
 
-**Execução da grade completa, em 2026-11-09** (D-037). São 120 execuções: 118 novas, em 205 min na GPU, e 2 reaproveitadas da busca de `τ` de 2026-11-06 (seed 0, `m` = 100%, sem dropout, `k` = 8 e 16). Os `psi.pkl` das 118 novas ocupam ~184 GB (`APAGAR_PSI` ficou em `False`). O notebook rodou sem erro e gravou `logs/resultados-dropout.json` (não versionado; conferido: JSON estrito, 120 execuções, 6000 linhas por rodada, última rodada igual às métricas finais).
+**Execução da grade completa, em 2026-11-09** (D-037). São 120 execuções: 118 novas, em 205 min na GPU, e 2 reaproveitadas da busca de `τ` de 2026-11-06 (seed 0, `m` = 100%, sem dropout, `k` = 8 e 16). Os `psi.pkl` das 118 novas ocupam ~184 GB (`APAGAR_PSI` ficou em `False`). O notebook rodou sem erro e gravou `logs/resultados-dropout.json` (não versionado; conferido: JSON estrito, 120 execuções, 6000 linhas por rodada, última rodada igual às métricas finais). Para ver os gráficos sem rodar nada, há uma cópia do notebook com as saídas em `StoCFL/logs/teste-dropout-executado.ipynb` (D-038).
 
 | Resultado | Valor |
 |---|---|
