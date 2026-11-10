@@ -1,6 +1,6 @@
 # Relatório: relação entre `m`, `k` e `τ` na clusterização do StoCFL
 
-Fonte dos dados: saídas do notebook [teste-fracao-clientes.ipynb](../projetos/StoCFL/teste-fracao-clientes.ipynb), executado em 2026-11-06 (Rotated MNIST, `n = 240` clientes, 50 rodadas, seed 0, só clusterização com `--train 0`, GPU). Os números são de **uma seed e uma execução por célula**; as bordas de `τ` só são conhecidas até o vizinho avaliado (intervalos de ~0.03). Fatos medidos estão separados de hipóteses no texto.
+Fonte dos dados: saídas do notebook [teste-fracao-clientes.ipynb](../projetos/StoCFL/teste-fracao-clientes.ipynb), executado em 2026-11-06 (Rotated MNIST, `n = 240` clientes, 50 rodadas, seed 0, só clusterização com `--train 0`, GPU). Os números são de **uma seed e uma execução por célula**; as bordas de `τ` só são conhecidas até o vizinho avaliado (intervalos de ~0.03). Fatos medidos estão separados de hipóteses no texto. Os logs dessas execuções foram apagados em 2026-11-10 e os dados estão em `projetos/StoCFL/logs/resultados-fracao-clientes.json` (não versionado; [D-040](decisoes.md)).
 
 ## 1. Os três parâmetros
 
@@ -24,10 +24,25 @@ Intervalo de `τ` com ARI máximo (maior `τ` ótimo avaliado, `m` = 100% e 25%,
 
 Leitura:
 
-- **A borda inferior sobe com `k`** (≈0.34 → 0.47 → 0.75). Hipótese (compatível com os dados, mas **o cosseno entre grupos não foi medido**): grupos vizinhos ficam mais parecidos quanto menor o ângulo, então o cosseno entre eles é mais alto e `τ` precisa ser maior para não os fundir.
+- **A borda inferior sobe com `k`** (≈0.34 → 0.47 → 0.75). Hipótese (compatível com os dados, e sustentada pela medição do cosseno na seção seguinte, que os dados originais não traziam): grupos vizinhos ficam mais parecidos quanto menor o ângulo, então o cosseno entre eles é mais alto e `τ` precisa ser maior para não os fundir.
 - **A borda superior quase não muda** (0.91 → 0.97, subindo pouco). Acima dela, o cosseno entre clientes do **mesmo** grupo (que têm dados diferentes) já não passa de `τ`, e o grupo se fragmenta. O motivo da pequena subida com `k` não é explicado por estes dados.
 - **A janela estreita com `k`**: de ~0.56 para ~0.22. Quanto mais grupos próximos, mais fino precisa ser o ajuste de `τ`.
 - **O `τ = 0.5` do artigo** (padrão dos scripts) funciona para `k = 4` e `k = 8`, mas **falha para `k = 16`**: em `τ = 0.5`, `m` = 100% e 25% dão 1 cluster e `m` = 10% dá 3 (1 gigante e ~2 clientes não sorteados), todos com ARI 0. Já o `τ = 0.9` do notebook está dentro da janela para os três `k`, mas **perto da borda superior para `k = 4`** (0.9062 funciona, 0.9375 não): margem pequena.
+
+### Medição dos cossenos (adicionada em 2026-11-10)
+
+A saída dos scripts tinha a lista de cossenos entre os clientes na rodada 0. Com `m` = 100% (seed 0), a partição depois da rodada 0 é exatamente o conjunto de componentes conexas do grafo "cosseno > `τ`" sobre essa matriz (conferido nas 48 execuções com `m` = `n`), então a janela de `τ` pode ser **calculada** dela: a borda inferior é o peso da primeira aresta, em ordem decrescente de cosseno, que junta grupos diferentes, e a superior é o peso em que o último grupo fica conexo. As seis bordas previstas caem dentro dos intervalos medidos:
+
+| `k` | Borda inferior prevista | Intervalo medido | Borda superior prevista | Intervalo medido | Maior cosseno entre os `k` clusters corretos |
+|---|---|---|---|---|---|
+| 4 | 0.3389 | (0.3125, 0.3438] | 0.9264 | [0.9062, 0.9375) | 0.262 |
+| 8 | 0.4549 | (0.4375, 0.4688] | 0.9560 | [0.9375, 0.9688) | 0.382 |
+| 16 | 0.7397 | (0.7188, 0.75] | 0.9715 | [0.9688, 1.0) | 0.729 |
+
+- A borda inferior sobe com `k` e o cosseno entre os grupos vizinhos também (0.262 → 0.382 → 0.729), como a hipótese acima previa.
+- A borda inferior fica **acima** do maior cosseno entre os clusters finais nos três `k`: quem decide a fusão errada são os cossenos entre **clientes** (cadeia de vizinhos, *single linkage*), e não os entre as médias dos clusters.
+- Para `k = 16`, `τ = 0.75` fica só **0.010** acima da borda inferior prevista (0.7397), na seed 0. É uma margem muito menor do que os intervalos de ~0.03 da tabela da seção 2 sugerem.
+- Vale para uma seed e `n = 240`. A matriz está em `cossenos_clientes_rodada_0` do JSON.
 
 ### Como as falhas aparecem
 
