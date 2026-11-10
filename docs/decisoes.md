@@ -868,3 +868,20 @@ Para cada decisão, a entrada segue este modelo:
   - Ponderar a acurácia pela distribuição só dos clientes sorteados do cluster: descartada, porque o modelo do cluster serve a todos os membros.
   - Heatmap de todos os clusters: descartada, porque com ~110 colunas, quase todas de um cliente, o gráfico não se lê.
   - Conferir a igualdade com `--train 0` (V1) dentro do notebook: não feita, porque dobraria as execuções da grade; foi conferida no smoke test.
+
+## D-048: Smoke test do `teste-dropout-treino.ipynb`
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário pediu o smoke test (passo 5 do [plano](plano-dropout-treino-stocfl.md)) com `n = 48`, 6 rodadas e seeds 0 e 1, e não a grade. Claude decidiu como verificar e o que fazer com os artefatos, por serem triviais e reversíveis.
+- **Situação:** vigente. Cumpre o passo 5 do plano.
+- **Contexto:** o smoke test precisa mostrar que as células rodam, que a segunda execução reaproveita tudo, que o treino não muda o sorteio nem a partição (V1) e a cobertura (V2/I5), e medir o tempo.
+- **Decisão (de Claude):**
+  - Cópia reduzida feita trocando só `N`, `ROUNDS` e `SEEDS` na célula 1 (24 execuções: 2 seeds × 2 `α` × 2 `m` × 3 cenários), executada com o `nbclient`, sem editar o notebook versionado.
+  - **V1 fora do notebook**, com 4 execuções `--train 0` com os mesmos parâmetros, comparadas com as `--train 1`; as 4 foram apagadas depois. Todas idênticas.
+  - V6 conferida também no smoke test (o modo `DADOS_JSON` dá as mesmas figuras e tabelas) e a trava com os logs apagados.
+  - **Artefatos apagados** depois das verificações (logs, saídas, o JSON e os dados de `n = 48`, ~0,9 GB), como no smoke test da D-035: não são resultados da grade, e o JSON do smoke test teria o mesmo nome do JSON da grade. Nada foi versionado em `docs/resultados/`.
+  - **Tempo:** a avaliação (~0,22 s por cluster avaliado) domina o custo, porque o script relê o teste do disco a cada `evaluate_recall`. Com o `τ` escolhido, a estimativa da grade passou para ~65 h. O script não foi otimizado: mudar o carregamento do teste é uma mudança no código do StoCFL que não foi pedida, e fica como opção para o usuário.
+- **Alternativas consideradas:**
+  - Uma execução de `n = 240` para medir o tempo real: não feita, porque o pedido limitou o passo 5 a `n = 48` e ela levaria ~40 min; a estimativa é por extrapolação dos tempos por cluster e por cliente.
+  - Manter o JSON do smoke test em `logs/`: descartada, pelo risco de ser confundido com o da grade (mesmo nome) e por a trava do notebook usar os parâmetros dele.
+  - Guardar em cache o teste no `RotatedMNISTTrainer` para acelerar a avaliação: não feita sem pedido; fica como pergunta ao usuário antes da grade.

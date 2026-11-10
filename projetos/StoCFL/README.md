@@ -116,7 +116,7 @@ O notebook [teste-dropout-treino.ipynb](teste-dropout-treino.ipynb) roda o StoCF
 
 - Use o kernel `.venv` da raiz e abra o notebook a partir desta pasta. `APAGAR_PSI = True` (padrão) apaga o `psi.pkl` (~1,5 GB) de cada execução concluída.
 - Segue a política 7: grava `logs/resultados-dropout-treino.json` com os dados brutos; `DADOS_JSON = True` só lê o JSON e plota; sem os logs e com o JSON da grade já gravado, para com um aviso (`REEXECUTAR = True` força).
-- **A grade não foi executada.**
+- **A grade não foi executada.** O smoke test (`n = 48`, 6 rodadas, seeds 0 e 1) passou em 2026-11-10, e a grade completa deve levar ~65 h na GPU, porque com `τ = 0.84683` cada rodada avalia ~110 clusters (guia, 4.11).
 
 ### Escolha de τ com rótulos non-IID (Dirichlet)
 
