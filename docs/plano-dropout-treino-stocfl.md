@@ -1,6 +1,6 @@
 # Plano: dropout com retorno no StoCFL em ambiente de aprendizado federado (`--train 1`), com dados non-IID
 
-- **Situação:** plano com as decisões tomadas ([D-043](decisoes.md) e [D-044](decisoes.md), que substitui parte da D-043). **Passo 2 feito em 2026-11-10** ([D-045](decisoes.md)): o particionador Dirichlet (`dirichlet_partition` e `RotatedMNIST.pre_process_dirichlet`), a flag `--dirichlet_alpha` e o recall por classe no `accuracy.pkl`, com os testes, a regressão V7 e as 20 partições da V8 (guia, 4.11). As pendências P1, P2 e P4 da seção 10 foram respondidas (D-045). O notebook e a grade ainda não existem. Antes disso houve só uma calibração de tempo (seção 3) e uma análise do non-IID (seção 4), com scripts descartáveis fora do repositório.
+- **Situação:** plano com as decisões tomadas ([D-043](decisoes.md) e [D-044](decisoes.md), que substitui parte da D-043). **Passo 2 feito em 2026-11-10** ([D-045](decisoes.md)): o particionador Dirichlet (`dirichlet_partition` e `RotatedMNIST.pre_process_dirichlet`), a flag `--dirichlet_alpha` e o recall por classe no `accuracy.pkl`, com os testes, a regressão V7 e as 20 partições da V8 (guia, 4.11). As pendências P1, P2 e P4 da seção 10 foram respondidas (D-045). **Passo 3 feito em 2026-11-10** ([D-046](decisoes.md)): por decisão do usuário, a varredura da seção 6 virou um **Monte Carlo sobre `τ`** no notebook `projetos/StoCFL/varredura-tau-dirichlet.ipynb`, com o critério de maior ARI médio contra um gabarito (agrupamento das distribuições de rótulos), e deu **`τ = 0.84683`** (guia, 4.11). O notebook da grade e a grade ainda não existem. Antes disso houve só uma calibração de tempo (seção 3) e uma análise do non-IID (seção 4), com scripts descartáveis fora do repositório.
 - **Branch:** `dropout-stocfl`.
 - **Antecedentes:** o [plano do dropout](plano-dropout-stocfl.md) e o teste só de clusterização (`--train 0`, 120 execuções, [D-035](decisoes.md) e [D-037](decisoes.md)), em que o ARI final foi 1,0 com e sem dropout e o dropout só atrasou a rodada estável (guia, seção 4.11).
 
@@ -22,7 +22,7 @@ Respostas do usuário em 2026-11-10, registradas em [D-043](decisoes.md) e [D-04
 | Seeds | 0 a 9, as mesmas da grade anterior. A seed também define a partição Dirichlet |
 | Dropout | `d` = 0,05 e 0,1, com `--drop_rounds 10` (como na D-035), e o cenário **sem dropout** como referência (escolha de Claude, D-043) |
 | `m` | 100% e 50% (`--num_per_round` 240 e 120) |
-| `τ` | **Definido por uma varredura antes da grade** (seção 6). O `0.75` da D-043 deixou de valer (D-044) |
+| `τ` | **0.84683**, escolhido por Monte Carlo sobre `τ` antes da grade (seção 6, D-046). O `0.75` da D-043 deixou de valer (D-044) |
 | Rodadas | 50 |
 | Treino | Do artigo (Rotated MNIST, Tabela 1): `--lr 0.1 --epochs 5 --mu 0.05`, batch cheio (sem `--batch_size`) |
 | Onde | Notebook novo `projetos/StoCFL/teste-dropout-treino.ipynb`, com a política 7 desde o início |
@@ -94,6 +94,8 @@ O pedido original deste plano era não alterar o script. Com o Dirichlet, isso m
 
 ## 6. Varredura de `τ` (antes da grade)
 
+**Substituída em parte pela D-046:** a etapa A foi feita com o script real (20 execuções de 1 rodada, que também deram os `Ψ`), e a etapa B virou um Monte Carlo sobre `τ` (400 `τ` sorteados, as 120 combinações da grade) com um simulador da fusão validado contra 9 execuções reais. O critério (P3) é o maior ARI médio contra um gabarito construído. Resultados no guia, 4.11. O texto original segue abaixo.
+
 O critério de escolha do `τ` será combinado com você depois de ver os números, porque não há janela (seção 4.3). Duas etapas, só de clusterização (`--train 0`):
 
 1. **Etapa A, barata:** uma execução de 1 rodada com `m` = 100% por (`α`, seed), para `α` = 0.5 e 1.0 e seeds 0 a 2. O `cos_rec.log` guarda os cossenos entre os 240 clientes na rodada 0, e com eles o nº e o tamanho dos clusters saem para qualquer `τ` sem rodar de novo (o método do relatório de m, k e τ). Isso valida com o script real a medição da seção 4.3.
@@ -148,7 +150,7 @@ Cada etapa é um commit atômico (política 6), com a documentação e o registr
 
 ## 10. Pendências (decisões que ainda faltam, a perguntar antes de implementar)
 
-**Respondidas em 2026-11-10 (D-045):** P1, acrescentar o recall por classe e manter a acurácia global (gravado sempre, em chaves novas do `accuracy.pkl`); P2, manter o FedAvg sem ponderação; P4, os nomes propostos. A P3 continua aberta.
+**Respondidas em 2026-11-10:** P1, acrescentar o recall por classe e manter a acurácia global (gravado sempre, em chaves novas do `accuracy.pkl`); P2, manter o FedAvg sem ponderação; P4, os nomes propostos (D-045). P3: Monte Carlo sobre `τ`, maior ARI médio contra o agrupamento das distribuições de rótulos (D-046).
 
 | # | Pergunta | Recomendação de Claude |
 |---|---|---|

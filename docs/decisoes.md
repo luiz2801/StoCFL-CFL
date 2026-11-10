@@ -815,3 +815,36 @@ Para cada decisão, a entrada segue este modelo:
   - Gravar o recall também no log: descartada, para o log ficar igual ao de antes (a regressão compara as linhas).
   - Limitar as tentativas do `hetero_dir_partition` com um tempo máximo: não feita; com `α` = 0.5 e 1.0 ele termina em ~3 s nas 20 partições, e o `α = 0.1` ficou fora da grade (D-044).
   - Depender do `setup_seed` do script para semear o particionador: descartada, porque o teste chamaria a função sem ele, e o resultado dependeria de quem consumiu o `np.random` antes.
+
+## D-046: τ da grade por Monte Carlo sobre τ, com gabarito dos histogramas de rótulos
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário, em três rodadas de perguntas: "rodar um Monte Carlo para definir o tau seria o ideal"; sortear "o valor de tau apenas, dado todos os parâmetros já definidos"; "usa um gabarito"; o gabarito por agrupamento hierárquico dos histogramas com `k` pela silhueta; o simulador validado; "vale o máximo do ARI"; e "continua a implementação apenas após ter o tau definido". Claude decidiu os detalhes listados abaixo, por serem parâmetros do método escolhido.
+- **Situação:** vigente. Resolve a P3 do [plano](plano-dropout-treino-stocfl.md) e substitui a etapa B da seção 6 do plano (execuções completas nos `τ` candidatos) por um Monte Carlo. Cumpre o passo 3.
+- **Contexto:** com Dirichlet puro não há janela de `τ` nem grupos reais (D-044): o nº de clusters cresce continuamente com `τ`. O pedido original era mostrar a tabela da varredura sem escolher o `τ`; perguntado como seguir, o usuário pediu um Monte Carlo para definir o `τ` e um critério com gabarito.
+- **Decisão (do usuário):**
+  - **Monte Carlo sobre `τ`:** sortear `τ` e rodar, para cada um, as 120 combinações da grade (`α`, seeds 0 a 9, `m`, `d`, 50 rodadas), com os outros parâmetros fixos.
+  - **Gabarito:** agrupamento hierárquico das distribuições de rótulos dos clientes, com o nº de grupos pela silhueta. O ARI contra ele é o critério.
+  - **Execução por um simulador da fusão**, validado contra o script real.
+  - **O `τ` de maior ARI médio vale como definido**, e os passos 4 e 5 seguem com ele: **`τ = 0.84683`** (ARI médio 0,305).
+- **Decisão (de Claude, trivial e reversível):**
+  - 400 `τ ~ U[0.3, 1.0]` com semente 0. Abaixo de ~0.5 tudo vira 1 cluster (plano, seção 4.3), e o ARI em 0,50 é 0; o máximo ficou longe das bordas.
+  - **Gabarito:** Ward com distância euclidiana sobre as proporções de classes de cada cliente, `k` de 2 a 40, o de maior silhueta. Um gabarito por `(α, seed)`.
+  - **Simulador:** os `Ψ` saem de uma execução de 1 rodada do script por `(α, seed)` (`m = 100%`, `τ = 1.0`), que também é a etapa A do plano; o cosseno entre centros sai de `G = ΨΨᵀ` em float64; a fusão de cada rodada são as componentes conexas de "cosseno > `τ`" entre os clusters sorteados, com o menor id; o sorteio repete o do script (`random.Random(seed)` e `Availability`). A validação compara 9 execuções reais de 50 rodadas (`τ` = 0.75, 0.85 e o escolhido) em todas as rodadas: sorteados, indisponíveis, partição e pares comparados.
+  - **Tolerância de 1e-4 nos cossenos**, e não 1e-5 como no primeiro rascunho: o `Ψ` é normalizado em float32 na GPU e o script calcula o cosseno em float32 na CPU, com erro de até ~3e-5, que não é arredondamento da saída. A primeira execução parou nessa conferência; reproduzir o float32 exigiria os vetores de 1,6 M de dimensões em cada simulação. A validação pelas partições é o que garante o resultado.
+  - **Arredondamento do `τ`:** 3 casas só se o ARI médio não mudar; não foi o caso, e o `τ` ficou com 5 casas.
+  - Métricas além do ARI: nº de clusters, maior cluster, singletons, cobertura e a TVD média entre a distribuição de rótulos do cliente e a do seu cluster.
+  - **Notebook novo** `projetos/StoCFL/varredura-tau-dirichlet.ipynb` (escolhido pelo usuário), versionado sem saídas, com a política 7. O JSON passou a ser gravado com precisão completa, depois de a verificação do modo `DADOS_JSON` mostrar que o `df.to_json` do pandas grava só 10 algarismos.
+  - **Execuções do mesmo minuto:** o notebook espera o minuto mudar antes de uma execução cuja pasta de logs já exista naquele minuto (D-045).
+  - **Política 7:** verificadas as mesmas figuras e tabelas nos dois modos, a trava e o replot sem logs; apagados os logs desta simulação (29 pastas `runs-rotated-mnist-n240-*-k1-a*` e 29 `pipeline-varredura-*.txt`, 42 GB), todos listados no JSON. As partições de `datasets/` ficaram (são dados de entrada da grade).
+- **Ressalvas (para o usuário avaliar):**
+  - **O gabarito é fraco:** silhueta de 0,15 a 0,26, e com `α = 1.0` o `k` vai de 2 a 40 e bate no limite de 40 em 5 seeds. As proporções de classes do Dirichlet não formam grupos nítidos, e o ARI máximo é 0,30. Outro gabarito (outra ligação, `k` maior) pode apontar outro `τ`.
+  - **O `τ` escolhido dá clusters pequenos:** ~110 clusters de 240 clientes, ~82 singletons e maior cluster de ~29, perto do extremo de um modelo por cliente.
+- **Alternativas consideradas:**
+  - Mostrar a tabela da varredura e deixar o usuário escolher (o pedido original): substituída pelo usuário pelo Monte Carlo com critério.
+  - Rodar o script real para cada `τ`: descartada pelo usuário em favor do simulador; cada `τ` custaria 36 execuções (~1 h) e caberiam ~10 `τ`.
+  - Gabarito por grupos latentes (mudar os dados) ou pela classe dominante: descartados pelo usuário.
+  - Mostrar o máximo e esperar a confirmação: descartada pelo usuário ("vale o máximo do ARI").
+  - `τ` por `α`: não feita, porque a grade usa um só `τ`; os ótimos por `α` (0,851 e 0,841) ficam registrados no guia.
+  - Ligação média com distância de cosseno no gabarito: não testada; fica como verificação de sensibilidade possível.
+  - Ampliar `k` além de 40: não feita, porque mudaria o gabarito já usado; é a primeira coisa a testar se o usuário quiser checar a sensibilidade.
