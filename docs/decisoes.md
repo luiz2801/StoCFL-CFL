@@ -499,7 +499,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário respondeu as pendências P1 a P7 do plano e, depois de ver a simulação do desenho escolhido, confirmou "manter como decidido" e o escopo "só `StoCFL-FCC+CFL.py` primeiro". Claude interpretou as respostas ambíguas e decidiu os detalhes triviais listados abaixo.
-- **Situação:** vigente. Substitui em parte a D-031 (o sorteio de `m` passa a ser entre os disponíveis). Implementação em andamento: módulo e integração no `StoCFL-FCC+CFL.py` feitos (ver D-033 e D-034); o notebook foi feito (D-035); faltam os outros dois scripts e as execuções completas.
+- **Situação:** vigente. Substitui em parte a D-031 (o sorteio de `m` passa a ser entre os disponíveis). Implementação em andamento: módulo e integração no `StoCFL-FCC+CFL.py` feitos (ver D-033 e D-034); o notebook foi feito (D-035) e a grade completa foi executada (D-037); faltam os outros dois scripts e o relatório das execuções.
 - **Contexto:** o plano ([plano-dropout-stocfl.md](plano-dropout-stocfl.md)) deixava sete escolhas abertas. As respostas do usuário combinam disponibilidade conhecida (quem caiu não é sorteado e outro entra no lugar) com queda por cliente. Claude simulou esse desenho antes de implementar e avisou que o efeito esperado é pequeno: o `drop` atrasa a observação dos clientes em poucas rodadas (some por volta da rodada 25), e só com `m` grande o nº de participantes cai de fato (157,5 em vez de 240 com `m = 100%`, `d = 0,1` e `L ~ U[1,10]`). Só presença e cobertura foram medidas, não o ARI.
 - **Decisão:**
   - **P1:** o `drop` age na seleção. O cliente que cai não pode ser sorteado, e outro entra no lugar. A fase `train` (cliente observado mas sem treinar) saiu do escopo, e o `gmodel` não é tocado.
@@ -580,7 +580,7 @@ Para cada decisão, a entrada segue este modelo:
   - **Smoke test** com uma cópia reduzida (`n = 48`, 6 rodadas, seeds 0 e 1, `k` = 8 e 16, `m` = 100% e 50%, 3 cenários: 24 execuções, ~10 min com a geração dos dados): 15 células sem erro, 12 figuras, I5 do plano (cobertura do log = chaves de `psi.pkl`) em 24 de 24, e segunda execução reaproveitando as 24. Os gráficos foram conferidos só pela estrutura, não visualmente (sem `kaleido`). Os artefatos do teste (dados e logs de `n` = 8, 40 e 48) foram apagados, e os de `n = 240` não foram tocados.
   - **Verificação feita antes de escrever o notebook:** `--process 0` e `--process 1` dão a mesma sequência de clientes sorteados (conferido com `n = 40`), então gerar os dados só quando faltam, como no notebook de `m`, não altera o sorteio.
 - **Alternativas consideradas:**
-  - Executar a grade completa agora: descartada pelo usuário ("rode o smoke test").
+  - Executar a grade completa agora: descartada pelo usuário ("rode o smoke test"). Ele pediu a execução depois, ver [D-037](#d-037-execução-da-grade-completa-do-teste-dropoutipynb-e-geração-do-json).
   - Grade do plano (`m` = 100%, 50% e 10% × `d` = 0,1 e 0,2) ou só `m = 50%`: descartadas pelo usuário em favor de `m` = 100% e 50% e `d` = 0,05 e 0,1.
   - `k = 4` com `τ = 0,625` (centro da janela) e `τ = 0,9`: recomendada por Claude a primeira e descartadas as duas pelo usuário em favor de `k` = 8 e 16 com `τ = 0,75`.
   - Gerar os dados com uma execução de `--com_round 0`: descartada, porque `--process` não altera o sorteio.
@@ -604,3 +604,23 @@ Para cada decisão, a entrada segue este modelo:
   - Versionar o JSON (por exemplo em `docs/`): descartada por ora, porque não foi pedido e é um resultado de execução; pode ser feito depois se o usuário quiser.
   - Um CSV por tabela: descartada, porque o usuário pediu um JSON e as tabelas têm formatos diferentes.
   - Gravar só o resumo: descartada, porque sem as métricas por rodada e os rótulos finais não dá para refazer os gráficos nem as matrizes.
+
+## D-037: Execução da grade completa do `teste-dropout.ipynb` e geração do JSON
+
+- **Data:** 2026-11-09
+- **Decidido por:** o usuário pediu a execução ("Agora roda com aqueles valores decididos") e o JSON ("quando acabar salva os resultados em um json"). Claude decidiu, por serem triviais e reversíveis, os detalhes de execução listados abaixo.
+- **Situação:** vigente. Cumpre as execuções do passo 6 do plano (o relatório continua pendente) e substitui só a parte de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test) que deixava a grade completa sem executar.
+- **Contexto:** depois do smoke test e da célula do JSON (D-036), o usuário quis a grade completa com os valores já decididos em D-035, sem mudar nenhum.
+- **Decisão (do usuário):** rodar a grade com os valores de D-035 (`n = 240`, `k` = 8 e 16, `m` = 100% e 50%, `d` = 0, 0,05 e 0,1, `L` em 1..10, `τ = 0,75`, 50 rodadas, seeds 0 a 9) e gravar o JSON ao terminar.
+- **Decisão (de Claude, trivial e reversível):**
+  - Executar o notebook com o `nbclient` (kernel do `.venv`), sem alterar parâmetros, em segundo plano e com limite de 24 h. Levou 205 min: 118 execuções novas e 2 reaproveitadas de 2026-11-06.
+  - Manter `APAGAR_PSI = False` e `REEXECUTAR = False`. Os `psi.pkl` das 118 execuções novas ocupam ~184 GB (sobraram 145 GB livres no `/home`), e Claude não apagou nada sem pedido.
+  - **Reexecutar o notebook depois**, porque a execução da grade carregou a versão de 15 células, anterior à célula do JSON. A segunda execução, com as 120 prontas, durou 7 s e gravou `logs/resultados-dropout.json`. Conferido: JSON estrito, 120 execuções com 240 rótulos, 6000 linhas por rodada (120 × 50), última rodada igual às métricas finais e 120 pastas distintas.
+  - Conferir por que `k` = 8 e 16 têm a mesma rodada estável em todas as execuções: ela é a 1ª rodada com cobertura de 100% nas 120 execuções, e o ARI chega a 1,0 nessa mesma rodada.
+  - O JSON e a cópia executada do notebook (no scratchpad da sessão) **não são versionados**.
+- **Resultado:** ARI final 1,0 e nº de clusters = `k` em todas as 120 execuções, inclusive `k = 16` com `τ = 0,75` (nenhuma seed colapsou), então o dropout só atrasou a rodada estável (de 1 para ~11 com `m` = 100%, de ~10 para ~14 com `m` = 50%). Os números completos e os limites estão no [guia](guia.md), seção 4.11. A grade não mostra se o dropout piora a partição final, porque em 50 rodadas todo cliente foi observado.
+- **Alternativas consideradas:**
+  - Interromper a grade e relançá-la com a célula do JSON: descartada, porque perderia horas de execução, e reexecutar o notebook reaproveita tudo.
+  - `APAGAR_PSI = True` para liberar disco: descartada, porque apagaria arquivos que o usuário não pediu para apagar (mesma razão de D-035).
+  - Reduzir a grade (menos seeds ou `k`): descartada, porque o usuário pediu os valores decididos.
+  - Incluir um cenário em que a cobertura não chegue a 100% (menos rodadas, `m` menor, `d` ou `L` maiores): não feita, porque mudaria a grade decidida; fica como sugestão ao usuário.

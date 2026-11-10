@@ -1,6 +1,6 @@
 # Plano: dropout com retorno no StoCFL
 
-- **Situação:** plano com as decisões tomadas ([D-032](decisoes.md)). **Passos 1 a 4 da seção 6 implementados em 2026-11-09** (baseline, `availability.py` com os testes, a integração no `StoCFL-FCC+CFL.py` e o notebook `teste-dropout.ipynb`, com os testes I1 a I5 da seção 8 verificados em execuções pequenas; detalhes em [D-033, D-034 e D-035](decisoes.md) e no [guia](guia.md), 4.11). Faltam os passos 5 e 6 (os outros dois scripts e as execuções completas do notebook).
+- **Situação:** plano com as decisões tomadas ([D-032](decisoes.md)). **Passos 1 a 4 da seção 6 implementados em 2026-11-09** (baseline, `availability.py` com os testes, a integração no `StoCFL-FCC+CFL.py` e o notebook `teste-dropout.ipynb`, com os testes I1 a I5 da seção 8 verificados em execuções pequenas; detalhes em [D-033, D-034 e D-035](decisoes.md) e no [guia](guia.md), 4.11). A grade completa do notebook (120 execuções) foi executada em 2026-11-09 ([D-037](decisoes.md)), primeira parte do passo 6. Faltam o passo 5 (os outros dois scripts) e o relatório das execuções.
 - **Números de linha:** os do `StoCFL-FCC+CFL.py` neste documento são os do código **antes** da implementação (commit `ebb6390`). Para as linhas atuais, veja o [guia](guia.md), 4.4.
 - **Branch:** `dropout-stocfl` (a partir de `main`, em 2026-11-09).
 - **Fontes:** o artigo do MimiC (Sun, Mao e Zhang, *IEEE TMC*, 2024; PDF em `mimic_codes/MimiC.pdf`, fora do git) e o código do StoCFL lido em 2026-11-09 (`StoCFL-FCC+CFL.py`, `trainer.py`, `functional.py`).
@@ -142,9 +142,9 @@ Cada etapa é um commit atômico (política 6), com a documentação e o registr
 1. **Baseline (antes de editar o script).** Rodar `StoCFL-FCC+CFL.py` na `main` com uma configuração pequena e a mesma seed, e guardar fora do repositório o `cluster.pkl`, o `psi.pkl` e as linhas `client id this round`. É a referência do teste I1. Exemplo: `--n 40 --k 4 --dataset mnist --com_round 6 --num_per_round 8 --train 0 --seed 0 --process 1` (cria `datasets/rotated_mnist_40_0/`, ignorado pelo git).
 2. **Módulo `availability.py` e testes unitários** (`tests/test_availability.py`). Commit: módulo, testes e a linha nova em 4.8 do guia.
 3. **Integração no `StoCFL-FCC+CFL.py`**: flags, `self.availability`, o sorteio entre os disponíveis, a rodada vazia, as linhas de log, `availability.pkl` e o nome da pasta. Commit: código e a documentação da seção 7.
-4. **Notebook `teste-dropout.ipynb`**, sem saídas de execução no commit. Reaproveita as funções de métricas do `teste-fracao-clientes.ipynb` (copiadas, sem editar o original) e compara execuções com e sem `drop` em várias seeds (seção 9). **Feito em 2026-11-09** ([D-035](decisoes.md)), com uma grade diferente da sugerida na seção 9; só o smoke test foi executado.
+4. **Notebook `teste-dropout.ipynb`**, sem saídas de execução no commit. Reaproveita as funções de métricas do `teste-fracao-clientes.ipynb` (copiadas, sem editar o original) e compara execuções com e sem `drop` em várias seeds (seção 9). **Feito em 2026-11-09** ([D-035](decisoes.md)), com uma grade diferente da sugerida na seção 9. O smoke test foi executado no mesmo dia e a grade completa depois, a pedido do usuário ([D-037](decisoes.md)).
 5. **Outros scripts**, depois de confirmado: o mesmo bloco em `StoCFL-FCC.py` (linha 57) e `StoCFL-FEMNIST.py` (linha 56), só com a lei por cliente.
-6. **Execuções e relatório**, como tarefa separada, depois da implementação.
+6. **Execuções e relatório**, como tarefa separada, depois da implementação. **Execuções feitas em 2026-11-09** (a grade do notebook, [D-037](decisoes.md); resultados no [guia](guia.md), 4.11); o relatório continua pendente.
 
 ## 7. Documentação a atualizar na implementação
 
