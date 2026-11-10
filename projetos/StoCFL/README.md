@@ -120,11 +120,11 @@ O `RotatedMNISTTrainer` (o do `StoCFL-FCC+CFL.py`) lê o arquivo de cada cliente
 
 ### Efeito do dropout no aprendizado, com rótulos non-IID (Dirichlet)
 
-O notebook [teste-dropout-treino.ipynb](teste-dropout-treino.ipynb) roda o StoCFL completo (`StoCFL-FCC+CFL.py --train 1`) com `--dirichlet_alpha` 0.5 e 1.0, **sem dropout e com `--drop` 0.05 e 0.1** (`--drop_rounds 10`), `m` = 100% e 50%, 10 seeds, 50 rodadas, `n = 240` e `τ = 0.84683` (120 execuções; D-043 a D-047). Mostra, em Plotly, o nº e o tamanho dos clusters, a acurácia do modelo do cluster e do global (no teste balanceado e ponderada pela distribuição de rótulos do cluster, a partir do recall por classe) e os participantes por rodada, a distribuição final por seed, a diferença dropout − sem dropout com Wilcoxon e heatmaps cluster × classe.
+O notebook [teste-dropout-treino.ipynb](teste-dropout-treino.ipynb) roda o StoCFL completo (`StoCFL-FCC+CFL.py --train 1`) com `--dirichlet_alpha` 0.5 e 1.0, **sem dropout e com `--drop` 0.05 e 0.1** (`--drop_rounds 10`), `m` = 100% e 50%, 10 seeds, 50 rodadas, `n = 240` e `τ` = 0.84683 e 0.8 (240 execuções; D-043 a D-051). Mostra, em Plotly, o nº e o tamanho dos clusters, a acurácia do modelo do cluster e do global (no teste balanceado e ponderada pela distribuição de rótulos do cluster, a partir do recall por classe) e os participantes por rodada, as acurácias separadas entre clusters de um cliente e clusters de 2 ou mais, a distribuição final por seed, a diferença dropout − sem dropout com Wilcoxon e heatmaps cluster × classe.
 
 - Use o kernel `.venv` da raiz e abra o notebook a partir desta pasta. `APAGAR_PSI = True` (padrão) apaga o `psi.pkl` (~1,5 GB) de cada execução concluída.
 - Segue a política 7: grava `logs/resultados-dropout-treino.json` com os dados brutos; `DADOS_JSON = True` só lê o JSON e plota; sem os logs e com o JSON da grade já gravado, para com um aviso (`REEXECUTAR = True` força).
-- **A grade não foi executada.** O smoke test (`n = 48`, 6 rodadas, seeds 0 e 1) passou em 2026-11-10, e a grade completa deve levar ~15 h na GPU (medido em `n = 240`, seed 0, com o cache de lotes do trainer; guia, 4.11).
+- **A grade não foi executada.** O smoke test (`n = 48`, 6 rodadas, seeds 0 e 1) passou em 2026-11-10, e a grade deve levar ~15 h na GPU para o primeiro `τ` e ~24 h para os dois (medido em `n = 240`, seed 0, com o cache de lotes do trainer; guia, 4.11).
 
 ### Escolha de τ com rótulos non-IID (Dirichlet)
 

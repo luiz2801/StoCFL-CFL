@@ -925,3 +925,20 @@ Para cada decisão, a entrada segue este modelo:
   - Segundo `τ` em 0.75 (clusters ainda maiores: ~32, maior de ~141): descartada; o cluster gigante dominaria também com `m = 50%`, e o modelo dele seria quase o global.
   - Segundo `τ` só para `m = 50%`, evitando o cluster gigante: descartada, porque a grade perderia o pareamento por `m`, e o regime do gigante é onde o dropout mais muda a partição.
   - Regravar o JSON executando o notebook com os logs: impossível, porque eles foram apagados; a sensibilidade só precisa de `G`, dos histogramas e dos sorteios, que estão no JSON.
+
+## D-051: Dois τ e acurácia separada entre singletons e clusters de 2+ no `teste-dropout-treino.ipynb`
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário aprovou a recomendação ("aplique essas soluções e documente") de rodar a grade em dois `τ` (D-050) e de separar no notebook a acurácia dos singletons da dos clusters de 2 ou mais. Claude decidiu a forma, por ser trivial e reversível e não mudar o algoritmo.
+- **Situação:** vigente. Muda o notebook da [D-047](#d-047-notebook-teste-dropout-treinoipynb-métricas-conferências-e-gráficos).
+- **Contexto:** com `τ = 0.84683`, ~70% dos participantes estão em clusters de um cliente (smoke test), e a média da acurácia por cluster mistura um modelo por cliente com modelos de grupo.
+- **Decisão (de Claude):**
+  - `TAUS = [0.84683, 0.8]` no lugar de `TAU`; o `τ` entra na chave de cada execução, no nome da saída padrão, no plano (primeiro `τ` primeiro), nas tabelas e no título de cada figura. O reaproveitamento já conferia o `τ` pelo log, e as execuções dos dois `τ` com os mesmos outros parâmetros só se distinguem pela hora da pasta (o notebook espera o minuto mudar, D-045).
+  - **Singletons × 2+:** as quatro acurácias (cluster e global, no teste e ponderadas) também só nos clusters avaliados de um cliente (`*_uni`) e nos de 2 ou mais (`*_multi`), com o tamanho do cluster na partição da rodada; `part_uni` é a fração dos participantes em singletons. Ganhos e Wilcoxon para os dois grupos, uma tabela nova (`resumo_grupos`, também no JSON) e dois painéis por rodada.
+  - `rodada_limiar_pond`, com a acurácia ponderada: no teste balanceado a acurácia do cluster fica longe do limiar de 0,90 (0,73 a 0,77 na rodada 50 em `n = 240`), e a ponderada passa dele (0,91), então só ela mede velocidade.
+  - **Correção:** a conferência da cobertura contra o `psi.pkl` virava `None` no JSON quando o notebook era executado de novo depois de o `psi.pkl` ter sido apagado; agora o valor vem do JSON anterior.
+  - Segundo smoke test com a mesma cópia reduzida (48 execuções), e os artefatos apagados, como na D-048.
+- **Alternativas consideradas:**
+  - Um notebook por `τ`: descartada, porque duplicaria o código e separaria em dois JSONs uma comparação que interessa ver junta.
+  - Excluir os singletons da média: descartada; eles são a maior parte dos participantes com o `τ` escolhido, e a separação mostra os dois.
+  - Corte por tamanho diferente de 1 (por exemplo, clusters de até 3): não feita; o singleton é o caso especial (modelo por cliente), e o corte em 1 não precisa de parâmetro.
