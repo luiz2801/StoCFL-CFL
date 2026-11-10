@@ -905,3 +905,23 @@ Para cada decisão, a entrada segue este modelo:
   - Uma flag para desligar o cache: descartada, por não haver caso em que o resultado mude; se a memória faltar num cenário grande, a flag pode ser acrescentada.
   - Parar de regravar o `psi.pkl` (1,5 GB) a cada rodada, ou calcular os cossenos na GPU: não feitas; mudam o que o script grava ou a aritmética dos cossenos, e não foram pedidas. São o que sobra do custo por rodada.
   - Estender o cache aos outros Trainers: não feita, porque só o `StoCFL-FCC+CFL.py` é usado nas simulações, e os outros dois scripts têm caminhos quebrados (guia, 4.12).
+
+## D-050: Sensibilidade do τ ao gabarito e segundo τ (0.8) na grade
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário. Claude recomendou testar o `τ` escolhido contra outros gabaritos e rodar a grade também num segundo `τ`, com clusters maiores, e o usuário respondeu "aplique essas soluções e documente". Claude decidiu as variantes do gabarito e o valor do segundo `τ`, que estavam na recomendação.
+- **Situação:** vigente. Complementa a [D-046](#d-046-τ-da-grade-por-monte-carlo-sobre-τ-com-gabarito-dos-histogramas-de-rótulos), sem mudar o `τ` escolhido, e muda a grade do plano de 120 para 240 execuções.
+- **Contexto:** o gabarito da D-046 é fraco (silhueta de 0,15 a 0,26, `k` no limite de 40 em 5 seeds de `α = 1.0`), e o `τ` escolhido dá um regime de clusters pequenos (~110 clusters, ~82 singletons), perto de um modelo por cliente. Uma conclusão sobre o dropout tirada de um só `τ` nesse regime valeria pouco.
+- **Decisão (do usuário):** as duas recomendações.
+- **Decisão (de Claude, nos termos da recomendação):**
+  - **Sensibilidade:** seção nova (7) no `varredura-tau-dirichlet.ipynb`, que refaz o Monte Carlo com os mesmos `τ` e as 120 combinações a partir dos dados do JSON (só CPU, sem rodar o script) e mede o ARI contra quatro gabaritos: o da escolha (Ward, euclidiano, `k` de 2 a 40 pela silhueta), Ward com `k` até 80, ligação média com distância de cosseno (silhueta de cosseno, `k` até 40) e Ward com `k = 10` fixo. A seção confere que a variante da escolha dá o mesmo ARI do Monte Carlo nas 48.000 linhas.
+  - **Resultado:** o `τ` de maior ARI fica entre 0,830 e 0,871, e `τ = 0.84683` fica a no máximo 0,014 do máximo de cada gabarito. **O `τ` da D-046 foi mantido.** O `k` muda muito com o limite (com `k` até 80, o de `α = 1.0` vai a 68–80), confirmando que não há grupos nítidos nas proporções de classes.
+  - **Segundo `τ` = 0.8**, o valor da recomendação (no Monte Carlo, 61 clusters, maior de 89, 42 singletons em média). A seção 7 mostra que essa média esconde dois regimes: com `m = 50%`, 62 a 85 clusters, o maior com 31 a 39 clientes; com `m = 100%`, um cluster gigante (192 clientes com `α = 0.5`, 132 com `α = 1.0`) mais singletons, que o dropout encolhe (152 e 105 com `d = 0.1`). Isso não estava na recomendação, que citava só a média; os dois regimes ficam documentados (guia, 4.11) e o valor foi mantido, porque ele cobre justamente o caso em que o dropout muda a partição.
+  - O `teste-dropout-treino.ipynb` passa a ter a lista `TAUS = [0.84683, 0.8]` (240 execuções; as do primeiro `τ` vêm primeiro, e `TAUS = [0.84683]` roda só as 120 dele), com a D-051.
+  - **JSON:** a chave nova `sensibilidade` foi acrescentada ao `logs/resultados-varredura-tau-dirichlet.json` existente (as chaves antigas ficaram idênticas, conferido), executando o notebook em modo `DADOS_JSON` com uma célula extra fora do notebook versionado, porque os logs já tinham sido apagados (D-046). O modo `DADOS_JSON` lê a sensibilidade do JSON e dá as mesmas 3 figuras e 10 tabelas que o cálculo, e as seções 1 a 6 ficaram iguais às de antes. A cópia em `docs/resultados/` foi regravada (7,3 MB).
+- **Alternativas consideradas:**
+  - Trocar o `τ` pelo de outro gabarito: descartada, porque nenhum deles é mais justificado, e o escolhido fica perto do máximo de todos.
+  - `k` além de 80: não feita; o `k` de `α = 1.0` bate em 80 em 2 seeds, mas a silhueta sobe pouco, e o `τ` ótimo mudou só de 0,847 para 0,871 entre os limites 40 e 80.
+  - Segundo `τ` em 0.75 (clusters ainda maiores: ~32, maior de ~141): descartada; o cluster gigante dominaria também com `m = 50%`, e o modelo dele seria quase o global.
+  - Segundo `τ` só para `m = 50%`, evitando o cluster gigante: descartada, porque a grade perderia o pareamento por `m`, e o regime do gigante é onde o dropout mais muda a partição.
+  - Regravar o JSON executando o notebook com os logs: impossível, porque eles foram apagados; a sensibilidade só precisa de `G`, dos histogramas e dos sorteios, que estão no JSON.

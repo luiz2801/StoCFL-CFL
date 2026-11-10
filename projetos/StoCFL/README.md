@@ -132,6 +132,7 @@ O notebook [varredura-tau-dirichlet.ipynb](varredura-tau-dirichlet.ipynb) escolh
 
 - Use o kernel `.venv` da raiz e abra o notebook a partir desta pasta. A primeira execução gera as partições Dirichlet (`datasets/rotated_mnist_240_<seed>_k1_a<α>/`, 228 MB cada) e leva ~42 min.
 - **Resultado de 2026-11-10:** `τ = 0.84683` (ARI médio 0,305), com ~110 clusters e ~82 singletons em média. O gabarito é fraco (silhueta 0,15–0,26, e com `α = 1.0` o `k` bate no limite de 40 em 5 seeds). Números no [guia](../../docs/guia.md), seção 4.11.
+- **Sensibilidade ao gabarito** (seção 7, D-050): com outros três gabaritos (Ward com `k` até 80, ligação média com cosseno, `k` fixo em 10), o `τ` de maior ARI fica entre 0,830 e 0,871, e `τ = 0.84683` fica a no máximo 0,014 do ARI máximo de cada um. A seção também mostra o regime do segundo `τ` da grade, 0.8.
 - **Os logs foram apagados** (D-046); com `DADOS_JSON = True` (célula 1) o notebook lê `logs/resultados-varredura-tau-dirichlet.json` e replota em segundos. Sem os logs, o modo normal para com um aviso em vez de rodar tudo de novo (`REEXECUTAR = True` força). Cópia versionada: `docs/resultados/resultados-varredura-tau-dirichlet.json.gz` (`gunzip -c ../../docs/resultados/resultados-varredura-tau-dirichlet.json.gz > logs/resultados-varredura-tau-dirichlet.json`, a partir desta pasta).
 
 ### Efeito da fração de clientes por rodada (m)
