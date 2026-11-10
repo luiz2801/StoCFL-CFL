@@ -848,3 +848,23 @@ Para cada decisão, a entrada segue este modelo:
   - `τ` por `α`: não feita, porque a grade usa um só `τ`; os ótimos por `α` (0,851 e 0,841) ficam registrados no guia.
   - Ligação média com distância de cosseno no gabarito: não testada; fica como verificação de sensibilidade possível.
   - Ampliar `k` além de 40: não feita, porque mudaria o gabarito já usado; é a primeira coisa a testar se o usuário quiser checar a sensibilidade.
+
+## D-047: Notebook `teste-dropout-treino.ipynb`: métricas, conferências e gráficos
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário pediu o notebook (passo 4 do [plano](plano-dropout-treino-stocfl.md)) com a política 7, e os parâmetros da grade estão em D-043, D-044 e D-046. Claude decidiu os detalhes de implementação abaixo, por serem triviais e reversíveis e não mudarem o algoritmo.
+- **Situação:** vigente. Cumpre o passo 4 do plano.
+- **Contexto:** o plano (seções 7 e 8) fixa as métricas, os gráficos e o conteúdo do JSON, mas deixa em aberto a forma da acurácia ponderada, a janela do valor final em execuções curtas, os heatmaps e as conferências.
+- **Decisão (de Claude):**
+  - Notebook novo, gerado sem saídas, com as funções do `teste-dropout.ipynb` copiadas e adaptadas (o original não foi editado). Sem ARI nem matrizes de confusão contra a rotação, que não se aplicam.
+  - **Acurácia ponderada** de um cluster avaliado: `Σ_c p_c · recall_c`, com `p` a distribuição de rótulos do cluster na partição da rodada (soma dos histogramas de todos os membros, não só dos sorteados), aplicada ao modelo do cluster e ao `gmodel` no mesmo cluster. As médias por rodada são ponderadas pelos participantes de cada cluster avaliado, como no plano.
+  - **Valor final** = média das últimas `JANELA_FINAL = 10` rodadas (41 a 50 com 50 rodadas; com menos rodadas, todas as que houver). `rodada_limiar` fica vazia se a acurácia não chegar a `LIMIAR_ACC`, e o Wilcoxon dela usa só as seeds em que as duas execuções chegaram.
+  - **Conferências na leitura:** V3 (acurácia do cluster do log, 4 casas, e a lista do global, exata, iguais às do `accuracy.pkl`; os ids do log são os clusters dos sorteados), V4 e as linhas `Global acc` da saída padrão iguais às do log. A cobertura contra as chaves do `psi.pkl` (I5) é conferida antes de o `psi.pkl` ser apagado e vai para o JSON.
+  - **Heatmaps** cluster × classe só dos 20 maiores clusters da partição final (com `τ = 0.84683` há ~110), com menu de seed.
+  - O reaproveitamento confere, além do `τ`, o `lr`, as épocas e o batch cheio (`batch_size=None`), porque o nome da pasta não os traz, e o notebook espera o minuto mudar antes de uma execução cuja pasta já exista naquele minuto (D-045).
+  - O JSON é gravado em precisão completa (o `df.to_json` do pandas grava só 10 algarismos, D-046).
+- **Alternativas consideradas:**
+  - Estender o `teste-dropout.ipynb`: descartada em D-043.
+  - Ponderar a acurácia pela distribuição só dos clientes sorteados do cluster: descartada, porque o modelo do cluster serve a todos os membros.
+  - Heatmap de todos os clusters: descartada, porque com ~110 colunas, quase todas de um cliente, o gráfico não se lê.
+  - Conferir a igualdade com `--train 0` (V1) dentro do notebook: não feita, porque dobraria as execuções da grade; foi conferida no smoke test.
