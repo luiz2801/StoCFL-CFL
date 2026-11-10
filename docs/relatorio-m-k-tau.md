@@ -1,6 +1,6 @@
 # Relatório: relação entre `m`, `k` e `τ` na clusterização do StoCFL
 
-Fonte dos dados: saídas do notebook [teste-fracao-clientes.ipynb](../projetos/StoCFL/teste-fracao-clientes.ipynb), executado em 2026-11-06 (Rotated MNIST, `n = 240` clientes, 50 rodadas, seed 0, só clusterização com `--train 0`, GPU). Os números são de **uma seed e uma execução por célula**; as bordas de `τ` só são conhecidas até o vizinho avaliado (intervalos de ~0.03). Fatos medidos estão separados de hipóteses no texto. Os logs dessas execuções foram apagados em 2026-11-10 e os dados estão em `projetos/StoCFL/logs/resultados-fracao-clientes.json` (não versionado; [D-040](decisoes.md)).
+Fonte dos dados: saídas do notebook [teste-fracao-clientes.ipynb](../projetos/StoCFL/teste-fracao-clientes.ipynb), executado em 2026-11-06 (Rotated MNIST, `n = 240` clientes, 50 rodadas, seed 0, só clusterização com `--train 0`, GPU). Os números são de **uma seed e uma execução por célula**; as bordas de `τ` só são conhecidas até o vizinho avaliado (intervalos de ~0.03). Fatos medidos estão separados de hipóteses no texto. Os logs dessas execuções foram apagados em 2026-11-10 e os dados estão em `projetos/StoCFL/logs/resultados-fracao-clientes.json` (a cópia versionada é [resultados-fracao-clientes.json.gz](resultados/resultados-fracao-clientes.json.gz); [D-040](decisoes.md), [D-041](decisoes.md)).
 
 ## 1. Os três parâmetros
 

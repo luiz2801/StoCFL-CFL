@@ -592,7 +592,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário pediu "quando acabar salva os resultados em um json", sem dizer onde nem o quê. Claude decidiu, por serem escolhas triviais e reversíveis, o local, o conteúdo e a forma.
-- **Situação:** vigente. Acrescenta uma seção ao notebook de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test), sem mudar os cenários. O conteúdo do JSON foi ampliado em [D-039](#d-039-dados-brutos-no-json-e-exclusão-dos-logs-da-grade-do-dropout).
+- **Situação:** vigente. Acrescenta uma seção ao notebook de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test), sem mudar os cenários. O conteúdo do JSON foi ampliado em [D-039](#d-039-dados-brutos-no-json-e-exclusão-dos-logs-da-grade-do-dropout), e a decisão de não versioná-lo foi substituída por [D-041](#d-041-jsons-de-resultados-versionados-compactados-e-primeiro-push-da-branch).
 - **Contexto:** a grade completa (120 execuções, D-035) estava rodando em segundo plano, e o usuário quis os resultados num arquivo para analisar fora do notebook.
 - **Decisão:**
   - Uma célula final (seção 7) grava `projetos/StoCFL/logs/resultados-dropout.json`, ao lado do `busca-tau.json`. O `logs/` é ignorado pelo git, então o JSON **não é versionado**, e o commit leva só a célula.
@@ -670,7 +670,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-10
 - **Decidido por:** o usuário pediu "a pasta logs ta impraticável, salva as infos importantes num json tambem e apaga isso pra salvar espaço". Claude decidiu o conteúdo do JSON, o escopo da exclusão e não editar o notebook de `m`.
-- **Situação:** vigente. Estende [D-039](#d-039-dados-brutos-no-json-e-exclusão-dos-logs-da-grade-do-dropout) às pastas do notebook de `m` e da busca de `τ`, e corrige três afirmações da D-039 (abaixo).
+- **Situação:** vigente. Estende [D-039](#d-039-dados-brutos-no-json-e-exclusão-dos-logs-da-grade-do-dropout) às pastas do notebook de `m` e da busca de `τ`, e corrige três afirmações da D-039 (abaixo). O risco de os JSONs não terem outra cópia foi resolvido por [D-041](#d-041-jsons-de-resultados-versionados-compactados-e-primeiro-push-da-branch).
 - **Contexto:** depois da D-039, `logs/` ainda tinha 153 pastas de execução (222 GB) e 152 arquivos `pipeline-*.txt` (329 MB), todos do `teste-fracao-clientes.ipynb` (teste de `m` e busca de `τ`, MNIST rotacionado, seed 0, `--train 0`). Nenhuma tinha resultado de treino (`accuracy.pkl`).
 - **Decisão (do usuário):** guardar as informações importantes num JSON e apagar os logs.
 - **Decisão (de Claude):**
@@ -692,3 +692,23 @@ Para cada decisão, a entrada segue este modelo:
   - Acrescentar um modo `DADOS_JSON` ao `teste-fracao-clientes.ipynb`: não feita, por causa das alterações do usuário sem commit nesse arquivo; fica como pergunta.
   - Apagar só o `psi.pkl` e manter as pastas: descartada, porque o usuário disse que a pasta `logs` estava impraticável.
   - Apagar o `busca-tau.json`, mover os JSONs para fora de `logs/` ou apagar o `datasets/`: não feitas, porque não foram pedidas. **Risco:** `logs/` é ignorado pelo git, então os dois JSONs não têm outra cópia, e apagar `logs/` inteiro os perde.
+
+## D-041: JSONs de resultados versionados compactados e primeiro push da branch
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário pediu "da push e salva isso" e, perguntado como salvar os JSONs, escolheu versionar compactados e dar push. Claude decidiu o local, os nomes e o formato da compactação.
+- **Situação:** vigente. Substitui a decisão de **não versionar** os JSONs de resultados, tomada em [D-036](#d-036-célula-do-teste-dropoutipynb-que-grava-os-resultados-em-json) e mantida em D-039 e D-040, e resolve o risco de eles não terem outra cópia.
+- **Contexto:** os dois JSONs (`resultados-dropout.json`, 13 MB, e `resultados-fracao-clientes.json`, 23 MB) eram a única cópia dos resultados das duas famílias de execuções, cujos logs (~400 GB) foram apagados. Ficavam em `logs/`, que o git ignora, e apagar `logs/` os perderia.
+- **Decisão (do usuário):** dar push da branch `dropout-stocfl` e versionar os JSONs compactados em `.gz`.
+- **Decisão (de Claude):**
+  - Os dois arquivos ficam em `docs/resultados/` como `.json.gz` (0,84 MB e 3,9 MB, ~4,7 MB no total), com um `README.md` que diz o que cada um tem e como restaurá-lo em `logs/`. Compactados com `gzip -9 -n` (sem nome nem data, para os bytes serem reproduzíveis). Conferido: descompactam para arquivos idênticos aos originais e são JSON estrito.
+  - As cópias em `logs/` continuam, porque os notebooks leem de lá.
+  - A cópia executada do `teste-dropout.ipynb` (1 MB) não foi versionada: refaz-se em segundos a partir do JSON.
+  - O push foi só da branch `dropout-stocfl` (`git push -u origin dropout-stocfl`), que não existia no remote. A `main` local está 5 commits à frente de `origin/main`, e esses commits foram junto, por serem ancestrais da branch. A `main` não foi empurrada.
+  - **Divergência:** o CLAUDE.md e a D-008 dizem que o repositório não tem remote, mas existe `origin` (`https://github.com/luiz2801/StoCFL-CFL.git`). O CLAUDE.md não foi editado, por ser um arquivo de instruções do usuário.
+- **Alternativas consideradas:**
+  - Versionar sem compactar (36 MB): descartada, porque o histórico cresceria 36 MB para sempre (o `.git` tem 72 MB).
+  - `xz` (1,4 MB no total): descartada, porque o `gzip` já cabe bem (4,7 MB) e abre em qualquer sistema.
+  - Só uma cópia local, fora do git: descartada pelo usuário.
+  - Git LFS: não considerada necessária, porque os arquivos têm menos de 4 MB.
+  - Versionar também a cópia executada do notebook: descartada, por ser regenerável.
