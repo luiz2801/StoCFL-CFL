@@ -1,6 +1,6 @@
 # resultados
 
-Resultados das execuções do StoCFL em JSON compactado (`gzip -9 -n`), guardados depois que os logs de cada execução foram apagados para liberar disco (D-039, D-040, D-041 em [decisoes.md](../decisoes.md)). A descrição e a leitura dos números estão no [guia técnico](../guia.md), seção 4.11.
+Resultados das execuções do StoCFL em JSON compactado (`gzip -9 -n`), guardados depois que os logs de cada execução foram apagados para liberar disco (D-039, D-040, D-041 em [decisoes.md](../decisoes.md)). Pela política 7 do [CLAUDE.md](../../CLAUDE.md) (D-042), todo notebook de simulação deixa aqui o JSON dos seus resultados, compactado. A descrição e a leitura dos números estão no [guia técnico](../guia.md), seção 4.11.
 
 | Arquivo | Tamanho | O que tem |
 |---|---|---|

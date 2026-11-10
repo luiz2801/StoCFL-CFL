@@ -712,3 +712,30 @@ Para cada decisão, a entrada segue este modelo:
   - Só uma cópia local, fora do git: descartada pelo usuário.
   - Git LFS: não considerada necessária, porque os arquivos têm menos de 4 MB.
   - Versionar também a cópia executada do notebook: descartada, por ser regenerável.
+
+## D-042: Política 7: resultados das simulações num JSON e logs apagados
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário pediu "adiciona a política de sempre deixar um json para os notebook de simulação consultarem ao plotar, os logs devem ser salvos, o json salva as informações relevantes e os logs apagados para economizar espaço". Claude decidiu a redação, o que entra na política a partir da prática das decisões D-039 a D-041, e as interpretações listadas abaixo.
+- **Situação:** vigente. Transforma em regra permanente o que foi feito em [D-036](#d-036-célula-do-teste-dropoutipynb-que-grava-os-resultados-em-json), D-039, D-040 e D-041 para dois notebooks.
+- **Contexto:** os logs de uma simulação do StoCFL ocupam centenas de GB (o `psi.pkl` tem ~1,5 GB por execução), e liberar espaço exigiu, caso a caso, gravar um JSON, conferir que os notebooks plotavam dele e só então apagar. O usuário quis que isso seja a regra para as próximas simulações.
+- **Decisão (do usuário):** a regra em três partes: os logs são gravados durante a simulação, um JSON guarda as informações relevantes e é o que os notebooks consultam ao plotar, e os logs são apagados depois, para economizar espaço.
+- **Decisão (de Claude, interpretação e redação):**
+  - Entendi "os logs devem ser salvos" como gravados durante a simulação, de onde o JSON é gerado, e depois apagados. Se significasse guardá-los para sempre, a regra contradiria o "logs apagados".
+  - **Apagar sem esperar pedido separado, depois de verificar:** o usuário descreveu a exclusão como parte da regra. A segurança vem das condições escritas na política: o notebook em modo JSON gera os mesmos gráficos que o modo com logs, o JSON é consistente com os logs, os caminhos são listados antes e cada um consta no JSON, e só se apagam os logs **daquela** simulação, nunca os dados de entrada (`datasets/`).
+  - **Lições de D-039 e D-040 viraram itens da política:** conferir a saída padrão e os arquivos auxiliares, e não só o log principal (em D-039 apaguei sem conferir os `pipeline-*.txt`, que guardavam os cossenos de cada rodada); JSON estrito e gravado em arquivo temporário; parâmetro `DADOS_JSON` com trava contra relançar a simulação quando faltam os logs.
+  - **Cópia versionada compactada em `docs/resultados/`:** é a escolha do usuário em [D-041](#d-041-jsons-de-resultados-versionados-compactados-e-primeiro-push-da-branch) estendida a regra, porque depois de apagar os logs o JSON é a única cópia e `logs/` é ignorado pelo git. Se o usuário não quiser isso como regra permanente, basta tirar esse item.
+  - **Push continua só a pedido** (política 6): a cópia versionada entra num commit local.
+  - Numerada como **7**, sem renumerar, porque a documentação cita as políticas 1 a 6 pelo número.
+  - O texto sobre o remote na seção "Estrutura de referência" do CLAUDE.md (que diz que não há remote) **não foi alterado**, por não fazer parte do pedido; a divergência segue registrada na D-041. Foi acrescentada a linha de `docs/resultados/` nessa seção.
+- **Situação dos notebooks existentes:**
+  - `projetos/StoCFL/teste-dropout.ipynb`: cumpre (`DADOS_JSON`, trava, JSON em `logs/` e cópia em `docs/resultados/`).
+  - `projetos/StoCFL/teste-fracao-clientes.ipynb`: **não cumpre**, porque ainda não lê o JSON (D-040). Não foi alterado por ter alterações do usuário sem commit. É uma pendência.
+  - `projetos/clustered-federated-learning/clustered_federated_learning.ipynb`: não grava logs em disco (a pasta tem 116 KB e o código não grava `pkl`, `json` nem pasta de logs), então a política não se aplica.
+  - `projetos/StoCFL/datasets/femnist/Femnist_stats.ipynb`: estatísticas do FEMNIST, não é simulação.
+- **Alternativas consideradas:**
+  - Pedir confirmação a cada exclusão de logs: descartada, porque o usuário descreveu a exclusão como parte da regra e a verificação com listagem prévia já protege.
+  - Apagar só o `psi.pkl` e manter o resto dos logs: descartada, porque o `psi.pkl` é quase todo o espaço, mas as centenas de pastas pequenas tornavam `logs/` impraticável, e o JSON as substitui.
+  - JSON só em `logs/`, sem cópia versionada: descartada, porque deixaria uma única cópia dos resultados num diretório ignorado pelo git.
+  - Versionar o JSON sem compactar: descartada em D-041 (36 MB no histórico para dois arquivos).
+  - Aplicar a regra só às simulações novas, sem listar os notebooks existentes: descartada, porque o `teste-fracao-clientes.ipynb` já a descumpre e o usuário precisa saber.
