@@ -592,7 +592,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário pediu "quando acabar salva os resultados em um json", sem dizer onde nem o quê. Claude decidiu, por serem escolhas triviais e reversíveis, o local, o conteúdo e a forma.
-- **Situação:** vigente. Acrescenta uma seção ao notebook de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test), sem mudar os cenários.
+- **Situação:** vigente. Acrescenta uma seção ao notebook de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test), sem mudar os cenários. O conteúdo do JSON foi ampliado em [D-039](#d-039-dados-brutos-no-json-e-exclusão-dos-logs-da-grade-do-dropout).
 - **Contexto:** a grade completa (120 execuções, D-035) estava rodando em segundo plano, e o usuário quis os resultados num arquivo para analisar fora do notebook.
 - **Decisão:**
   - Uma célula final (seção 7) grava `projetos/StoCFL/logs/resultados-dropout.json`, ao lado do `busca-tau.json`. O `logs/` é ignorado pelo git, então o JSON **não é versionado**, e o commit leva só a célula.
@@ -614,7 +614,7 @@ Para cada decisão, a entrada segue este modelo:
 - **Decisão (do usuário):** rodar a grade com os valores de D-035 (`n = 240`, `k` = 8 e 16, `m` = 100% e 50%, `d` = 0, 0,05 e 0,1, `L` em 1..10, `τ = 0,75`, 50 rodadas, seeds 0 a 9) e gravar o JSON ao terminar.
 - **Decisão (de Claude, trivial e reversível):**
   - Executar o notebook com o `nbclient` (kernel do `.venv`), sem alterar parâmetros, em segundo plano e com limite de 24 h. Levou 205 min: 118 execuções novas e 2 reaproveitadas de 2026-11-06.
-  - Manter `APAGAR_PSI = False` e `REEXECUTAR = False`. Os `psi.pkl` das 118 execuções novas ocupam ~184 GB (sobraram 145 GB livres no `/home`), e Claude não apagou nada sem pedido.
+  - Manter `APAGAR_PSI = False` e `REEXECUTAR = False`. Os `psi.pkl` das 118 execuções novas ocupam ~184 GB (sobraram 145 GB livres no `/home`), e Claude não apagou nada sem pedido (o usuário pediu depois, ver [D-039](#d-039-dados-brutos-no-json-e-exclusão-dos-logs-da-grade-do-dropout)).
   - **Reexecutar o notebook depois**, porque a execução da grade carregou a versão de 15 células, anterior à célula do JSON. A segunda execução, com as 120 prontas, durou 7 s e gravou `logs/resultados-dropout.json`. Conferido: JSON estrito, 120 execuções com 240 rótulos, 6000 linhas por rodada (120 × 50), última rodada igual às métricas finais e 120 pastas distintas.
   - Conferir por que `k` = 8 e 16 têm a mesma rodada estável em todas as execuções: ela é a 1ª rodada com cobertura de 100% nas 120 execuções, e o ARI chega a 1,0 nessa mesma rodada.
   - O JSON e a cópia executada do notebook (no scratchpad da sessão) **não são versionados**.
@@ -641,3 +641,27 @@ Para cada decisão, a entrada segue este modelo:
   - Versionar a cópia (por exemplo em `docs/`): descartada por ora, porque não foi pedido e é um resultado de execução; pode ser feito depois.
   - Guardar a cópia fora do repositório (scratchpad da sessão): descartada, porque o usuário não a encontraria.
   - Guardá-la em `projetos/StoCFL/`: descartada, porque o git a mostraria como arquivo sem commit, junto com os arquivos do usuário.
+
+## D-039: Dados brutos no JSON e exclusão dos logs da grade do dropout
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário pediu "preciso liberar espaço, salve apenas as informações importantes no json e apague os logs. Salve o necessário para poder plotar os gráficos novamente caso precise". Claude decidiu, por serem escolhas do mesmo pedido, o que é "importante", o escopo da exclusão e como o notebook plota sem os logs.
+- **Situação:** vigente. Amplia o JSON de [D-036](#d-036-célula-do-teste-dropoutipynb-que-grava-os-resultados-em-json) e passa a apagar o que [D-037](#d-037-execução-da-grade-completa-do-teste-dropoutipynb-e-geração-do-json) manteve em disco.
+- **Contexto:** a grade de 120 execuções (D-037) ocupava ~180 GB em `logs/`, quase todo em `psi.pkl`, e o `/home` estava com 145 GB livres. O notebook calculava tudo lendo os logs, então apagá-los sem mais nada o deixaria sem poder plotar, e executá-lo de novo tentaria rodar a grade inteira (205 min, ~180 GB).
+- **Decisão (do usuário):** guardar o necessário no JSON, apagar os logs e manter a possibilidade de replotar.
+- **Decisão (de Claude):**
+  - **Dados brutos no JSON**, por execução: `rotulos_por_rodada` (o cluster de cada cliente em cada rodada), `sorteados_por_rodada`, `indisponiveis_por_rodada` e `cossenos_entre_clusters` (do `cos_rec.log`: o cosseno de cada par de clusters da última rodada, cujo maior valor contra `τ` é a margem da partição final). As três primeiras listas são tudo de que o notebook calcula as métricas, as figuras e as matrizes; os cossenos eram a única informação analítica que só existia nos logs. O JSON ficou com 13.4 MB. As chaves que já existiam não mudaram.
+  - **Notebook (`teste-dropout.ipynb`):** parâmetro `DADOS_JSON` (padrão `False`, o comportamento com logs não muda). Com `True`, a célula de execução carrega o JSON (conferindo que os parâmetros da célula 1 são os mesmos do arquivo) e não roda nada, e a célula final não grava. Uma **trava** faz o notebook parar com `RuntimeError` se faltarem execuções, o JSON tiver os resultados desta grade e `REEXECUTAR` for `False`, para ninguém relançar a grade sem querer depois de apagar os logs. O JSON passou a ser gravado num arquivo temporário e trocado, porque agora é a única cópia.
+  - **Verificação antes de apagar:** (1) as chaves antigas do JSON ficaram idênticas às do arquivo anterior; (2) nos dados brutos das 120 execuções, nenhum sorteado estava indisponível, o nº de sorteados foi `min(m, disponíveis)` em todas as 6000 rodadas e o nº de clusters do `cos_rec.log` foi igual ao de clusters finais; (3) o notebook em modo `DADOS_JSON` gerou as mesmas 12 figuras (campo a campo) e as 2 tabelas que o modo com logs, sem alterar o JSON. Esse teste achou um erro: a chave nova `participantes` colidia com a métrica `participantes` (a média por rodada) e a sobrescrevia; foi renomeada para `sorteados_por_rodada`.
+  - **Exclusão:** as 118 pastas `runs-...-time-11-09-*` listadas no JSON (~180 GB) e os 118 arquivos `logs/pipeline-dropout-*.txt` (128 MB, a saída do script, repetida no `rotated_mnist.log` de cada pasta). O espaço livre do `/home` foi de 145 GB para 317 GB. Cada caminho foi conferido antes de apagar (nome no padrão da grade, presença no JSON, sem links). Depois, o notebook em modo `DADOS_JSON` replotou as 12 figuras sem nenhum log.
+  - **Não guardados:** o `psi.pkl` (o notebook não o usa; para tê-lo, é preciso rodar a grade de novo), o `cluster_rec.log` (repete a partição final), os tempos e a linha de argumentos de cada execução.
+  - **Mantidos:** as 2 pastas de 2026-11-06 (seed 0, `m` = 100%, `k` = 8 e 16, ~3 GB, que também servem ao notebook de `m`), as outras 151 pastas de logs (notebooks de `m` e busca de `τ`), `busca-tau.json`, o JSON e a cópia executada do notebook (agora gerada em modo `DADOS_JSON`), e todo o `datasets/` (56 GB de dados, que não são logs).
+- **Resultado novo:** as margens de `τ`. Com `k = 8`, o maior cosseno entre clusters da partição final fica 0,364 a 0,407 abaixo de `τ = 0,75`; com `k = 16`, só 0,019 a 0,036 abaixo (maior cosseno 0,714–0,731), e a margem é a mesma em todos os cenários de `m` e de dropout. Ver o [guia](guia.md), seção 4.11.
+- **Alternativas consideradas:**
+  - Guardar só o que já estava no JSON: descartada, porque o notebook não conseguiria replotar (ele calcula tudo a partir das partições por rodada) nem calcular métricas novas.
+  - Guardar o `psi.pkl`, mesmo compactado: descartada, porque são ~1,5 GB por execução e o objetivo era liberar espaço.
+  - Guardar o `cluster_rec.log`, os tempos e a linha de argumentos: descartada, por serem redundantes (partição final, já nos rótulos) ou sem uso na análise.
+  - Notebook novo que só lê o JSON: descartada, porque duplicaria o código dos gráficos; o modo `DADOS_JSON` reaproveita as mesmas células, e isso permitiu comparar as figuras campo a campo com o modo com logs.
+  - Usar o JSON automaticamente quando faltam logs: descartada, porque trocaria os dados sem o usuário saber; a trava com aviso e o parâmetro explícito deixam claro o que está sendo usado.
+  - Apagar também as 2 execuções de 06/11, as outras 151 pastas ou o `datasets/`: não feita, porque as pastas são de outros notebooks e os dados não são logs; o usuário pode pedir.
+  - Mover o JSON para fora de `logs/`: não feita; o local é o de D-036. **Risco:** `logs/` é ignorado pelo git, então o JSON e a cópia executada não têm outra cópia, e apagar `logs/` inteiro os perde.
