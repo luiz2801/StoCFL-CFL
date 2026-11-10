@@ -739,3 +739,31 @@ Para cada decisão, a entrada segue este modelo:
   - JSON só em `logs/`, sem cópia versionada: descartada, porque deixaria uma única cópia dos resultados num diretório ignorado pelo git.
   - Versionar o JSON sem compactar: descartada em D-041 (36 MB no histórico para dois arquivos).
   - Aplicar a regra só às simulações novas, sem listar os notebooks existentes: descartada, porque o `teste-fracao-clientes.ipynb` já a descumpre e o usuário precisa saber.
+
+## D-043: Simulação do dropout com treino federado: dados, grade e métricas
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário pediu a simulação e respondeu duas rodadas de perguntas (grade, rodadas, hiperparâmetros, notebook e distribuição dos dados). Claude decidiu, por serem triviais e reversíveis, os itens listados abaixo, que o usuário pode trocar.
+- **Situação:** vigente. Só o planejamento foi feito (e uma calibração curta); a execução depende de nova autorização. Estende [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test), que testou só a clusterização (`--train 0`), para o StoCFL completo (`--train 1`). O plano está em [plano-dropout-treino-stocfl.md](plano-dropout-treino-stocfl.md).
+- **Contexto:** o usuário viu, na grade de D-037, que a clusterização funciona apesar do dropout, e quis testar num ambiente de aprendizado federado. Nele o nº de clusters não é conhecido a priori, e a clusterização deve ocorrer sem interferência: 10 seeds (as mesmas), dropout de 5% e 10%, `τ = 0.75` e `n = 240`. A calibração de 2026-11-10 (3 rodadas, `--train 1`) mostrou que o treino não muda o sorteio nem a partição (idênticos aos de `--train 0` em 2 execuções), então o que a simulação acrescenta é a acurácia, e mediu o tempo: ~10,5 h para a grade escolhida, sem ganho em rodar duas execuções em paralelo na GPU.
+- **Decisão (do usuário):**
+  - **Sem `k` fixo.** Resposta: "não deve haver um k fixo, eu fixei ele para ver o desempenho dos algoritmos de clusterização. O k deve ser definido com base na distribuição de dados." Interpretação de Claude, confirmada pelo usuário ao escolher a opção de dados: o `k` deixa de ser fator da grade (as grades de `k = 8` e `16` de D-035 não se repetem), o algoritmo não recebe o `k` (nunca recebeu: o `k` só gera os dados e escolhe o teste na avaliação) e os dados são o **Rotated MNIST padrão, com 4 rotações** (0°, 90°, 180°, 270°).
+  - `m` = 100% e 50%, `n = 240`, 10 seeds (0 a 9), `d` = 0,05 e 0,1, `τ = 0.75`.
+  - **50 rodadas.**
+  - **Hiperparâmetros do artigo** para o Rotated MNIST (Tabela 1): `lr = 0.1`, 5 épocas, `μ = 0.05` e batch cheio.
+  - **Notebook novo**, `projetos/StoCFL/teste-dropout-treino.ipynb`.
+- **Decisão (de Claude, trivial e reversível):**
+  - Incluir o cenário **sem dropout** como referência (o usuário falou só de 5% e 10%, mas sem ele não há efeito a medir). São 60 execuções, e não 40.
+  - `--drop_rounds 10`, como em D-035: o usuário disse "dropout de 5% e 10%" sem mudar a duração da ausência.
+  - Métricas de aprendizado: acurácia do modelo do cluster e do global ponderada pelos participantes, média das rodadas 41 a 50 como valor final e a primeira rodada acima de um limiar (`LIMIAR_ACC`, padrão 0,90) como medida de velocidade. Wilcoxon por seed, sem correção para comparações múltiplas, como em D-035.
+  - Nome do JSON (`logs/resultados-dropout-treino.json`, com cópia em `docs/resultados/`), uma execução por vez e `APAGAR_PSI = True`.
+  - Não alterar o script nem os diagramas: a acurácia por cluster sai do log (que traz o id do cluster) e do `accuracy.pkl`.
+  - Fazer a calibração de 3 rodadas (3 execuções de 8 e 16 rotações, mais 2 de 4 rotações) antes de planejar, para ter tempos medidos. Os logs dela, 5 pastas de ~1,3 GB, foram apagados na hora; as únicas pastas de `logs/runs-*` eram as dela.
+- **Alternativas consideradas:**
+  - `k` = 8 e 16 como na D-035 (120 execuções, ~62 h) ou só `k = 8` (60 execuções, ~22 h, partições já em disco): descartadas pelo usuário, porque o `k` não deve ser fator.
+  - Outra distribuição (Rotated CIFAR-10, FEMNIST): não escolhida. O `StoCFL-FEMNIST.py` ainda não tem `--drop` e o FEMNIST tem 3.597 clientes, não 240.
+  - 100 rodadas, como o artigo: descartada pelo usuário em favor de 50 (dobraria o tempo).
+  - Batch 50, o exemplo do README: descartada pelo usuário; seriam ~40 vezes mais passos por época e foge do artigo no MNIST.
+  - Estender o `teste-dropout.ipynb`: descartada pelo usuário; misturaria duas grades no mesmo JSON e mexeria num notebook já verificado.
+  - Rodar execuções em paralelo na GPU: descartada pela medição (duas execuções levaram 150 s e 197 s, contra 69 s de uma sozinha).
+  - Reaproveitar a clusterização do JSON de D-037 em vez de rodar o treino: não se aplica, porque aquele JSON é de 8 e 16 rotações e o objetivo é a acurácia.
