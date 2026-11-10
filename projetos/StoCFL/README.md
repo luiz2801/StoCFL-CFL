@@ -60,6 +60,25 @@ python StoCFL-FCC+CFL.py --n 240 \
 
 A execução grava, além dos arquivos de sempre, o `availability.pkl` (indisponíveis por rodada) e a linha `unavailable` no log, e a pasta de logs ganha `-drop0.1-r10` no nome.
 
+### Rótulos non-IID por Dirichlet (opcional)
+
+O `StoCFL-FCC+CFL.py` aceita `--dirichlet_alpha α`, que troca a rotação por **rótulos non-IID**: o MNIST de treino, sem rotação, é dividido entre os `--n` clientes com proporções `Dir(α)` por classe (`hetero_dir_partition` do FedLab, mínimo de 50 amostras por cliente, semeado pela `--seed`), e todo cluster é avaliado no MNIST de teste inteiro. Exige `--dataset mnist` e `--k 1`. Sem a flag, nada muda. Não há grupos reais: o nº de clusters é um resultado, e o `--tau` controla a granularidade. Detalhes no [guia técnico](../../docs/guia.md) (seções 4.7, 4.9 e 4.11) e no [plano](../../docs/plano-dropout-treino-stocfl.md).
+
+```
+python StoCFL-FCC+CFL.py --n 240 \
+                         --k 1 \
+                         --dirichlet_alpha 0.5 \
+                         --dataset mnist \
+                         --com_round 50 \
+                         --num_per_round 120 \
+                         --train 1 \
+                         --tau 0.8 \
+                         --seed 0 \
+                         --process 1
+```
+
+Os dados vão para `datasets/rotated_mnist_240_0_k1_a0.5/` e a pasta de logs ganha `-k1-a0.5` no nome. Com `--train 1`, o `accuracy.pkl` traz, além da acurácia de cada cluster sorteado e do modelo global, o **recall por classe** no mesmo teste (`cluster_recall` e `global_recall`), em qualquer cenário.
+
 ## Testes
 
 ### Módulo de disponibilidade (`--drop`)
@@ -68,6 +87,14 @@ Os testes unitários do [availability.py](availability.py) rodam sem GPU, a part
 
 ```
 ../../.venv/bin/python -m unittest tests/test_availability.py -v
+```
+
+### Particionador Dirichlet e recall por classe (`--dirichlet_alpha`)
+
+Os testes do `dirichlet_partition` ([datasets.py](datasets.py)) e do `evaluate_recall` ([functional.py](functional.py)) rodam sem GPU e precisam do MNIST em `datasets/mnist/` (sem ele, os do particionador são pulados):
+
+```
+../../.venv/bin/python -m unittest tests/test_dirichlet.py -v
 ```
 
 ### Efeito do dropout na clusterização

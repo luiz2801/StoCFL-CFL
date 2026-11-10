@@ -21,9 +21,11 @@ flowchart TD
     Ini(("Início")):::node0
 
     %% ---------- Preparação ----------
-    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obbs, tau, train, seed, dataset, k, drop, drop_rounds) e chamar setup_seed"]:::sc
+    P1["Ler argumentos (n, com_round, num_per_round, lr, epochs, mu,<br/>obbs, tau, train, seed, dataset, k, drop, drop_rounds, dirichlet_alpha) e chamar setup_seed"]:::sc
     D0{"process == 1?"}:::ctl
+    Ddir{"dirichlet_alpha definido?"}:::ctl
     P3["pre_process: rotacionar o dataset e gravar n partições<br/>(MNIST: k ângulos 360°·i/k, padrão 0°, 90°, 180°, 270° · CIFAR-10: 0°, 180°)"]:::sc
+    P3D["pre_process_dirichlet: dividir o MNIST de treino, sem rotação, entre os n clientes<br/>com proporções Dir(alpha) por classe (mínimo de 50 amostras)<br/>e gravar um só teste, o MNIST de teste inteiro (k = 1)"]:::sc
     P4["Escolher modelo e trainer<br/>mnist: SimpleLinear · cifar: CNN_CIFAR10 (k = --k; padrão 4 e 2)<br/>RotatedMNISTTrainer(model, args)"]:::sc
     P5["Criar a pasta de logs e o Logger, registrar os argumentos"]:::sc
     P6["StandaloneServer: cada cliente em seu próprio cluster<br/>psi = {}, cluster_parameters = {}<br/>gmodel = anchor = modelo inicial<br/>availability = Availability(n, drop, drop_rounds, seed)"]:::sv
@@ -70,18 +72,20 @@ flowchart TD
 
     subgraph RC["para cada cluster sorteado"]
         A1["cluster_parameters[cluster] = FedAvg dos modelos<br/>atualizados dos seus clientes"]:::sv
-        A2["avaliar o modelo do cluster no teste da rotação<br/>do primeiro cliente do cluster"]:::sv
-        A3["avaliar gmodel no mesmo teste (g_test)"]:::sv
+        A2["evaluate_recall do modelo do cluster no teste da rotação<br/>do primeiro cliente do cluster (acurácia e recall por classe)"]:::sv
+        A3["evaluate_recall de gmodel no mesmo teste (g_test e recall)"]:::sv
     end
 
-    T5["Registrar as acurácias no log e em accuracy.pkl"]:::sv
+    T5["Registrar as acurácias no log e acurácias e recalls em accuracy.pkl"]:::sv
     Dvaz{"há participantes na rodada?"}:::ctl
     TV["rodada vazia: accuracy_log recebe uma entrada com cluster e global vazios<br/>sem treino e sem avaliação, gmodel não muda"]:::sv
     Dend{"há mais rodadas?"}:::ctl
     Fim((("Fim"))):::node0
 
     Ini --> P1 --> D0
-    D0 -->|"sim"| P3 --> P4
+    D0 -->|"sim"| Ddir
+    Ddir -->|"não"| P3 --> P4
+    Ddir -->|"sim"| P3D --> P4
     D0 -->|"não"| P4
     P4 --> P5 --> P6 --> Ddrop
     Ddrop -->|"sim"| AV1 --> S1A
@@ -134,12 +138,13 @@ Os retângulos tracejados são repetições (UML: região de expansão). Losango
 - **Uniões em ordem de cosseno.** A matriz de cossenos é calculada uma vez por rodada. Os pares são percorridos do maior cosseno ao menor, e o primeiro par que não passa de `tau` encerra a rodada de uniões. Os cossenos não são recalculados depois de cada união.
 - **Dois modelos por cliente.** No treino, cada cliente sorteado atualiza o modelo do seu cluster, com um termo proximal que o mantém perto de `gmodel`, e treina também o modelo global. O servidor faz a média de cada um.
 - **Modelo global por FedAvg.** Em `RotatedMNISTTrainer.train`, cada cliente do segundo laço parte do mesmo `gmodel` da rodada, e o servidor faz a média dos modelos resultantes.
-- **Teste do cluster.** O teste usa a rotação do primeiro cliente do cluster (`int(cluster_content[0] * k / n)`). Se um cluster misturar rotações, a acurácia dele só reflete uma delas.
+- **Rótulos non-IID opcionais.** Com `dirichlet_alpha`, `pre_process_dirichlet` substitui a rotação: cada classe do MNIST é dividida entre os clientes com proporções `Dir(alpha)`, e há um só teste. O script exige `k = 1`, então o resto do fluxo não muda (o teste de todo cluster é o mesmo). Sem a flag, a partição por rotação é a de sempre.
+- **Teste do cluster.** O teste usa a rotação do primeiro cliente do cluster (`int(cluster_content[0] * k / n)`). Se um cluster misturar rotações, a acurácia dele só reflete uma delas. Além da acurácia, `evaluate_recall` devolve o recall de cada classe, gravado em `accuracy.pkl` (`cluster_recall`, `global_recall`).
 
 ## Variações dos scripts
 
 | Script | Dados e modelo | Trainer | Diferenças no laço |
 | --- | --- | --- | --- |
-| `StoCFL-FCC+CFL.py` | MNIST rotacionado (`SimpleLinear`, k=4 por padrão, ou o `--k` passado) ou CIFAR-10 rotacionado (`CNN_CIFAR10`, k=2) | `RotatedMNISTTrainer` | `train=1` por padrão. Grava `psi.pkl`, `cluster.pkl` e `accuracy.pkl` a cada rodada. Único com `--drop` e `--drop_rounds` (dropout com retorno): com `drop > 0`, também grava `availability.pkl`. |
+| `StoCFL-FCC+CFL.py` | MNIST rotacionado (`SimpleLinear`, k=4 por padrão, ou o `--k` passado), MNIST com rótulos non-IID por Dirichlet (`--dirichlet_alpha`, k=1) ou CIFAR-10 rotacionado (`CNN_CIFAR10`, k=2) | `RotatedMNISTTrainer` | `train=1` por padrão. Grava `psi.pkl`, `cluster.pkl` e `accuracy.pkl` (com o recall por classe) a cada rodada. Único com `--drop` e `--drop_rounds` (dropout com retorno), com `drop > 0` também grava `availability.pkl`, e único com `--dirichlet_alpha`. |
 | `StoCFL-FCC.py` | MNIST em quatro configurações (`--setting`: fskewed, lskewed, shifted, rotated), `SimpleLinear` | Um trainer por configuração | `train=0` por padrão, só agrupamento. Grava o histórico de clusters ao final. Com `train=1`, chama `client_trainer.evaluate`. Entre os trainers de `trainer.py`, só o `ShiftedMNISTTrainer` define esse método, e ele usa `range(id_list)` sobre uma lista. |
 | `StoCFL-FEMNIST.py` | FEMNIST (3597 clientes), `CNN_FEMNIST` | `FEMNISTTrainer` | `train=0` por padrão. Mede o modelo global no teste global do FEMNIST e cada cluster no teste dos seus clientes. A medição global roda antes de `gmodel` ser carregado no modelo do servidor, então reflete o `gmodel` da rodada anterior. |

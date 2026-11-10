@@ -90,7 +90,7 @@ class StandaloneServer(ModelMaintainer):
             # clustered federated optimization
             if self.args.train and not cid_this_round:
                 # empty round (nobody available): fedavg_aggregate needs a non-empty list, keep one entry per round
-                accuracy_log.append({"cluster": [], "global": []})
+                accuracy_log.append({"cluster": [], "global": [], "cluster_recall": [], "global_recall": []})
                 torch.save(accuracy_log, "{}/accuracy.pkl".format(self.args.dir))
             elif self.args.train:
                 for id in cid_this_round:
@@ -103,8 +103,9 @@ class StandaloneServer(ModelMaintainer):
                 self.gmodel = Aggregators.fedavg_aggregate(gmodels)
 
                 # update cluster models
-                g_test = []
-                accuracy = {"cluster":[], "global": None}
+                g_test, g_recall = [], []
+                # *_recall: recall of each class on the same test set, one list per evaluated cluster (same order as "cluster")
+                accuracy = {"cluster":[], "global": None, "cluster_recall": [], "global_recall": None}
                 sampled_cluster, updates_bucket = self.bucket(cid_this_round, updated_cmodels)
                 for cluster, updates in zip(sampled_cluster, updates_bucket):
                     self.cluster_parameters[cluster] = Aggregators.fedavg_aggregate(updates)
@@ -112,15 +113,18 @@ class StandaloneServer(ModelMaintainer):
 
                     cluster_content = self.find_cluster_content[cluster]
                     test_loader = self.client_trainer.get_test_dataloader(int(cluster_content[0]*self.args.k/self.args.n))
-                    loss, acc = evaluate(self._model, torch.nn.CrossEntropyLoss(), test_loader)
+                    loss, acc, recall = evaluate_recall(self._model, torch.nn.CrossEntropyLoss(), test_loader)
                     self.args.exp_logger.info("Round {}, Cluster {} - Global Test loss: {:.4f}, acc: {:.4f}".format(round, cluster, loss, acc))
                     accuracy["cluster"].append(acc)
+                    accuracy["cluster_recall"].append(recall)
 
                     # global test
                     SerializationTool.deserialize_model(self._model, self.gmodel)
-                    _, acc = evaluate(self._model, torch.nn.CrossEntropyLoss(), test_loader)
+                    _, acc, recall = evaluate_recall(self._model, torch.nn.CrossEntropyLoss(), test_loader)
                     g_test.append(acc)
+                    g_recall.append(recall)
                 accuracy["global"] = g_test
+                accuracy["global_recall"] = g_recall
                 accuracy_log.append(accuracy)
                 torch.save(accuracy_log, "{}/accuracy.pkl".format(self.args.dir))
                 self.args.exp_logger.info("Round {}, Global acc: {}".format(round, g_test))
@@ -226,6 +230,8 @@ if __name__ == "__main__":
     # dropout with return (0 = off, the sampling of num_per_round is the same as before)
     parser.add_argument("--drop", type=float, default=0.0) # probability that an available client drops in a round, in [0, 1)
     parser.add_argument("--drop_rounds", type=int, default=1) # L_max: each absence lasts U{1..L_max} rounds
+    # non-IID labels (None = off, the rotated partition as before): Dirichlet(alpha) over the clients per class, MNIST not rotated, needs k = 1
+    parser.add_argument("--dirichlet_alpha", type=float, default=None)
     # datset
     parser.add_argument("--process", type=int, default=0)
 
@@ -243,15 +249,21 @@ if __name__ == "__main__":
     assert 0 <= args.drop < 1, "drop must be in [0, 1)"
     assert args.drop_rounds >= 1, "drop_rounds must be >= 1"
     assert args.drop == 0 or args.num_per_round <= args.n, "num_per_round must be <= n"
+    assert args.dirichlet_alpha is None or (args.dataset == "mnist" and args.k == 1 and args.dirichlet_alpha > 0), "dirichlet_alpha needs mnist, k=1 and alpha > 0"
     # the default k keeps the original names; another k gets a suffix so the datasets and logs of different k do not mix
     k_tag = "" if args.k == default_k else "_k{}".format(args.k)
+    # the same for alpha: the Dirichlet data and logs get _a{alpha}
+    if args.dirichlet_alpha is not None:
+        k_tag += "_a{}".format(args.dirichlet_alpha)
 
     args.root = "./datasets/{}/".format(args.dataset)
     args.save_dir = "./datasets/rotated_{}_{}_{}{}/".format(args.dataset, args.n, args.seed, k_tag)
 
     if args.process:
         print("Preprocessing datasets...")
-        if args.dataset == "mnist":
+        if args.dataset == "mnist" and args.dirichlet_alpha is not None:
+            RotatedMNIST(args.root, args.save_dir).pre_process_dirichlet(args.n, args.dirichlet_alpha, args.seed)
+        elif args.dataset == "mnist":
             dataset = RotatedMNIST(args.root, args.save_dir)
             # dataset = RotatedMNISTPartitioner(args.root, args.save_dir)
             dataset.pre_process(thetas=[360 * i / args.k for i in range(args.k)], shards=args.n // args.k)

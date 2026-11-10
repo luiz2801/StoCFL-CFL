@@ -100,6 +100,30 @@ def parse_matrix(M, id_list, descending=True):
         #print("%s:%f" % (key,content[key]))
     return sorted_key, content
 
+def evaluate_recall(model, criterion, test_loader):
+    # fedlab's evaluate (loss summed over the batches, accuracy) plus the recall of each class, in the same single pass.
+    # recall[c] = hits of class c / samples of class c (None if the test set has no sample of c)
+    model.eval()
+    gpu = next(model.parameters()).device
+    loss_sum, correct, total = 0.0, 0, 0
+    hits, count = None, None
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs = inputs.to(gpu)
+            labels = labels.to(gpu)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            _, predicted = torch.max(outputs, 1)
+            loss_sum += loss.item()
+            correct += torch.sum(predicted.eq(labels)).item()
+            total += len(labels)
+            num_classes = outputs.shape[1]
+            h = torch.bincount(labels[predicted.eq(labels)], minlength=num_classes).cpu()
+            c = torch.bincount(labels, minlength=num_classes).cpu()
+            hits, count = (h, c) if hits is None else (hits + h, count + c)
+    recall = [h / c if c > 0 else None for h, c in zip(hits.tolist(), count.tolist())]
+    return loss_sum, correct / total, recall
+
 def evaluate_personalization(model, parameter_list, test_loader):
     stat_loss, stat_acc = [], [], [], []
     for parameter in range(parameter_list):

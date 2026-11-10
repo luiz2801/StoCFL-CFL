@@ -449,27 +449,29 @@ Ao longo das rodadas, clusters de clientes com a mesma distribuição vão se ju
 | Script | Propósito | Cenários | Estado |
 |---|---|---|---|
 | [StoCFL-FCC.py](StoCFL/StoCFL-FCC.py) | **FCC = Federated Client Clustering**: avaliar só a clusterização (`--train 0` por padrão). | `fskewed`, `lskewed`, `shifted`, `rotated` | Roda com `--train 0` em `shifted`, `fskewed` e `lskewed` (este com `--process 0`, 4.12 #3). `rotated` não funciona neste script (4.12 #2). |
-| [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py) | Clusterização + treino bi-nível (`--train 1` por padrão). | Rotated MNIST (4 rotações) / Rotated CIFAR-10 (2 rotações) | **Script principal e mais consistente.** |
+| [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py) | Clusterização + treino bi-nível (`--train 1` por padrão). | Rotated MNIST (4 rotações, ou `--k`) / Rotated CIFAR-10 (2 rotações) / MNIST com rótulos non-IID por Dirichlet (`--dirichlet_alpha`, `k = 1`) | **Script principal e mais consistente.** |
 | [StoCFL-FEMNIST.py](StoCFL/StoCFL-FEMNIST.py) | StoCFL em FEMNIST (particionamento natural por escritor, sem ground truth de cluster). | FEMNIST (LEAF) | Roda; fluxo testado com pickles LEAF falsos, sem o dataset real (4.12 #5). |
 
 Os três definem **sua própria cópia** da classe `StandaloneServer` com a mesma lógica de clusterização e pequenas diferenças de avaliação e log. Uma mudança no algoritmo precisa ser replicada nos três.
 
-**Exceção atual:** `--drop` e `--drop_rounds` (dropout com retorno, 4.1) só existem no `StoCFL-FCC+CFL.py`. O `StoCFL-FCC.py` e o `StoCFL-FEMNIST.py` ainda não os têm e sorteiam `num_per_round` entre todos os clientes, como antes (D-032; mesmo precedente do `--k`, D-029). A replicação nos dois é o passo 5 do [plano](plano-dropout-stocfl.md): o mesmo bloco de sorteio e as mesmas flags, com o módulo `availability.py` compartilhado.
+**Exceção atual:** `--drop` e `--drop_rounds` (dropout com retorno, 4.1) e `--dirichlet_alpha` (rótulos non-IID, 4.7) só existem no `StoCFL-FCC+CFL.py`, e o recall por classe no `accuracy.pkl` (4.10) também. O `StoCFL-FCC.py` e o `StoCFL-FEMNIST.py` ainda não os têm e sorteiam `num_per_round` entre todos os clientes, como antes (D-032; mesmo precedente do `--k`, D-029). A replicação nos dois é o passo 5 do [plano](plano-dropout-stocfl.md): o mesmo bloco de sorteio e as mesmas flags, com o módulo `availability.py` compartilhado.
 
 ### 4.3 Grafo de chamadas (StoCFL-FCC+CFL.py)
 
 ```text
-__main__                                                    StoCFL-FCC+CFL.py:203
- ├─ argparse → args  (inclui --drop, --drop_rounds)
- ├─ setup_seed(args.seed)                                   functional.py:173
+__main__                                                    StoCFL-FCC+CFL.py:207
+ ├─ argparse → args  (inclui --drop, --drop_rounds, --dirichlet_alpha)
+ ├─ setup_seed(args.seed)                                   functional.py:197
  ├─ args.k = --k (default: 4 mnist, 2 cifar); exige n % k == 0 e, no cifar, k = 2
- ├─ exige 0 <= drop < 1, drop_rounds >= 1 e, com drop > 0, num_per_round <= n
- ├─ args.root = ./datasets/{dataset}/ ; args.save_dir = ./datasets/rotated_{dataset}_{n}_{seed}[_k{k}]/   (sufixo só se k ≠ padrão)
- ├─ [--process 1] RotatedMNIST.pre_process(thetas=[360·i/k], shards=n/k)   datasets.py:145
- │               RotatedCIFAR10Partitioner.pre_process(shards=n/2)  datasets.py:254
+ ├─ exige 0 <= drop < 1, drop_rounds >= 1 e, com drop > 0, num_per_round <= n; com --dirichlet_alpha, mnist, k = 1 e α > 0
+ ├─ args.root = ./datasets/{dataset}/ ; args.save_dir = ./datasets/rotated_{dataset}_{n}_{seed}[_k{k}][_a{α}]/   (sufixos só se k ≠ padrão e com --dirichlet_alpha)
+ ├─ [--process 1, sem --dirichlet_alpha] RotatedMNIST.pre_process(thetas=[360·i/k], shards=n/k)   datasets.py:157
+ │  [--process 1, --dirichlet_alpha α]  RotatedMNIST.pre_process_dirichlet(n, α, seed)   datasets.py:188
+ │                                        └─ dirichlet_partition → hetero_dir_partition (fedlab)   datasets.py:13
+ │               RotatedCIFAR10Partitioner.pre_process(shards=n/2)  datasets.py:284
  ├─ model = SimpleLinear (mnist) | CNN_CIFAR10 (cifar)
  ├─ trainer = RotatedMNISTTrainer(model, args)              trainer.py:231  (serve para mnist E cifar)
- ├─ os.mkdir(./logs/runs-rotated-...[-drop{d}-r{L_max}]-time-...)  ; Logger
+ ├─ os.mkdir(./logs/runs-rotated-...[-k{k}][-a{α}][-drop{d}-r{L_max}]-time-...)  ; Logger
  ├─ StandaloneServer(model, cuda, trainer, args)            StoCFL-FCC+CFL.py:30  (cria self.availability)
  └─ .main()                                                 StoCFL-FCC+CFL.py:54
       └─ para cada rodada:
@@ -481,11 +483,11 @@ __main__                                                    StoCFL-FCC+CFL.py:20
           │     ├─ dataset.get_data_loader(id, obbs)        trainer.py:260
           │     └─ dataset_representation(self, anchor, loader)   trainer.py:21
           ├─ cluster_center (média dos ψ de todos os membros)   functional.py:86
-          ├─ inter_cluster_union                            StoCFL-FCC+CFL.py:128
+          ├─ inter_cluster_union                            StoCFL-FCC+CFL.py:132
           │     ├─ dt_matrix → cosine_sim                   functional.py:77, :54
           │     ├─ parse_matrix (ordena pares)              functional.py:90
-          │     └─ unite(i, j)                              StoCFL-FCC+CFL.py:151
-          ├─ get_cluster (log + assert)                     StoCFL-FCC+CFL.py:190
+          │     └─ unite(i, j)                              StoCFL-FCC+CFL.py:155
+          ├─ get_cluster (log + assert)                     StoCFL-FCC+CFL.py:194
           ├─ [--train 1, rodada sem participantes] accuracy_log recebe {"cluster": [], "global": []}; sem treino
           └─ [--train 1, com participantes]
                 ├─ trainer.train(cids, modelos_cluster, gmodel)        trainer.py:243
@@ -493,7 +495,8 @@ __main__                                                    StoCFL-FCC+CFL.py:20
                 │     └─ _train_alone (global)              trainer.py:269
                 ├─ gmodel ← fedavg(gmodels)
                 ├─ modelo[k] ← fedavg(updates do cluster k)
-                └─ evaluate (fedlab) com trainer.get_test_dataloader(⌊cid·k/n⌋)
+                └─ evaluate_recall (functional.py:103; loss e acc iguais às do evaluate do fedlab, mais o recall por classe)
+                   com trainer.get_test_dataloader(⌊cid·k/n⌋)
 ```
 
 ### 4.4 Funções do servidor (`StandaloneServer`)
@@ -504,10 +507,10 @@ Linhas referentes a [StoCFL-FCC+CFL.py](StoCFL/StoCFL-FCC+CFL.py); a lógica é 
 |---|---|---|
 | `__init__` | [:30](StoCFL/StoCFL-FCC+CFL.py#L30) | Inicializa clusters unitários, `psi = {}`, `cluster_parameters = {}`, `gmodel`, `anchor` (= pesos iniciais) e `availability` (`Availability`, 4.8; só avança com `--drop > 0`). |
 | `main` | [:54](StoCFL/StoCFL-FCC+CFL.py#L54) | Loop de rodadas (fases 1–3 de 4.1) + logs/arquivos. Com `--drop > 0`, chama `availability.step()` e sorteia os `num_per_round` só entre os disponíveis; com `--drop 0`, sorteia entre todos, como antes. Rodada sem participantes: não treina, mas grava a partição e uma entrada vazia em `accuracy_log`. |
-| `bucket(client_list, items)` | [:177](StoCFL/StoCFL-FCC+CFL.py#L177) | Agrupa `items` (os modelos treinados) pelo cluster atual de cada cliente. Retorna `(ids_de_cluster_presentes, listas)` em ordem crescente de id. |
-| `inter_cluster_union(clusters, direções)` | [:128](StoCFL/StoCFL-FCC+CFL.py#L128) | Calcula o cosseno entre pares, grava `cos_rec.log`, funde pares com `cos > τ` em ordem decrescente e para no primeiro que não passa de `τ`. Com ≤ 1 cluster amostrado não faz nada. |
-| `unite(i, j)` | [:151](StoCFL/StoCFL-FCC+CFL.py#L151) | Union-find com relabel imediato. (a) Se `i` já foi absorvido nesta rodada (`i ∉ conteúdo[i]`), redireciona para o cluster atual do cliente `i`; idem `j`. (b) Mantém o **menor id**. (c) **Modelo:** se `|C_i| < |C_j|` e `j` tem modelo, `i` herda o modelo de `j` (o cluster maior "vence"); caso contrário `i` mantém o seu. (d) Move membros, esvazia `j` e apaga o modelo de `j`. |
-| `get_cluster` | [:190](StoCFL/StoCFL-FCC+CFL.py#L190) | Reescreve `cluster_rec.log` com a partição atual e faz `assert` de que todos os clientes estão em exatamente um cluster. |
+| `bucket(client_list, items)` | [:181](StoCFL/StoCFL-FCC+CFL.py#L181) | Agrupa `items` (os modelos treinados) pelo cluster atual de cada cliente. Retorna `(ids_de_cluster_presentes, listas)` em ordem crescente de id. |
+| `inter_cluster_union(clusters, direções)` | [:132](StoCFL/StoCFL-FCC+CFL.py#L132) | Calcula o cosseno entre pares, grava `cos_rec.log`, funde pares com `cos > τ` em ordem decrescente e para no primeiro que não passa de `τ`. Com ≤ 1 cluster amostrado não faz nada. |
+| `unite(i, j)` | [:155](StoCFL/StoCFL-FCC+CFL.py#L155) | Union-find com relabel imediato. (a) Se `i` já foi absorvido nesta rodada (`i ∉ conteúdo[i]`), redireciona para o cluster atual do cliente `i`; idem `j`. (b) Mantém o **menor id**. (c) **Modelo:** se `|C_i| < |C_j|` e `j` tem modelo, `i` herda o modelo de `j` (o cluster maior "vence"); caso contrário `i` mantém o seu. (d) Move membros, esvazia `j` e apaga o modelo de `j`. |
+| `get_cluster` | [:194](StoCFL/StoCFL-FCC+CFL.py#L194) | Reescreve `cluster_rec.log` com a partição atual e faz `assert` de que todos os clientes estão em exatamente um cluster. |
 
 ### 4.5 Estado do servidor e invariantes
 
@@ -564,14 +567,15 @@ Os Partitioners geram, em `--process 1`, um arquivo `data{cid}.pkl` (um `BaseDat
 
 | Classe | Linha | Geração |
 |---|---|---|
-| `BaseDataset` | [datasets.py:11](StoCFL/datasets.py#L11) | Dataset trivial `(x, y)`. |
-| `RotatedMNIST` | [datasets.py:135](StoCFL/datasets.py#L135) | Para cada θ em `thetas` (default {0, 90, 180, 270}; o script passa `k` ângulos igualmente espaçados, `360·i/k`), faz `random_slicing` do MNIST inteiro em `shards` partes IID. Cliente `cid = índice_θ·shards + shard`. Teste: 1 arquivo por θ. |
-| `RotatedCIFAR10Partitioner` | [datasets.py:240](StoCFL/datasets.py#L240) | Igual, com θ ∈ {0, 180}, normalização `(0.5, 0.5, 0.5)`, baixa o CIFAR. |
-| `ShiftedMNISTPartitioner` | [datasets.py:186](StoCFL/datasets.py#L186) | Shifts {0,3,6,9} × `shards=100`. |
-| `HybridMNISTPartitioner` | [datasets.py:22](StoCFL/datasets.py#L22) | 100 partes IID do MNIST (ids 0–99) + 100 do FashionMNIST (ids 100–199); o teste usa os datasets torchvision originais. |
-| `ComplexMNISTPartitioner` | [datasets.py:81](StoCFL/datasets.py#L81) | ⚠️ Não usado e quebrado (`label_skew_parition(..., slice=50)` não aceita `slice`). |
+| `BaseDataset` | [datasets.py:23](StoCFL/datasets.py#L23) | Dataset trivial `(x, y)`. |
+| `RotatedMNIST` | [datasets.py:147](StoCFL/datasets.py#L147) | `pre_process`: para cada θ em `thetas` (default {0, 90, 180, 270}; o script passa `k` ângulos igualmente espaçados, `360·i/k`), faz `random_slicing` do MNIST inteiro em `shards` partes IID. Cliente `cid = índice_θ·shards + shard`. Teste: 1 arquivo por θ. `pre_process_dirichlet(n, α, seed)` ([:188](StoCFL/datasets.py#L188), com `--dirichlet_alpha`): **rótulos non-IID, sem rotação**. Divide o MNIST de treino inteiro entre os `n` clientes com `dirichlet_partition` e grava um só teste, o MNIST de teste inteiro (`test/data0.pkl`), no mesmo formato de arquivos; por isso o script exige `k = 1`, e o `RotatedMNISTTrainer` e o `get_test_dataloader` funcionam sem mudança. |
+| `dirichlet_partition(targets, n, α, seed, min_require_size=50)` | [datasets.py:13](StoCFL/datasets.py#L13) | Para cada classe, sorteia proporções `~ Dir(α)` entre os `n` clientes, com o balanceamento do FedLab (cliente que já passou de `amostras/n` não recebe mais), e repete até todo cliente ter `min_require_size` amostras (`hetero_dir_partition` do `fedlab` 1.2.1, o mesmo algoritmo do `DirichletPartitioner` usado pelo D-PRIDE). Semeia o `np.random` global com a `seed` e **restaura o estado** ao sair, então é determinística por `(α, seed)` e não muda o resto da execução. **Não limita as tentativas**: com `α` pequeno pode demorar ou não terminar (com `n = 240` e `min_require_size = 50`, `α` = 0.5 e 1.0 terminam; `α = 0.1` não foi testado aqui, e a regra do D-PRIDE falha nele; [plano](plano-dropout-treino-stocfl.md), seção 4). Testes em `tests/test_dirichlet.py`. |
+| `RotatedCIFAR10Partitioner` | [datasets.py:270](StoCFL/datasets.py#L270) | Igual, com θ ∈ {0, 180}, normalização `(0.5, 0.5, 0.5)`, baixa o CIFAR. |
+| `ShiftedMNISTPartitioner` | [datasets.py:216](StoCFL/datasets.py#L216) | Shifts {0,3,6,9} × `shards=100`. |
+| `HybridMNISTPartitioner` | [datasets.py:34](StoCFL/datasets.py#L34) | 100 partes IID do MNIST (ids 0–99) + 100 do FashionMNIST (ids 100–199); o teste usa os datasets torchvision originais. |
+| `ComplexMNISTPartitioner` | [datasets.py:93](StoCFL/datasets.py#L93) | ⚠️ Não usado e quebrado (`label_skew_parition(..., slice=50)` não aceita `slice`). |
 
-Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que rotacionadas e com outra partição aleatória. Por cliente: MNIST tem `60000 / (n/k)` amostras (`k = 4` por padrão) e CIFAR tem `50000 / (n/2)`.
+Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que rotacionadas e com outra partição aleatória. Por cliente: MNIST tem `60000 / (n/k)` amostras (`k = 4` por padrão) e CIFAR tem `50000 / (n/2)`. Com `--dirichlet_alpha`, cada imagem vai para um só cliente e os tamanhos variam (média `60000 / n`; os números das 20 partições de `n = 240` estão em 4.11).
 
 | Modelo | Arquivo | Arquitetura | Usado em |
 |---|---|---|---|
@@ -591,10 +595,11 @@ Cada grupo de rotação usa **as mesmas 60.000 (ou 50.000) imagens**, só que ro
 | `dt(a, b)` | [functional.py:59](StoCFL/functional.py#L59) | Alternativa (norma mínima no segmento entre gradientes normalizados, estilo MGDA). Não usada. |
 | `cluster_center(psi, membros)` | [functional.py:86](StoCFL/functional.py#L86) | Centro do cluster: média dos `ψ` de todos os membros (Eq. 2). |
 | `parse_matrix(M, ids, descending)` | [functional.py:90](StoCFL/functional.py#L90) | Converte a matriz em `{"a,b": sim}` com os **ids de cluster** e devolve as chaves ordenadas. |
-| `setup_seed(seed)` | [functional.py:173](StoCFL/functional.py#L173) | Seeds de torch/cuda/numpy/random + `cudnn.deterministic`. |
+| `evaluate_recall(model, crit, loader)` | [functional.py:103](StoCFL/functional.py#L103) | Avaliação usada pelo `StoCFL-FCC+CFL.py`: devolve `(loss, acc, recall)`, com `loss` e `acc` calculados como no `evaluate` do FedLab (loss somada sobre os lotes, acertos / total; idênticos bit a bit, conferido no teste e na regressão) e `recall[c]` = acertos da classe `c` / amostras de `c` (`None` se o teste não tem `c`). Uma só passada pelo teste. Com o `recall` e a distribuição de rótulos de um cluster dá para calcular a acurácia ponderada pela distribuição do cluster, que o teste global balanceado não mede (D-045). |
+| `setup_seed(seed)` | [functional.py:197](StoCFL/functional.py#L197) | Seeds de torch/cuda/numpy/random + `cudnn.deterministic`. |
 | `quadprog`, `optim_lambdas` | :14, :28 | Resto de MGDA (cvxopt). Não usados, mas exigem `cvxopt` no import. |
-| `evaluate_personalization` | :103 | ⚠️ Quebrado (desempacota 4 listas em 2 variáveis; `range(lista)`). Não usado. |
-| `evaluate_fairness`, `MnistRotated` | :113, :122 | Não usados. |
+| `evaluate_personalization` | :127 | ⚠️ Quebrado (desempacota 4 listas em 2 variáveis; `range(lista)`). Não usado. |
+| `evaluate_fairness`, `MnistRotated` | :137, :146 | Não usados. |
 
 O `os` usado pelos scripts principais chega via `from functional import *`.
 
@@ -625,7 +630,8 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 | `--n` | FCC+CFL | Nº de clientes. Precisa ser divisível por `k` (4 no mnist por padrão, 2 no cifar). Mais clientes = menos dados por cliente = ψ mais ruidoso. Faz parte do nome do diretório de dados. |
 | `--dataset` | FCC+CFL | `mnist` define `SimpleLinear` e `k = 4` por padrão (rotações {0,90,180,270}); `cifar` define `CNN_CIFAR10` e `k = 2` (rotações {0,180}). |
 | `--k` | FCC+CFL | Nº de grupos de rotação (D-029). Default 4 (mnist) ou 2 (cifar), que mantêm os nomes antigos de dados e logs. No mnist, outro `k` gera `k` ângulos igualmente espaçados (`k = 8`: 0°, 45°, ...) e acrescenta `_k{k}` à pasta de dados e `-k{k}` à pasta de logs. No cifar só vale 2. Exige `n % k == 0`. |
-| `--seed` | FCC+CFL, FEMNIST | Seeds e **partição dos dados** (está no `save_dir`). Sem default: precisa ser passado. Em FCC.py é fixo `0`. |
+| `--dirichlet_alpha` | FCC+CFL | `α` do Dirichlet: **rótulos non-IID, sem rotação** (`RotatedMNIST.pre_process_dirichlet`, 4.7). Padrão `None`, que mantém a partição por rotação, sem nenhuma mudança (regressão V7 em 4.11). Exige `--dataset mnist`, `--k 1` e `α > 0`. `α` menor = clientes com menos classes (maior classe com ~43% das amostras do cliente com `α = 0.5` e ~32% com `α = 1.0`, contra 10% no IID). Acrescenta `_a{α}` à pasta de dados e `-a{α}` à de logs. Não há gabarito de grupos: o nº de clusters é resultado, e o `τ` vira um botão de granularidade ([plano](plano-dropout-treino-stocfl.md), seção 4). |
+| `--seed` | FCC+CFL, FEMNIST | Seeds e **partição dos dados** (está no `save_dir`; no Dirichlet, a seed também semeia o particionador). Sem default: precisa ser passado. Em FCC.py é fixo `0`. |
 | `--process` | FCC, FCC+CFL | `1` gera as partições (rodar uma vez por combinação dataset/n/seed). Default é `1` em FCC.py e `0` em FCC+CFL. |
 | `--setting` | FCC | `fskewed` / `lskewed` / `shifted` / `rotated`: escolhe o Trainer. |
 | `--k` | FCC | Para `lskewed`, 4 ou 10 grupos (outros valores geram 0 clientes). Em `fskewed` é forçado para 2 (só afeta nomes). Usado no nome do diretório de log. |
@@ -647,6 +653,7 @@ O `os` usado pelos scripts principais chega via `from functional import *`.
 | `train` | 0 | 1 | 0 |
 | `drop` | n/a | 0.0 | n/a |
 | `drop_rounds` | n/a | 1 | n/a |
+| `dirichlet_alpha` | n/a | None | n/a |
 | `seed` | fixo 0 | — / 0 | — |
 
 "—" indica argumento sem default (obrigatório na prática).
@@ -662,13 +669,13 @@ Todos os scripts criam `./logs/runs-.../` com `os.makedirs`.
 | `cos_rec*.log` | todos | Pares de clusters da **última** rodada com fusão possível, ordenados por cosseno. |
 | `psi.pkl` | FCC+CFL | `dict cliente → ψ` (salvo toda rodada). ⚠️ Pode ficar grande: `SimpleLinear` tem ~1,6 M parâmetros, então 200 clientes ≈ 1,3 GB. |
 | `cluster.pkl` | FCC+CFL | Lista com a partição de cada rodada (uma entrada por rodada, inclusive na rodada sem participantes). |
-| `accuracy.pkl` | FCC+CFL | Lista por rodada de `{"cluster": [acc de cada cluster amostrado], "global": [acc do gmodel no teste do grupo de cada cluster]}`. Na rodada sem participantes (só com `--drop > 0`), a entrada é `{"cluster": [], "global": []}`. |
+| `accuracy.pkl` | FCC+CFL | Lista por rodada de `{"cluster": [acc de cada cluster amostrado], "global": [acc do gmodel no teste do grupo de cada cluster], "cluster_recall": [...], "global_recall": [...]}`. As duas últimas chaves (desde 2026-11-10, D-045) têm, na mesma ordem de `cluster`, uma lista com o recall de cada classe no mesmo teste (`evaluate_recall`, 4.8); as duas primeiras não mudaram. A ordem é a dos clusters sorteados em ordem crescente de id, a mesma das linhas `Round r, Cluster c` do log, que trazem o id. Na rodada sem participantes (só com `--drop > 0`), a entrada tem as quatro listas vazias. |
 | `availability.pkl` | FCC+CFL, só com `--drop > 0` | Lista, por rodada, dos ids (`int`, em ordem crescente) dos clientes **indisponíveis**, no mesmo estilo do `cluster.pkl`. É a série de disponibilidade da execução. |
 | `exp_{setting}_logs.pkl` | FCC | `{"cluster": partição por rodada}`, salvo no final. |
 
 Avaliação em FCC+CFL: cada cluster amostrado é testado no conjunto de teste do grupo do seu **primeiro membro** (`⌊cid·k/n⌋`). O `gmodel` é testado no mesmo conjunto, o que permite comparar a especialização do cluster com o modelo global.
 
-**Nome da pasta de logs do FCC+CFL:** `runs-rotated-{dataset}-n{n}-p{m}-seed{seed}-lambda{mu}[-k{k}][-drop{d}-r{L_max}]-time-{hora}`. O `-k{k}` só aparece com `k` diferente do padrão (D-029), e o `-drop{d}-r{L_max}` só com `--drop > 0`. Por isso o padrão de busca do notebook de teste de `m` (`...-lambda{MU}{k}-time-*`) não casa com as execuções com `drop`, e os logs sem `drop` não se misturam com os novos.
+**Nome da pasta de logs do FCC+CFL:** `runs-rotated-{dataset}-n{n}-p{m}-seed{seed}-lambda{mu}[-k{k}][-a{α}][-drop{d}-r{L_max}]-time-{hora}`. O `-k{k}` só aparece com `k` diferente do padrão (D-029), o `-a{α}` só com `--dirichlet_alpha` (por exemplo `-k1-a0.5`; a pasta de dados correspondente é `rotated_mnist_240_<seed>_k1_a0.5`) e o `-drop{d}-r{L_max}` só com `--drop > 0`. ⚠️ A hora tem só minutos (`%m-%d-%H:%M`) e o nome não traz o `τ`: duas execuções com os mesmos `n`, `m`, seed, `μ`, `k`, `α` e `drop` iniciadas no **mesmo minuto** (por exemplo, com `τ` diferentes) gravam na mesma pasta (`os.makedirs(exist_ok=True)`) e misturam os arquivos. Os notebooks que rodam execuções curtas precisam esperar o minuto mudar. Por isso o padrão de busca do notebook de teste de `m` (`...-lambda{MU}{k}-time-*`) não casa com as execuções com `drop`, e os logs sem `drop` não se misturam com os novos.
 
 ### 4.11 Como rodar
 
@@ -708,6 +715,23 @@ Os testes do módulo `availability.py` (sem GPU): `../../.venv/bin/python -m uni
 | Rodada vazia (`--drop 0.99 --drop_rounds 10`, `--train 1` e `--train 0`) | Com `n = 40` e seed 0 nenhuma rodada ficou vazia, então esse caso não provou nada. Com `n = 8`, `m = 4`, 15 rodadas, as rodadas 0, 3, 4 e 6 ficaram sem participantes: o script terminou, e `cluster.pkl` e `accuracy.pkl` tiveram 15 entradas, com `{"cluster": [], "global": []}` nas rodadas vazias. |
 
 Cuidado com `--drop` alto: com `n` pequeno e `drop` perto de 1, rodadas inteiras ficam vazias.
+
+**Rótulos non-IID por Dirichlet (`--dirichlet_alpha`, só no `StoCFL-FCC+CFL.py`).** Passo 2 do [plano do dropout com treino](plano-dropout-treino-stocfl.md) (D-045). Exemplo, a partir de `projetos/StoCFL/`:
+
+```bash
+../../.venv/bin/python StoCFL-FCC+CFL.py --n 240 --k 1 --dirichlet_alpha 0.5 --dataset mnist --com_round 50 \
+    --num_per_round 120 --train 1 --tau 0.8 --seed 0 --process 1
+```
+
+Os dados vão para `datasets/rotated_mnist_240_0_k1_a0.5/` (240 clientes em `train/`, o MNIST de teste inteiro em `test/data0.pkl`) e os logs para `logs/runs-rotated-mnist-n240-p120-seed0-lambda0.05-k1-a0.5-time-...`. Com `k = 1`, todo cluster é avaliado no mesmo teste, de 10 classes balanceadas, e o `accuracy.pkl` traz também o recall por classe (4.10). Testes, sem GPU (precisam do MNIST em `datasets/mnist/`): `../../.venv/bin/python -m unittest tests/test_dirichlet.py -v` (determinismo por seed, seeds e `α` diferentes dão partições diferentes, cada amostra num só cliente, mínimo de 50, `α` menor dá mais skew, o gerador global do `numpy` fica intacto, e o `evaluate_recall` dá a mesma loss e acurácia que o `evaluate` do FedLab).
+
+Verificação, em 2026-11-10:
+
+| Verifica | Resultado |
+|---|---|
+| V7: sem a flag, igual ao código anterior | `--n 40 --k 4 --com_round 4 --num_per_round 20 --train 1 --tau 0.5 --seed 0`, sem e com `--drop 0.3 --drop_rounds 3`, antes e depois da mudança: `cluster.pkl`, `psi.pkl`, `availability.pkl`, as chaves `cluster` e `global` do `accuracy.pkl` (acurácias iguais bit a bit) e as linhas do log (fora a hora e a linha de argumentos, que ganhou `dirichlet_alpha=None`) idênticos. |
+| Execução com a flag | `--n 40 --k 1 --dirichlet_alpha 0.5`, 3 rodadas, `--train 1`: roda, grava as pastas com `_k1_a0.5`/`-k1-a0.5`, e em todos os clusters a acurácia é igual a `Σ_c recall_c · fração_c` no teste (até 1e-9). |
+| V8: as 20 partições de `n = 240` (seeds 0 a 9, `α` = 0.5 e 1.0) | Todas geradas, ~3 s cada, 60.000 amostras sem repetição. `α = 0.5`: mínimo de 51 a 74 amostras por cliente, máximo de 448 a 709, mediana de 253 a 258, maior classe com 41–44% das amostras do cliente (média). `α = 1.0`: mínimo de 71 a 121, máximo de 379 a 608, mediana de 254 a 259, maior classe com 32–33%. Duas delas (`α = 0.5` seed 0 e `α = 1.0` seed 7), geradas de novo noutra pasta, deram arquivos idênticos (pixels e rótulos). Ocupam 228 MB cada (4,5 GB as 20). |
 
 **Notebook do dropout.** O [teste-dropout.ipynb](StoCFL/teste-dropout.ipynb) (passo 4 do [plano](plano-dropout-stocfl.md); D-035) roda `StoCFL-FCC+CFL.py --train 0` por `subprocess` em Rotated MNIST com `n = 240`, 50 rodadas, `τ = 0.75` e 10 seeds (0 a 9), **sem dropout** e com `--drop` = 0.05 e 0.1 (`--drop_rounds 10`), para `m` = 100% e 50% e `k` = 8 e 16: 120 execuções, ~190 GB de `psi.pkl` e ~54 GB de dados (`APAGAR_PSI = True` apaga o `psi.pkl` de cada execução concluída). Lê o `cluster.pkl`, o `availability.pkl` e o log, e mostra em Plotly: nº de clusters, ARI, cobertura e participantes por rodada (média e faixa mín–máx entre as seeds), o resultado final por seed, **matrizes de confusão** (grupo real × grupo previsto somada nas seeds, e cluster × grupo real por seed) e a diferença dropout − sem dropout por seed com o teste de Wilcoxon. Reaproveita execuções concluídas só se o `τ`, o `k`, o `m`, a seed e o `drop` registrados na linha de argumentos do log baterem (o nome da pasta não traz o `τ`). A última célula grava `logs/resultados-dropout.json` (~13 MB; o git ignora `logs/`, e a cópia versionada é a compactada em `docs/resultados/resultados-dropout.json.gz`, D-041) com os parâmetros, uma entrada por execução (métricas finais, a partição final e os dados brutos `rotulos_por_rodada`, `sorteados_por_rodada`, `indisponiveis_por_rodada` e `cossenos_entre_clusters`), as métricas de cada rodada, as duas tabelas de resumo e as matrizes de confusão somadas nas seeds. Com `DADOS_JSON = True` (célula 1), o notebook lê esse arquivo no lugar dos logs e só plota; sem as execuções e com o JSON desta grade já gravado, ele para com um aviso em vez de rodar tudo de novo (`REEXECUTAR = True` força a nova execução) (D-039).
 
@@ -774,7 +798,7 @@ Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% do
 7. **Assinatura do `SerialTrainer` (verificada, não é bug):** as subclasses chamam `super().__init__(model, None|0, cuda, logger)` de forma posicional. No `fedlab==1.2.1`, a versão fixada em `requirements.txt`, a assinatura é `SerialTrainer(model, client_num, cuda=False, logger=None)` (conferido no código-fonte em 2026-11-04). Então `cuda` e `logger` chegam aos parâmetros certos e o trainer usa a GPU.
 8. **Corrigido em 2026-11-04.** Os centros de cluster usavam só os membros sorteados na rodada. Agora usam todos, como na Eq. 2 e na linha 9 do Alg. 1 do artigo (`cluster_center` em [functional.py](StoCFL/functional.py#L86)). Nenhum cluster sorteado tem membro sem `psi` (invariante 5 de 4.5).
 9. Fusões são irreversíveis e não há mecanismo de divisão.
-10. FedAvg sem ponderação por tamanho do dataset (irrelevante nos cenários sintéticos, que têm clientes de tamanho igual, mas não no FEMNIST).
+10. FedAvg sem ponderação por tamanho do dataset (irrelevante nos cenários sintéticos, que têm clientes de tamanho igual, mas não no FEMNIST nem com `--dirichlet_alpha`, em que os clientes de `n = 240` têm de 51 a 709 amostras). **Mantido de propósito** na simulação do dropout com treino (D-045): é o que o código e o artigo fazem, e ponderar mudaria o algoritmo. Consequência: um cliente pequeno pesa tanto quanto um grande no `gmodel` e no modelo do cluster.
 11. Custo: cada cliente sorteado treina **duas vezes** por rodada (cluster + global), mais a observação única. Os dados são relidos do disco a cada `get_data_loader`.
 12. **Modelo global encadeado (corrigido em 2026-11-04).** Nos cinco Trainers, o segundo laço de `train` reatribuía `gmodel` a cada cliente, e cada cliente partia do resultado do anterior. Isso não é o FedAvg do artigo (4.15.3), em que todos partem de `ω_t`, então agora todos partem do mesmo `gmodel`. **Consequência importante:** isso afasta os resultados dos números publicados. Com MNIST real nos parâmetros da Tabela 1 (1200 clientes, 10%, 100 rodadas, 1 seed), o `gmodel` encadeado dava 95.00, contra 94.96 da linha FedAvg do artigo, e o FedAvg de verdade dá 78.04, próximo da linha FedProx (77.82). Isso sugere que as tabelas do artigo vieram do código encadeado; é uma inferência, não prova. Esta correção segue o texto do artigo por decisão do usuário (D-014).
 13. **As três cópias de `StandaloneServer` deixaram de ser idênticas.** O `StoCFL-FCC+CFL.py` tem o dropout com retorno (`--drop` e `--drop_rounds`, 4.1), e o `StoCFL-FCC.py` e o `StoCFL-FEMNIST.py` ainda não (passo 5 do [plano](plano-dropout-stocfl.md)): eles sorteiam `num_per_round` entre todos os clientes. Com `--drop > 0`, quem tem ausências longas participa menos; com `--train 1`, isso muda quem contribui para o `gmodel` e para os modelos de cluster, e esse efeito não foi medido. O efeito do `--drop` sobre o ARI e o nº de clusters também não foi medido.
@@ -1012,12 +1036,13 @@ Diferenças entre a v1 (arXiv, 2023) e a publicada: a publicada acrescenta os ba
 | Cliente novo | Seções 4 e 5.4: regra do cosseno com `τ` | **Não implementado** | Tabela 5 não é reproduzível. Está no [backlog](backlog.md). |
 | Indisponibilidade de clientes | Participação parcial por sorteio uniforme de `m` clientes por rodada. Um "mecanismo dinâmico de entrada e saída de clientes" é trabalho futuro declarado (4.15.8). | **Extensão opcional** no `StoCFL-FCC+CFL.py`: `--drop` e `--drop_rounds`. Quem está fora não é sorteado, e `m` é completado só entre os disponíveis. Com `--drop 0` (padrão), o código se comporta como o do artigo. | Nenhum resultado do artigo usa isso. O efeito esperado é um atraso curto na observação dos clientes, e o efeito no ARI não foi medido (4.1, 4.9). |
 | Baselines | FedAvg, FedInit, FedProx, Ditto, IFCA, CFL, FedSEM | **Nenhum implementado** (o `gmodel` é o FedAvg dos clientes sorteados, com o mesmo treino local) | Tabelas 1–3 não são reproduzíveis só com este repo. |
-| Métrica | Acurácia média dos modelos de cluster nos testes dos respectivos clusters, e do modelo global em todos os testes | Cada cluster sorteado é testado no grupo do **primeiro membro**; resultado em `accuracy.pkl` (FCC+CFL) | Sem agregação por sementes e sem ARI/NMI. |
+| Métrica | Acurácia média dos modelos de cluster nos testes dos respectivos clusters, e do modelo global em todos os testes | Cada cluster sorteado é testado no grupo do **primeiro membro**; resultado em `accuracy.pkl` (FCC+CFL), com o recall por classe ao lado (`evaluate_recall`, extensão deste repositório) | Sem agregação por sementes e sem ARI/NMI. Com `--dirichlet_alpha` só há um teste (balanceado), que penaliza o modelo de um cluster especializado; o recall por classe permite ponderar pela distribuição de rótulos do cluster. |
+| Dados non-IID nos rótulos | O artigo usa rotação, shift e skew patológico de rótulos (grupos de classes) | **Extensão opcional:** `--dirichlet_alpha` (Dirichlet nos rótulos, sem rotação, `k = 1`) | Nenhum resultado do artigo usa isso. Sem grupos reais, não há ARI contra um gabarito. |
 | Modelo CIFAR | "Duas camadas conv + duas FC", sem informar os tamanhos | `CNN_CIFAR10`: duas conv + duas FC (120→10) | **Segue o artigo.** O código original tinha três FC (120→84→10). O tamanho 120 é uma escolha (D-016). |
 | Modelo FEMNIST | Duas conv, max pooling, duas FC, inicialização Xavier e dropout 0.5 **entre as camadas convolucionais e as FC** | `CNN_FEMNIST` ([models/cnn.py:13](StoCFL/models/cnn.py#L13)): dropout 0.5 logo após a convolução; Xavier | **Segue o artigo.** O código original tinha dropout 0.25 após a convolução e 0.5 entre as duas FC. |
 | Inicialização dos modelos de cluster | `ω₀ = θ₁ = ⋯ = θ_N`: todos os modelos de cluster começam em `ω₀` | `cluster_parameters` começa vazio, e um cluster sem modelo recebe `deepcopy(self.anchor)` na primeira vez que um membro é sorteado ([StoCFL-FCC+CFL.py:98](StoCFL/StoCFL-FCC+CFL.py#L98)) | **Segue o artigo**, com a cópia feita sob demanda. O código original usava o `gmodel` atual. O efeito foi desprezível em Rotated MNIST real (até 0.0001). |
 | Objetivo da Eq. 2 (Fig. 5) | Curva do nº de clusters e do valor da Eq. 2 por rodada | O código não calcula a Eq. 2. O nº de clusters sai de `cluster.pkl` (FCC+CFL) ou de `exp_*_logs.pkl` (FCC) | A Fig. 5 não é reproduzível só com os logs existentes. |
-| Sementes | 5 sementes | Um comentário em [StoCFL-FCC+CFL.py:235](StoCFL/StoCFL-FCC+CFL.py#L235) lista `[0, 42, 1998, 4421380, 789190]` | Provável conjunto usado nos experimentos. |
+| Sementes | 5 sementes | Um comentário em [StoCFL-FCC+CFL.py:241](StoCFL/StoCFL-FCC+CFL.py#L241) lista `[0, 42, 1998, 4421380, 789190]` | Provável conjunto usado nos experimentos. |
 
 ### 4.17 Reproduzindo os experimentos do artigo com este repositório
 

@@ -787,3 +787,31 @@ Para cada decisão, a entrada segue este modelo:
   - Manter `τ = 0.75` e reportar o que surgir: descartada pelo usuário, porque a partição tende a ser um cluster gigante mais singletons.
   - `flwr_datasets` como dependência nova: não proposta, porque o `fedlab` já traz o algoritmo e o `.venv` da raiz não tem o `flwr_datasets`.
   - `min_partition_size = nº de partições`, a regra do D-PRIDE: não adotada, porque exige 240 amostras com média de 250 e falhou em todas as partições de 240 clientes.
+
+## D-045: Particionador Dirichlet, flag `--dirichlet_alpha` e recall por classe no `StoCFL-FCC+CFL.py`
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário respondeu as pendências P1, P2 e P4 do [plano](plano-dropout-treino-stocfl.md) (seção 10) no pedido do passo 2 e, perguntado, escolheu onde fica o particionador e quando o recall é gravado. Claude decidiu os detalhes de implementação listados abaixo, por serem triviais e reversíveis e não mudarem o comportamento sem a flag (conferido pela regressão V7).
+- **Situação:** vigente. Cumpre o passo 2 do plano e substitui a parte da [D-043](#d-043-simulação-do-dropout-com-treino-federado-dados-grade-e-métricas) que dizia "não alterar o script": a acurácia por classe exige mudar o `evaluate` do script. A P3 (critério do `τ`) fica para a varredura de `τ` (passo 3).
+- **Contexto:** o non-IID por Dirichlet da [D-044](#d-044-non-iid-por-dirichlet-puro-nos-rótulos-α--05-e-10-e-varredura-de-τ) precisa de um particionador e de uma flag no script, e o plano deixava quatro pendências. No teste global balanceado, um modelo de cluster especializado em poucas classes mede pior do que o global por construção (D-PRIDE, §7.5), e o recall por classe permite ponderar pela distribuição de rótulos do cluster.
+- **Decisão (do usuário):**
+  - **P1:** acrescentar o recall por classe, mantendo a acurácia global. Perguntado, escolheu gravá-lo **sempre** (toda execução com `--train 1`), em chaves novas do `accuracy.pkl` (`cluster_recall` e `global_recall`), e não só com `--dirichlet_alpha`.
+  - **P2:** manter o FedAvg sem ponderação por tamanho (clientes de 51 a 709 amostras) e registrar (guia, 4.12 #10).
+  - **P4:** os nomes propostos: `--dirichlet_alpha`, pasta de dados `rotated_mnist_<n>_<seed>_k1_a<α>` e `-k1-a<α>` na pasta de logs.
+  - **Particionador** como método de `RotatedMNIST` (`pre_process_dirichlet`), que grava os arquivos no mesmo formato, de modo que o `RotatedMNISTTrainer` e o `get_test_dataloader` não mudam.
+- **Decisão (de Claude, trivial e reversível):**
+  - A partição em si fica numa função `dirichlet_partition(targets, n, α, seed, min_require_size=50)` em `datasets.py`, chamada pelo método, para ser testada sem gravar arquivos. Ela semeia o `np.random` global (o `hetero_dir_partition` usa o global) e **restaura o estado** ao sair, para não mudar o que vier depois; com isso a partição depende só de `(α, seed)`.
+  - O MNIST de teste vai **inteiro e sem rotação** para `test/data0.pkl`, e o script exige `k = 1`, `--dataset mnist` e `α > 0` com `assert`, no estilo das validações de `--k` e `--drop`.
+  - O `_a{α}` entra no mesmo sufixo do `_k{k}`, então a pasta de dados vira `..._k1_a0.5` e a de logs `...-k1-a0.5`, antes do `-drop...`.
+  - **Recall:** uma função nova, `evaluate_recall` em `functional.py`, que faz numa só passada o que o `evaluate` do FedLab faz (mesma loss somada e mesma acurácia, idênticas bit a bit) e conta os acertos por classe. Ela substitui as duas chamadas de `evaluate` no laço de avaliação. A classe sem amostra no teste dá `None` (JSON estrito). O log não mudou: o recall só vai para o `accuracy.pkl`. A rodada vazia ganhou as duas chaves novas, vazias.
+  - **Testes** em `tests/test_dirichlet.py` (`unittest`, como o `test_availability.py`): determinismo, seeds e `α` diferentes, cobertura e mínimo de 50, `α` menor com mais skew, gerador global intacto, e `evaluate_recall` contra o `evaluate` do FedLab.
+  - **V7** com `n = 40`, 4 rodadas, `--train 1`, sem e com `--drop` (a referência foi gravada com o código de antes da mudança). **V8**: as 20 partições de `n = 240` ficam em `datasets/` (4,5 GB), porque são os dados de entrada dos passos seguintes; os artefatos de `n = 40` foram apagados.
+  - **Achado:** o nome da pasta de logs tem a hora só até o minuto e não traz o `τ`, então duas execuções iguais, com `τ` diferentes, iniciadas no mesmo minuto, gravam na mesma pasta. Registrado no guia (4.10); os notebooks novos esperam o minuto mudar. O script não foi mudado por causa disso.
+- **Alternativas consideradas:**
+  - Recall só com `--dirichlet_alpha`: descartada pelo usuário; o recall vale para qualquer dado, e as chaves antigas não mudam.
+  - Classe nova `DirichletMNIST`: descartada pelo usuário; exigiria um ramo no `RotatedMNISTTrainer` sem ganho, porque os arquivos têm o mesmo formato.
+  - Ponderar o FedAvg pelo tamanho do cliente: descartada pelo usuário (P2), porque muda o algoritmo e o artigo não pondera.
+  - Uma segunda passada só para o recall, mantendo o `evaluate` do FedLab: descartada, porque dobraria o custo da avaliação (com τ alto há dezenas de clusters sorteados por rodada) e a função nova dá os mesmos números, conferidos.
+  - Gravar o recall também no log: descartada, para o log ficar igual ao de antes (a regressão compara as linhas).
+  - Limitar as tentativas do `hetero_dir_partition` com um tempo máximo: não feita; com `α` = 0.5 e 1.0 ele termina em ~3 s nas 20 partições, e o `α = 0.1` ficou fora da grade (D-044).
+  - Depender do `setup_seed` do script para semear o particionador: descartada, porque o teste chamaria a função sem ele, e o resultado dependeria de quem consumiu o `np.random` antes.

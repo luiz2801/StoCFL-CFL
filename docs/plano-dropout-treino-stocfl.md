@@ -1,6 +1,6 @@
 # Plano: dropout com retorno no StoCFL em ambiente de aprendizado federado (`--train 1`), com dados non-IID
 
-- **Situação:** plano com as decisões tomadas ([D-043](decisoes.md) e [D-044](decisoes.md), que substitui parte da D-043). **Nada foi implementado nem executado.** Só foram feitas uma calibração de tempo (seção 3) e uma análise do non-IID (seção 4), ambas com scripts descartáveis fora do repositório. O código novo e o notebook ainda não existem.
+- **Situação:** plano com as decisões tomadas ([D-043](decisoes.md) e [D-044](decisoes.md), que substitui parte da D-043). **Passo 2 feito em 2026-11-10** ([D-045](decisoes.md)): o particionador Dirichlet (`dirichlet_partition` e `RotatedMNIST.pre_process_dirichlet`), a flag `--dirichlet_alpha` e o recall por classe no `accuracy.pkl`, com os testes, a regressão V7 e as 20 partições da V8 (guia, 4.11). As pendências P1, P2 e P4 da seção 10 foram respondidas (D-045). O notebook e a grade ainda não existem. Antes disso houve só uma calibração de tempo (seção 3) e uma análise do non-IID (seção 4), com scripts descartáveis fora do repositório.
 - **Branch:** `dropout-stocfl`.
 - **Antecedentes:** o [plano do dropout](plano-dropout-stocfl.md) e o teste só de clusterização (`--train 0`, 120 execuções, [D-035](decisoes.md) e [D-037](decisoes.md)), em que o ARI final foi 1,0 com e sem dropout e o dropout só atrasou a rodada estável (guia, seção 4.11).
 
@@ -147,6 +147,8 @@ Cada etapa é um commit atômico (política 6), com a documentação e o registr
 | V8 | Particionador | 20 partições geradas (10 seeds × 2 `α`), determinísticas por seed, sem falha, com tamanhos registrados |
 
 ## 10. Pendências (decisões que ainda faltam, a perguntar antes de implementar)
+
+**Respondidas em 2026-11-10 (D-045):** P1, acrescentar o recall por classe e manter a acurácia global (gravado sempre, em chaves novas do `accuracy.pkl`); P2, manter o FedAvg sem ponderação; P4, os nomes propostos. A P3 continua aberta.
 
 | # | Pergunta | Recomendação de Claude |
 |---|---|---|

@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from torchvision import datasets, transforms
 import torch.utils.data as data_utils
 import torch
@@ -6,7 +7,18 @@ import torchvision
 from torchvision import transforms
 from torch.utils.data import DataLoader
 from fedlab.utils.dataset.slicing import random_slicing
+from fedlab.utils.dataset.functional import hetero_dir_partition
 from settings import label_skew_parition
+
+def dirichlet_partition(targets, n, alpha, seed, min_require_size=50):
+    # label skew: for each class, proportions ~ Dir(alpha) over the n clients (fedlab hetero_dir_partition, with balancing).
+    # It uses the global np.random and retries until every client has min_require_size samples, so seed it and restore the state after
+    state = np.random.get_state()
+    np.random.seed(seed)
+    try:
+        return hetero_dir_partition(np.asarray(targets), n, 10, alpha, min_require_size)
+    finally:
+        np.random.set_state(state)
 
 class BaseDataset(data_utils.Dataset):
     def __init__(self, x, y):
@@ -172,6 +184,24 @@ class RotatedMNIST():
                 rotated_data.append(x)
             dataset = BaseDataset(rotated_data, labels)
             torch.save(dataset, os.path.join(self.dir,"test", "data{}.pkl".format(i)))
+
+    def pre_process_dirichlet(self, n, alpha, seed, min_require_size=50):
+        # non-IID labels, no rotation: n clients over the whole MNIST train set (dirichlet_partition), and one test set
+        # (the whole MNIST test set), so it is read as k = 1 with the same file layout as pre_process
+        mnist = datasets.MNIST(self.root, train=True, download=True)
+        partition = dirichlet_partition(mnist.targets.numpy(), n, alpha, seed, min_require_size)
+        to_tensor = transforms.ToTensor()
+        data, labels = [], []
+        for x, y in mnist:
+            data.append(to_tensor(x))
+            labels.append(y)
+        for cid in range(n):
+            dataset = BaseDataset([data[i] for i in partition[cid]], [labels[i] for i in partition[cid]])
+            torch.save(dataset, os.path.join(self.dir, "train", "data{}.pkl".format(cid)))
+
+        mnist_test = datasets.MNIST(self.root, train=False)
+        dataset = BaseDataset([to_tensor(x) for x, _ in mnist_test], mnist_test.targets)
+        torch.save(dataset, os.path.join(self.dir, "test", "data0.pkl"))
 
     def get_dataset(self, id, type="train"):
         dataset = torch.load(os.path.join(self.dir, type, "data{}.pkl".format(id)), weights_only=False)

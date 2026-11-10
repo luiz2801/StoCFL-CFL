@@ -16,8 +16,13 @@ sequenceDiagram
     Note over Main,L: Preparação
     Main->>Main: ler argumentos e setup_seed(seed)
     opt process == 1
-        Main->>D: pre_process(shards)
-        D-->>Main: partições rotacionadas gravadas em disco
+        alt dirichlet_alpha definido
+            Main->>D: pre_process_dirichlet(n, alpha, seed)
+            D-->>Main: n partições Dirichlet nos rótulos e um só teste, gravados em disco
+        else sem dirichlet_alpha
+            Main->>D: pre_process(shards)
+            D-->>Main: partições rotacionadas gravadas em disco
+        end
     end
     Main->>T: RotatedMNISTTrainer(model, args)
     T->>D: criar o particionador (root, save_dir)
@@ -91,10 +96,10 @@ sequenceDiagram
                 T->>D: get_data_loader(rotação, 4096, "test")
                 D-->>T: DataLoader de teste
                 T-->>S: test_loader
-                S->>S: evaluate do modelo do cluster e de gmodel
+                S->>S: evaluate_recall do modelo do cluster e de gmodel (acurácia e recall por classe)
                 S->>L: acurácia e loss do cluster
             end
-            S->>L: Global acc (g_test) e accuracy.pkl
+            S->>L: Global acc (g_test) e accuracy.pkl (com os recalls)
         end
     end
 ```
@@ -102,6 +107,7 @@ sequenceDiagram
 ## Pontos de atenção
 
 - **Disponibilidade só no servidor.** `availability.step()` é uma chamada local do servidor, sem troca de mensagem com o trainer: o cliente indisponível simplesmente não entra na lista passada a `observe` e `train`. Só existe no `StoCFL-FCC+CFL.py` e só roda com `drop > 0`. Numa rodada sem nenhum cliente disponível, `observe` e `inter_cluster_union` recebem listas vazias e não fazem nada, e o treino é pulado.
+- **Dados non-IID sem mudar o trainer.** Com `dirichlet_alpha`, só a preparação muda: `pre_process_dirichlet` grava os arquivos no mesmo formato, com um só teste (`k = 1`), e o trainer lê os dados como antes.
 - **Trainer único.** Os clientes não existem como objetos. O servidor chama o trainer com uma lista de ids, e o trainer carrega os dados de cada cliente do disco quando precisa. Num sistema distribuído, as setas `observe` e `train` seriam mensagens de rede.
 - **`observe` é chamado sempre.** Quando todos os sorteados já têm `psi`, a lista `unobserved` é vazia e nenhum cliente calcula o gradiente. Por isso o laço de observação fica vazio nas rodadas em que não aparece nenhum cliente novo.
 - **Cosseno entre clusters, não entre clientes.** A matriz usa o centro de cada cluster sorteado, a média dos `psi` de todos os seus membros. Só clusters sorteados na rodada são comparados.
