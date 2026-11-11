@@ -942,3 +942,19 @@ Para cada decisão, a entrada segue este modelo:
   - Um notebook por `τ`: descartada, porque duplicaria o código e separaria em dois JSONs uma comparação que interessa ver junta.
   - Excluir os singletons da média: descartada; eles são a maior parte dos participantes com o `τ` escolhido, e a separação mostra os dois.
   - Corte por tamanho diferente de 1 (por exemplo, clusters de até 3): não feita; o singleton é o caso especial (modelo por cliente), e o corte em 1 não precisa de parâmetro.
+
+## D-052: Execução da grade completa do `teste-dropout-treino.ipynb`, com os dois τ
+
+- **Data:** 2026-11-10
+- **Decidido por:** o usuário ("Preciso rodar os testes agora") e, perguntado quais, escolheu a grade com os dois `τ`. Claude decidiu a forma de executar, por ser trivial e reversível.
+- **Situação:** em andamento. Passo 6 do [plano](plano-dropout-treino-stocfl.md).
+- **Contexto:** o notebook (D-047, D-051), o `τ` (D-046, D-050) e o cache de lotes (D-049) estavam prontos e verificados por dois smoke tests; a estimativa era de ~24 h para as 240 execuções.
+- **Decisão (do usuário):** rodar a grade completa: `τ` = 0.84683 e 0.8, `α` = 0.5 e 1.0, `m` = 100% e 50%, sem dropout e `d` = 0.05 e 0.1, seeds 0 a 9, 50 rodadas, `n = 240` (240 execuções).
+- **Decisão (de Claude):**
+  - Executar o notebook versionado, sem mudar parâmetros, com o `nbclient` (kernel do `.venv`), desacoplado da sessão (`setsid nohup`), iniciado às 18:38 de 2026-11-10. A cópia executada vai para `projetos/StoCFL/logs/teste-dropout-treino-executado.ipynb` e a saída do executor para `logs/grade-dropout-treino.out`, ambos ignorados pelo git.
+  - `APAGAR_PSI = True` (padrão do notebook): o `psi.pkl` de cada execução é apagado depois da conferência da cobertura, e o disco usado fica pequeno.
+  - As 120 execuções de `τ = 0.84683` rodam primeiro; se a grade for interrompida, executar o notebook de novo reaproveita as concluídas.
+  - Ao terminar: verificar o JSON, o modo `DADOS_JSON` e a política 7 (apagar os logs da grade, cópia compactada em `docs/resultados/`), e registrar os resultados no guia (4.11).
+- **Alternativas consideradas:**
+  - Só `τ = 0.84683` (120 execuções, ~15 h): descartada pelo usuário.
+  - Execuções em paralelo na GPU: descartada pela calibração do plano (seção 3), sem ganho.
