@@ -69,17 +69,17 @@ Ao terminar uma tarefa que alterou arquivos, faça os commits no repositório da
 Todo notebook de simulação (o que roda os algoritmos e plota os resultados) deve plotar a partir de um **JSON**, e não dos logs das execuções. Os logs são grandes (o `psi.pkl` do StoCFL tem ~1,5 GB por execução): eles servem para rodar a simulação, e o que importa fica no JSON.
 
 - **Logs durante a simulação:** a simulação grava os logs normalmente, e o JSON é gerado a partir deles ao fim.
-- **JSON com o que é relevante:** os parâmetros de cada execução, as métricas finais e por rodada, os dados brutos de que elas saem (por exemplo, a partição de cada rodada, os clientes sorteados e indisponíveis e os cossenos) e as tabelas de resumo. Isso basta para replotar e recalcular as métricas sem os logs. Confira também a saída padrão e os arquivos auxiliares de cada execução, não só o log principal: o que importar e existir só neles tem de entrar no JSON antes de apagar. O JSON é estrito (sem `NaN`) e é gravado num arquivo temporário que depois é renomeado. Fica em `logs/` do subprojeto (por exemplo `projetos/StoCFL/logs/resultados-<nome>.json`).
+- **JSON com o que é relevante:** os parâmetros de cada execução, as métricas finais e por rodada, os dados brutos de que elas saem (por exemplo, a partição de cada rodada, os clientes sorteados e indisponíveis e os cossenos) e as tabelas de resumo. Isso basta para replotar e recalcular as métricas sem os logs. Confira também a saída padrão e os arquivos auxiliares de cada execução, não só o log principal: o que importar e existir só neles tem de entrar no JSON antes de apagar. O JSON é estrito (sem `NaN`), compactado com gzip (nível 9, sem data no cabeçalho) e gravado num arquivo temporário que depois é renomeado. Fica em `logs/` do subprojeto (por exemplo `projetos/StoCFL/logs/resultados-<nome>.json.gz`), e o notebook lê e grava direto o arquivo compactado.
 - **O notebook consulta o JSON:** um parâmetro (`DADOS_JSON`) faz o notebook carregar o JSON no lugar dos logs, conferir que os parâmetros batem, não rodar nada e não regravar o JSON. Quando faltarem os logs e o JSON já tiver os resultados, o notebook deve parar com um aviso, em vez de relançar a simulação.
 - **Verificar antes de apagar:** o notebook em modo JSON tem de gerar os mesmos gráficos e tabelas que o modo com logs, e o JSON tem de ser consistente com os logs (por exemplo, recalculando as métricas a partir dos dados brutos).
 - **Apagar os logs:** terminada a verificação, apague os logs **daquela** simulação, sem esperar um pedido separado. Liste antes os caminhos e confira que cada um consta no JSON. Não apague logs de outras simulações nem os dados de entrada (`datasets/`) sem pedido do usuário.
-- **Cópia versionada:** `logs/` é ignorado pelo git e, depois de apagar os logs, o JSON é a única cópia dos resultados. Guarde-o compactado (`gzip -9 -n`) em `docs/resultados/`, com o `README.md` dessa pasta atualizado, no commit da tarefa (política 6).
+- **Sem cópia no repositório:** o JSON **não** é versionado. Ele fica só em `logs/`, que o git ignora, e depois de apagar os logs é a única cópia dos resultados. Os JSONs antigos em `docs/resultados/` ficam onde estão, mas nenhum novo vai para lá (D-054).
 - **Relato:** na mensagem final (política 3), diga quais logs foram apagados e quanto espaço foi liberado.
 
 ## Estrutura de referência
 
 - `docs/`: artigos (PDF) e o guia técnico `guia.md`.
-- `docs/resultados/`: resultados das simulações em JSON compactado (política 7).
+- `docs/resultados/`: resultados antigos das simulações em JSON compactado. Desde a D-054, os JSONs novos ficam só em `logs/` do subprojeto (política 7).
 - `projetos/clustered-federated-learning/`: CFL (notebook Jupyter).
 - `projetos/StoCFL/`: StoCFL (scripts CLI, FedLab).
 - `projetos/ISODATA-python/`: ISODATA em linha de comando.

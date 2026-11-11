@@ -697,7 +697,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-10
 - **Decidido por:** o usuário pediu "da push e salva isso" e, perguntado como salvar os JSONs, escolheu versionar compactados e dar push. Claude decidiu o local, os nomes e o formato da compactação.
-- **Situação:** vigente. Substitui a decisão de **não versionar** os JSONs de resultados, tomada em [D-036](#d-036-célula-do-teste-dropoutipynb-que-grava-os-resultados-em-json) e mantida em D-039 e D-040, e resolve o risco de eles não terem outra cópia.
+- **Situação:** vigente para os três JSONs já versionados; para os novos, substituída pela [D-054](#d-054-política-7-json-compactado-só-em-logs-sem-cópia-no-repositório). Substitui a decisão de **não versionar** os JSONs de resultados, tomada em [D-036](#d-036-célula-do-teste-dropoutipynb-que-grava-os-resultados-em-json) e mantida em D-039 e D-040, e resolve o risco de eles não terem outra cópia.
 - **Contexto:** os dois JSONs (`resultados-dropout.json`, 13 MB, e `resultados-fracao-clientes.json`, 23 MB) eram a única cópia dos resultados das duas famílias de execuções, cujos logs (~400 GB) foram apagados. Ficavam em `logs/`, que o git ignora, e apagar `logs/` os perderia.
 - **Decisão (do usuário):** dar push da branch `dropout-stocfl` e versionar os JSONs compactados em `.gz`.
 - **Decisão (de Claude):**
@@ -717,7 +717,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-10
 - **Decidido por:** o usuário pediu "adiciona a política de sempre deixar um json para os notebook de simulação consultarem ao plotar, os logs devem ser salvos, o json salva as informações relevantes e os logs apagados para economizar espaço". Claude decidiu a redação, o que entra na política a partir da prática das decisões D-039 a D-041, e as interpretações listadas abaixo.
-- **Situação:** vigente. Transforma em regra permanente o que foi feito em [D-036](#d-036-célula-do-teste-dropoutipynb-que-grava-os-resultados-em-json), D-039, D-040 e D-041 para dois notebooks.
+- **Situação:** vigente, **exceto** o item da cópia versionada em `docs/resultados/`, substituído pela [D-054](#d-054-política-7-json-compactado-só-em-logs-sem-cópia-no-repositório). Transforma em regra permanente o que foi feito em [D-036](#d-036-célula-do-teste-dropoutipynb-que-grava-os-resultados-em-json), D-039, D-040 e D-041 para dois notebooks.
 - **Contexto:** os logs de uma simulação do StoCFL ocupam centenas de GB (o `psi.pkl` tem ~1,5 GB por execução), e liberar espaço exigiu, caso a caso, gravar um JSON, conferir que os notebooks plotavam dele e só então apagar. O usuário quis que isso seja a regra para as próximas simulações.
 - **Decisão (do usuário):** a regra em três partes: os logs são gravados durante a simulação, um JSON guarda as informações relevantes e é o que os notebooks consultam ao plotar, e os logs são apagados depois, para economizar espaço.
 - **Decisão (de Claude, interpretação e redação):**
@@ -963,7 +963,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-11
 - **Decidido por:** o usuário: "não precisa mandar json nenhum para o repositório, salve-os e compacte". Claude decidiu a forma, por ser trivial e reversível.
-- **Situação:** vigente. Substitui, para o `teste-dropout-treino.ipynb`, o item "cópia versionada" da política 7 do `CLAUDE.md` (D-042) e a cópia em `docs/resultados/` prevista na [D-052](#d-052-execução-da-grade-completa-do-teste-dropout-treinoipynb-com-os-dois-τ) e no passo 7 do plano. **Divergência:** o `CLAUDE.md` (política 7) ainda manda versionar o JSON compactado em `docs/resultados/`; ele não foi editado, por ser um arquivo de instruções do usuário, e a mudança dele fica para o usuário confirmar. Os três `.json.gz` já versionados em `docs/resultados/` não foram tocados.
+- **Situação:** vigente, e estendida a todas as simulações pela [D-054](#d-054-política-7-json-compactado-só-em-logs-sem-cópia-no-repositório). Substitui, para o `teste-dropout-treino.ipynb`, o item "cópia versionada" da política 7 do `CLAUDE.md` (D-042) e a cópia em `docs/resultados/` prevista na [D-052](#d-052-execução-da-grade-completa-do-teste-dropout-treinoipynb-com-os-dois-τ) e no passo 7 do plano. **Divergência:** o `CLAUDE.md` (política 7) ainda manda versionar o JSON compactado em `docs/resultados/`; ele não foi editado, por ser um arquivo de instruções do usuário, e a mudança dele fica para o usuário confirmar. Os três `.json.gz` já versionados em `docs/resultados/` não foram tocados.
 - **Contexto:** a projeção do JSON da grade de 240 execuções era de ~500 MB (~58 MB compactado), 91% disso no recall por classe de cada cluster avaliado em cada rodada. Claude propôs guardar o recall como contagens inteiras para caber no repositório; o usuário preferiu não versionar.
 - **Decisão (de Claude, forma):**
   - O notebook grava direto `logs/resultados-dropout-treino.json.gz` (gzip nível 9, `mtime=0`, via arquivo temporário), e lê dele no modo `DADOS_JSON`, na trava e na herança da conferência da cobertura (função `ler_resultados`). Sem isso, com só o `.gz` em disco e os logs apagados, a trava não dispararia e o notebook relançaria a grade inteira.
@@ -975,3 +975,16 @@ Para cada decisão, a entrada segue este modelo:
   - Gravar o `.json` e compactá-lo à mão depois: descartada, porque o notebook não acharia o `.gz` e a trava contra relançar a grade deixaria de funcionar.
   - Manter também o `.json` descompactado em `logs/`: descartada, para não ocupar ~500 MB a mais.
   - **Risco:** `logs/` é ignorado pelo git e o `.gz` passa a ser a única cópia dos resultados depois de apagados os logs (o mesmo risco registrado na D-040, resolvido na D-041 pela cópia versionada que esta decisão dispensa).
+
+## D-054: Política 7: JSON compactado só em `logs/`, sem cópia no repositório
+
+- **Data:** 2026-11-11
+- **Decidido por:** o usuário: "não precisa mandar json nenhum para o repositório, salve-os e compacte" e, perguntado se isso valia para todas as simulações, escolheu "sim, para todos", mantendo os JSONs já versionados. Claude decidiu a redação.
+- **Situação:** vigente. Substitui o item "cópia versionada" da política 7 ([D-042](#d-042-política-7-resultados-das-simulações-num-json-e-logs-apagados)) e, para os JSONs novos, a [D-041](#d-041-jsons-de-resultados-versionados-compactados-e-primeiro-push-da-branch). Estende a [D-053](#d-053-json-da-grade-com-treino-compactado-em-logs-e-fora-do-repositório) a todas as simulações.
+- **Contexto:** a D-053 tirou do repositório o JSON da grade com treino. O `CLAUDE.md` ainda mandava versionar em `docs/resultados/` o JSON de toda simulação, e a divergência foi apontada ao usuário.
+- **Decisão (do usuário):** nenhum JSON de resultados vai para o repositório; cada um fica compactado em `logs/` do subprojeto. Os três `.json.gz` já em `docs/resultados/` ficam onde estão.
+- **Decisão (de Claude, redação):** no `CLAUDE.md`, a política 7 passa a dizer que o JSON é compactado com gzip (nível 9, sem data), fica em `logs/` com extensão `.json.gz` e é lido e gravado direto pelo notebook; o item "cópia versionada" virou "sem cópia no repositório", e a linha de `docs/resultados/` da estrutura diz que a pasta guarda só os resultados antigos. O `README.md` de `docs/resultados/` e o de `docs/` foram ajustados. Os notebooks antigos (`teste-dropout.ipynb`, `varredura-tau-dirichlet.ipynb`) continuam lendo o `.json` sem compactar e não foram alterados.
+- **Alternativas consideradas:**
+  - Tirar do repositório os três JSONs antigos: descartada pelo usuário; eles continuariam no histórico do git de qualquer forma.
+  - Valer só para a grade com treino: descartada pelo usuário.
+  - **Risco**, já registrado na D-053: sem cópia versionada, apagar `logs/` perde os resultados.
