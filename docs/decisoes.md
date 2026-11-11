@@ -947,14 +947,31 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-10
 - **Decidido por:** o usuário ("Preciso rodar os testes agora") e, perguntado quais, escolheu a grade com os dois `τ`. Claude decidiu a forma de executar, por ser trivial e reversível.
-- **Situação:** em andamento. Passo 6 do [plano](plano-dropout-treino-stocfl.md).
+- **Situação:** em andamento. Passo 6 do [plano](plano-dropout-treino-stocfl.md). Interrompida por uma queda da máquina às 23:05 de 2026-11-10, depois de 40 execuções (íntegras, conferidas); a 41ª, truncada, foi apagada, e a grade foi retomada às 14:58 de 2026-11-11, reaproveitando as 40. O destino do JSON mudou na D-053.
 - **Contexto:** o notebook (D-047, D-051), o `τ` (D-046, D-050) e o cache de lotes (D-049) estavam prontos e verificados por dois smoke tests; a estimativa era de ~24 h para as 240 execuções.
 - **Decisão (do usuário):** rodar a grade completa: `τ` = 0.84683 e 0.8, `α` = 0.5 e 1.0, `m` = 100% e 50%, sem dropout e `d` = 0.05 e 0.1, seeds 0 a 9, 50 rodadas, `n = 240` (240 execuções).
 - **Decisão (de Claude):**
   - Executar o notebook versionado, sem mudar parâmetros, com o `nbclient` (kernel do `.venv`), desacoplado da sessão (`setsid nohup`), iniciado às 18:38 de 2026-11-10. A cópia executada vai para `projetos/StoCFL/logs/teste-dropout-treino-executado.ipynb` e a saída do executor para `logs/grade-dropout-treino.out`, ambos ignorados pelo git.
   - `APAGAR_PSI = True` (padrão do notebook): o `psi.pkl` de cada execução é apagado depois da conferência da cobertura, e o disco usado fica pequeno.
   - As 120 execuções de `τ = 0.84683` rodam primeiro; se a grade for interrompida, executar o notebook de novo reaproveita as concluídas.
-  - Ao terminar: verificar o JSON, o modo `DADOS_JSON` e a política 7 (apagar os logs da grade, cópia compactada em `docs/resultados/`), e registrar os resultados no guia (4.11).
+  - Ao terminar: verificar o JSON, o modo `DADOS_JSON` e a política 7 (apagar os logs da grade), e registrar os resultados no guia (4.11). **A cópia compactada em `docs/resultados/` foi substituída pela [D-053](#d-053-json-da-grade-com-treino-compactado-em-logs-e-fora-do-repositório):** o JSON fica só em `logs/`, compactado.
 - **Alternativas consideradas:**
   - Só `τ = 0.84683` (120 execuções, ~15 h): descartada pelo usuário.
   - Execuções em paralelo na GPU: descartada pela calibração do plano (seção 3), sem ganho.
+
+## D-053: JSON da grade com treino compactado em `logs/` e fora do repositório
+
+- **Data:** 2026-11-11
+- **Decidido por:** o usuário: "não precisa mandar json nenhum para o repositório, salve-os e compacte". Claude decidiu a forma, por ser trivial e reversível.
+- **Situação:** vigente. Substitui, para o `teste-dropout-treino.ipynb`, o item "cópia versionada" da política 7 do `CLAUDE.md` (D-042) e a cópia em `docs/resultados/` prevista na [D-052](#d-052-execução-da-grade-completa-do-teste-dropout-treinoipynb-com-os-dois-τ) e no passo 7 do plano. **Divergência:** o `CLAUDE.md` (política 7) ainda manda versionar o JSON compactado em `docs/resultados/`; ele não foi editado, por ser um arquivo de instruções do usuário, e a mudança dele fica para o usuário confirmar. Os três `.json.gz` já versionados em `docs/resultados/` não foram tocados.
+- **Contexto:** a projeção do JSON da grade de 240 execuções era de ~500 MB (~58 MB compactado), 91% disso no recall por classe de cada cluster avaliado em cada rodada. Claude propôs guardar o recall como contagens inteiras para caber no repositório; o usuário preferiu não versionar.
+- **Decisão (de Claude, forma):**
+  - O notebook grava direto `logs/resultados-dropout-treino.json.gz` (gzip nível 9, `mtime=0`, via arquivo temporário), e lê dele no modo `DADOS_JSON`, na trava e na herança da conferência da cobertura (função `ler_resultados`). Sem isso, com só o `.gz` em disco e os logs apagados, a trava não dispararia e o notebook relançaria a grade inteira.
+  - O formato do conteúdo não mudou (recall como float); com o JSON fora do git, o tamanho deixa de importar.
+  - **Teste** sem GPU, enquanto a grade roda: o notebook reduzido (seeds 0 a 2, `τ = 0.84683`) sobre as 36 execuções já concluídas gravou o `.gz` (8,7 MB), o modo `DADOS_JSON` deu as mesmas 11 saídas sem alterar o arquivo, a função da trava o leu, e o conteúdo é idêntico ao do JSON sem compactar.
+  - A grade em andamento usa a versão anterior do notebook (carregada na memória), que grava o `.json` sem compactar; ao terminar, o notebook novo é executado de novo (reaproveita as 240) para gravar o `.gz`, e o `.json` é apagado.
+- **Alternativas consideradas:**
+  - Recall como contagens inteiras e cópia em `docs/resultados/`: proposta por Claude, descartada pelo usuário.
+  - Gravar o `.json` e compactá-lo à mão depois: descartada, porque o notebook não acharia o `.gz` e a trava contra relançar a grade deixaria de funcionar.
+  - Manter também o `.json` descompactado em `logs/`: descartada, para não ocupar ~500 MB a mais.
+  - **Risco:** `logs/` é ignorado pelo git e o `.gz` passa a ser a única cópia dos resultados depois de apagados os logs (o mesmo risco registrado na D-040, resolvido na D-041 pela cópia versionada que esta decisão dispensa).
