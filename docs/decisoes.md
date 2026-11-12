@@ -947,7 +947,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-10
 - **Decidido por:** o usuário ("Preciso rodar os testes agora") e, perguntado quais, escolheu a grade com os dois `τ`. Claude decidiu a forma de executar, por ser trivial e reversível.
-- **Situação:** em andamento. Passo 6 do [plano](plano-dropout-treino-stocfl.md). Interrompida por uma queda da máquina às 23:05 de 2026-11-10, depois de 40 execuções (íntegras, conferidas); a 41ª, truncada, foi apagada, e a grade foi retomada às 14:58 de 2026-11-11, reaproveitando as 40. O destino do JSON mudou na D-053.
+- **Situação:** concluída em 2026-11-12 (D-055). Passo 6 do [plano](plano-dropout-treino-stocfl.md). Interrompida por duas quedas da máquina: às 23:05 de 2026-11-10, depois de 40 execuções, e às 08:41 de 2026-11-12, depois de 232; nas duas, as concluídas estavam íntegras (conferido), a interrompida, truncada, foi apagada, e a grade foi retomada reaproveitando as concluídas. O destino do JSON mudou na D-053.
 - **Contexto:** o notebook (D-047, D-051), o `τ` (D-046, D-050) e o cache de lotes (D-049) estavam prontos e verificados por dois smoke tests; a estimativa era de ~24 h para as 240 execuções.
 - **Decisão (do usuário):** rodar a grade completa: `τ` = 0.84683 e 0.8, `α` = 0.5 e 1.0, `m` = 100% e 50%, sem dropout e `d` = 0.05 e 0.1, seeds 0 a 9, 50 rodadas, `n = 240` (240 execuções).
 - **Decisão (de Claude):**
@@ -988,3 +988,20 @@ Para cada decisão, a entrada segue este modelo:
   - Tirar do repositório os três JSONs antigos: descartada pelo usuário; eles continuariam no histórico do git de qualquer forma.
   - Valer só para a grade com treino: descartada pelo usuário.
   - **Risco**, já registrado na D-053: sem cópia versionada, apagar `logs/` perde os resultados.
+
+## D-055: Conclusão da grade com treino, verificação e exclusão dos logs
+
+- **Data:** 2026-11-12
+- **Decidido por:** Claude, por serem escolhas triviais e reversíveis da verificação e do JSON, sem mudar nenhum resultado. A execução da grade foi decidida pelo usuário (D-052).
+- **Situação:** vigente. Cumpre os passos 6 a 8 do [plano](plano-dropout-treino-stocfl.md).
+- **Contexto:** a grade de 240 execuções terminou às 12:03 de 2026-11-12, depois de duas quedas da máquina. Pela política 7, antes de apagar os logs era preciso conferir o que só existia neles e que o modo `DADOS_JSON` reproduz o modo com logs.
+- **Decisão (de Claude):**
+  - **Cossenos por rodada no JSON.** A saída padrão de cada execução era o único lugar com os cossenos entre os clusters sorteados de cada rodada (o `cos_rec.log` guarda só a última). O notebook passou a gravar, por execução, o maior cosseno e o nº de pares de cada rodada (`cos_max_por_rodada`, `n_pares_cos_por_rodada`), como na D-040. A lista completa não foi guardada: ela se refaz com o simulador a partir da matriz de cossenos entre clientes do JSON da varredura (os `Ψ` só dependem da seed e de `α`).
+  - **Duração das execuções.** A duração medida pelo notebook (`duracao_s`) se perdia numa nova execução do notebook, que só reaproveita as pastas, e nas quedas, antes de o JSON ser gravado. Ela passou a ser herdada do JSON anterior, e o notebook grava também `duracao_log_s`, das horas do próprio log, que não se perde (3 a 4 s abaixo da do notebook nas 8 em que as duas existem). Para recuperar as 8 durações medidas, a segunda gravação do JSON partiu da primeira versão dele.
+  - **Cobertura (I5).** A conferência contra o `psi.pkl` foi feita durante a execução em todas, mas o resultado de 232 execuções se perdeu nas quedas, e o `psi.pkl` já tinha sido apagado; ficaram `None`, e não há como refazê-la. **No lugar**, o simulador validado (D-046) refez as 240 execuções a partir do JSON da varredura: sorteados e indisponíveis iguais nas 240 e partição igual em todas as rodadas em 238. Nas 2 restantes, um par de clusters tinha cosseno a menos de 1,1e-5 de `τ`, e o float32 do script e o float64 do simulador decidiram de lados opostos (guia, 4.11). A grade usa o script, então isso só afeta o Monte Carlo da D-046, e em 2 de 240 execuções.
+  - **Política 7:** o modo `DADOS_JSON` deu as mesmas 16 figuras e 3 tabelas que o modo com logs, sem alterar o JSON; as 240 pastas e as 240 saídas padrão constavam no JSON; as saídas do executor (`grade-dropout-treino*.out`) tinham só avisos do kernel. Foram apagados as 240 pastas `runs-rotated-mnist-n240-*-k1-a*`, as 240 `pipeline-dropout-treino-*.txt`, as 3 saídas do executor e a cópia temporária da primeira versão do JSON: 1,7 GB (o `psi.pkl` de cada execução já era apagado no fim dela, `APAGAR_PSI = True`). Ficaram `logs/resultados-dropout-treino.json.gz` (45,6 MB, fora do git) e a cópia executada do notebook. A trava parou o notebook sem os logs. As partições em `datasets/` não foram tocadas.
+- **Resultado:** o dropout não muda o modelo global, muda menos de meio ponto a acurácia ponderada dos modelos de cluster e atrasa a convergência (2 a 7 rodadas no limiar de 0,90 com `m = 100%`); com `m = 100%` deixa mais clusters e menores, o que derruba a acurácia do cluster no teste balanceado (até −3,7 pontos) sem mudá-la na distribuição do próprio cluster. Com `α = 0.5`, os modelos de cluster ficam 1,3 a 1,6 ponto acima do global, ganho que vem dos clusters de 2 ou mais clientes. Números no guia, 4.11.
+- **Alternativas consideradas:**
+  - Guardar a lista completa de cossenos de cada rodada: descartada; com ~100 clusters sorteados são ~5.000 pares por rodada, e o simulador os refaz.
+  - Rodar de novo as 232 execuções para refazer a conferência da cobertura: descartada (~22 h), porque a conferência pelo simulador é mais forte (todas as rodadas da partição) e a cobertura bateu em todas as execuções em que foi registrada (8 aqui e as dos smoke tests).
+  - Marcar como `True` a cobertura das 232, por ter passado na execução: descartada; o JSON registraria uma conferência que não pode ser mostrada.

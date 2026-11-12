@@ -124,7 +124,8 @@ O notebook [teste-dropout-treino.ipynb](teste-dropout-treino.ipynb) roda o StoCF
 
 - Use o kernel `.venv` da raiz e abra o notebook a partir desta pasta. `APAGAR_PSI = True` (padrão) apaga o `psi.pkl` (~1,5 GB) de cada execução concluída.
 - Segue a política 7, mas sem cópia no repositório (D-053): grava `logs/resultados-dropout-treino.json.gz` (JSON compactado, fora do git) com os dados brutos; `DADOS_JSON = True` só lê o JSON e plota; sem os logs e com o JSON da grade já gravado, para com um aviso (`REEXECUTAR = True` força).
-- **A grade não foi executada.** O smoke test (`n = 48`, 6 rodadas, seeds 0 e 1) passou em 2026-11-10, e a grade deve levar ~15 h na GPU para o primeiro `τ` e ~24 h para os dois (medido em `n = 240`, seed 0, com o cache de lotes do trainer; guia, 4.11).
+- **Grade executada de 2026-11-10 a 12** (240 execuções, 22,5 h de GPU; D-052, D-055). O dropout não muda o modelo global e muda menos de meio ponto a acurácia ponderada dos modelos de cluster; ele atrasa a convergência (2 a 7 rodadas com `m` = 100%) e, com `m` = 100%, deixa mais clusters e menores, o que derruba a acurácia do cluster no teste balanceado (até −3,7 pontos) sem mudá-la na distribuição do próprio cluster. Com `α = 0.5`, os modelos de cluster ficam 1,3 a 1,6 ponto acima do global; o ganho vem dos clusters de 2 ou mais clientes, e os singletons não ajudam. Números no [guia](../../docs/guia.md), seção 4.11.
+- Os resultados estão em `logs/resultados-dropout-treino.json.gz` (45,6 MB, fora do git, D-053), e os logs da grade foram apagados: `DADOS_JSON = True` replota em segundos, e a cópia executada com as figuras está em `logs/teste-dropout-treino-executado.ipynb`.
 
 ### Escolha de τ com rótulos non-IID (Dirichlet)
 
