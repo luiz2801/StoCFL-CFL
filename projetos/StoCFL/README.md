@@ -79,6 +79,39 @@ python StoCFL-FCC+CFL.py --n 240 \
 
 Os dados vão para `datasets/rotated_mnist_240_0_k1_a0.5/` e a pasta de logs ganha `-k1-a0.5` no nome. Com `--train 1`, o `accuracy.pkl` traz, além da acurácia de cada cluster sorteado e do modelo global, o **recall por classe** no mesmo teste (`cluster_recall` e `global_recall`), em qualquer cenário.
 
+### Divisão pelo CFL (experimental)
+
+O [StoCFL-FCC+CFL-split.py](StoCFL-FCC+CFL-split.py) testa a [hipótese da divisão](../../docs/hipotese-stocfl-divisao-cfl.md): dividir com o CFL de Sattler os clusters que o StoCFL encadeou (D-058). Ele reaproveita o servidor, o trainer e os dados do `StoCFL-FCC+CFL.py`, sem alterá-lo, e acrescenta um passo depois do treino de cada rodada:
+
+1. Nos clusters com algum par de `Ψ` com cosseno ≤ `τ` (clientes que não se uniriam sozinhos), aplica o critério do CFL às atualizações `ΔW` dos membros sobre o modelo do cluster: `‖média ΔW‖ < ε1` e `max ‖ΔW_i‖ > ε2`.
+2. Se o critério disparar, divide o cluster pelo Algoritmo 1 do CFL sobre o cosseno dos `ΔW`, desde que `γ_max < √((1 − α_cross^max)/2)`. As partes herdam o modelo do cluster pai.
+3. Depois de uma divisão, `--after_split` escolhe o que acontece:
+   - `none`: nada, e o StoCFL pode juntar as partes de novo;
+   - `reanchor`: o modelo global treinado vira a nova âncora, e o `Ψ` de todos os clientes é recalculado;
+   - `cannot_link`: os clientes das duas partes não podem voltar a ficar juntos.
+
+```
+python StoCFL-FCC+CFL-split.py --n 40 \
+                               --k 4 \
+                               --dataset mnist \
+                               --com_round 40 \
+                               --num_per_round 40 \
+                               --train 1 \
+                               --tau 0.25 \
+                               --seed 0 \
+                               --process 1 \
+                               --split 1 \
+                               --after_split reanchor \
+                               --eps1 0.09 \
+                               --eps2 0.146 \
+                               --gamma_max 0.5
+```
+
+- **É experimental:** só rotação (sem `--dirichlet_alpha`), e a divisão exige todos os clientes em toda rodada (`--num_per_round` igual a `--n`, sem `--drop`).
+- **`ε1` e `ε2` são normas absolutas** e dependem de lr, épocas, batch e modelo. Os valores acima foram calibrados para `n = 40`, `k = 4`, lr 0.1, 5 épocas e batch cheio, nas execuções com `--split 0` (D-058). A regra do artigo (`ε1` = um décimo da maior norma média) daria 0,033, abaixo do piso de ~0,049 em que a norma média estaciona.
+- **`--split 0`** roda o StoCFL sem divisão, com os mesmos sorteios, partições, acurácias e log do `StoCFL-FCC+CFL.py` (conferido), mais os logs extras.
+- **Saídas:** grava `cluster.pkl`, `accuracy.pkl`, `cos_rec.log` e `cluster_rec.log`, como o script principal, e mais `accuracy_clients.pkl`, `norms.pkl`, `split_events.pkl` e `psi_cos.pkl` (guia, seção 4.10). Não grava o `psi.pkl`. A pasta de logs é `logs/runs-split-...`, com `τ`, a variante e os segundos no nome.
+
 ## Testes
 
 ### Módulo de disponibilidade (`--drop`)

@@ -27,7 +27,7 @@ cfl_stocfl/
 | Projeto | Algoritmo | Como executar | Situação |
 |---|---|---|---|
 | [clustered-federated-learning](projetos/clustered-federated-learning/) | CFL, divisivo, com PyTorch | Notebook `clustered_federated_learning.ipynb` | Funciona; algoritmo corrigido para seguir o artigo (ver guia, seção 3.10) |
-| [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | Os três scripts rodam, e o algoritmo foi corrigido para seguir o artigo (ver guia, seção 4.16); `StoCFL-FCC.py` só com `--train 0`. O `StoCFL-FCC+CFL.py` tem dropout com retorno opcional (`--drop`, branch `dropout-stocfl`; guia, seção 4.1) e rótulos non-IID por Dirichlet opcionais (`--dirichlet_alpha`; guia, seção 4.7); o efeito do dropout, sem e com treino, foi medido (guia, seção 4.11; [relatório do dropout](docs/relatorio-dropout.md)) |
+| [StoCFL](projetos/StoCFL/) | StoCFL, aglomerativo, com FedLab 1.2.1 | `StoCFL-FCC+CFL.py` (principal) | Os três scripts rodam, e o algoritmo foi corrigido para seguir o artigo (ver guia, seção 4.16); `StoCFL-FCC.py` só com `--train 0`. O `StoCFL-FCC+CFL.py` tem dropout com retorno opcional (`--drop`, branch `dropout-stocfl`; guia, seção 4.1) e rótulos non-IID por Dirichlet opcionais (`--dirichlet_alpha`; guia, seção 4.7); o efeito do dropout, sem e com treino, foi medido (guia, seção 4.11; [relatório do dropout](docs/relatorio-dropout.md)). O `StoCFL-FCC+CFL-split.py` é experimental: testa a [hipótese da divisão pelo CFL](docs/hipotese-stocfl-divisao-cfl.md) |
 | [ISODATA-python](projetos/ISODATA-python/) | ISODATA para imagens comuns (RGB ou cinza) | `python main.py --input ... --output ...` | Funcional, mas muito lento |
 
 ## Ambiente

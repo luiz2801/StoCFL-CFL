@@ -1,6 +1,6 @@
 # Hipótese: dividir com o CFL os clusters encadeados pelo StoCFL
 
-> **Situação:** hipótese em análise, **sem implementação**. Escrita em 2026-11-12 ([D-057](decisoes.md)). Os números da seção 6 foram medidos nos `Ψ` já guardados nos JSONs do StoCFL, com o simulador da fusão validado na [D-046](decisoes.md), sem treinar e sem rodar o script. Fatos medidos estão separados de hipóteses. As escolhas de design estão em aberto (seção 9) e serão perguntadas antes de qualquer implementação.
+> **Situação:** hipótese em análise. Escrita em 2026-11-12 ([D-057](decisoes.md)). Para os smoke tests da versão dinâmica existe um script experimental, o `StoCFL-FCC+CFL-split.py` ([D-058](decisoes.md)); o script principal não mudou. Os números da seção 6 foram medidos nos `Ψ` já guardados nos JSONs do StoCFL, com o simulador da fusão validado na [D-046](decisoes.md), sem treinar e sem rodar o script. Fatos medidos estão separados de hipóteses. As escolhas de design da seção 9 foram feitas só para os smoke tests (D-058); para levar a divisão ao script principal, continuam em aberto.
 
 Neste documento, **CFL** é o algoritmo de Sattler et al. ([guia](guia.md), seção 3). O "CFL" do nome `StoCFL-FCC+CFL.py` é outra coisa: o treino bi-nível do próprio StoCFL (Bi-CFL, guia 4.15.3).
 
@@ -370,9 +370,24 @@ Pela política 4 do `CLAUDE.md`, cada item é perguntado antes da implementaçã
 | 8 | Onde implementar | só no `StoCFL-FCC+CFL.py`, com flag; nos três scripts | Só no FCC+CFL, com a flag desligada por padrão (precedente do `--drop`, D-032). |
 | 9 | Nome da variante | — | Evitar "CFL" sozinho, que já aparece no nome do script para o treino bi-nível. |
 
+**Decidido para os smoke tests ([D-058](decisoes.md)):**
+
+1. A H2.
+2. O sinal é o `ΔW` do modelo do cluster.
+3. O gatilho do par sobre o `Ψ` funciona como pré-filtro, e o critério de norma do CFL decide.
+4. `γ_max = 0.5`.
+5. As três opções de depois da divisão são comparadas: `none`, `reanchor` (o "novo modelo global" do usuário: o `Ψ` de todos é recalculado no modelo global treinado da rodada da divisão) e `cannot_link`.
+6. As partes recebem cópias do modelo do pai.
+7. `m = 100%`, sem dropout.
+8. Um script experimental separado.
+
+A regra do artigo para `ε1` não dispara nesse cenário, então `ε1` e `ε2` foram calibrados como o menor valor que divide dentro do prazo, como na D-015 (seção 13).
+
 ## 10. O que mudaria no código e na documentação
 
-Se a H2 for implementada:
+Para os smoke tests, a H2 foi implementada num script experimental, sem mexer no principal ([D-058](decisoes.md)). O [StoCFL-FCC+CFL-split.py](../projetos/StoCFL/StoCFL-FCC+CFL-split.py) carrega o `StoCFL-FCC+CFL.py` com `importlib`, herda o servidor dele e reescreve `main` e `inter_cluster_union`. Com `--split 0`, ele reproduz o script principal (conferido: partição, acurácias e log iguais). Os itens abaixo valem para levar a divisão ao script principal.
+
+Se a H2 for levada ao script principal:
 
 - **Código** ([StoCFL-FCC+CFL.py](../projetos/StoCFL/StoCFL-FCC+CFL.py)):
   - um passo de divisão depois do treino, em `main`;
@@ -404,3 +419,34 @@ Busca rápida em 2026-11-12, com leitura dos artigos no arXiv. Nenhum deles comb
 - [Relatório de m, k e τ](relatorio-m-k-tau.md): a janela de `τ` e a cadeia entre clientes.
 - [Relatório do dropout](relatorio-dropout.md) e D-055: o ganho dos clusters de 2+ e dos singletons.
 - Decisões ([decisoes.md](decisoes.md)): D-014 (o código segue os artigos), D-015 (limiares do CFL), D-046 (simulador da fusão) e D-057 (este documento).
+
+## 13. Smoke tests da versão dinâmica (H2)
+
+Rodados em 2026-11-12 com o [StoCFL-FCC+CFL-split.py](../projetos/StoCFL/StoCFL-FCC+CFL-split.py) ([D-058](decisoes.md)), sem dropout e sem rótulos Dirichlet. O objetivo é ver se a divisão faz sentido com treino e se os clientes separados pelo CFL voltam a se juntar.
+
+### 13.1 Montagem
+
+- **Dados e treino:** Rotated MNIST, `n = 40`, `k = 4` (10 clientes por rotação, 6.000 amostras cada), `m = 100%`, 40 rodadas, lr 0.1, 5 épocas, batch cheio, `μ = 0.05`, seeds 0 e 1. Com 6.000 amostras por cliente, o `Ψ` quase não tem ruído: o menor cosseno dentro de um grupo é 0,96–0,97.
+- **Cenários:** o `τ` saiu da matriz de cossenos de cada seed e foi conferido no simulador da D-046. A última coluna diz se as partes que o CFL separaria voltariam a se fundir pelo `Ψ` da âncora, comparando o cosseno entre os centros com `τ`:
+
+| Cenário | `τ` | Partição do StoCFL | As partes voltariam? |
+|---|---|---|---|
+| Tudo junto | 0.25 | 0°+180° e 90°+270° se encadeiam na rodada 0. Na rodada 1, os dois clusters se fundem **pelo centro** (nenhum par de membros passa de `τ`): fica um cluster com os 40. | Sim para 0°+180° contra 90°+270° (centros em 0,299 na seed 0 e 0,288 na seed 1). |
+| Um encadeamento | 0.28 (seed 0); 0.26 (seed 1) | Só 0°+180° (seed 0) ou só 90°+270° (seed 1) se encadeiam; os outros dois grupos ficam sozinhos. | Não: os centros dos dois grupos ficam em 0,263 e 0,243, abaixo de `τ`. |
+| Controle | 0.6 | Os 4 grupos certos. | Não se aplica: o pré-filtro do `Ψ` não dispara. |
+
+- **Variantes:**
+  - sem divisão (`--split 0`), que serve de base e de calibração;
+  - `none`, `reanchor` e `cannot_link`, nos dois cenários com encadeamento;
+  - no controle, só `none`, conferido contra a base.
+- **Calibração de `ε1` e `ε2`,** nas 6 execuções sem divisão:
+  - **O sinal do CFL aparece.** No cluster misto 0°+180° (seed 0), a norma máxima das atualizações estaciona em ~0,21, e a média cai: a razão média/máxima vai de 0,76 para 0,25. No cluster puro de 90°, as duas caem juntas (0,050 e 0,060 na rodada 39).
+  - **A regra do artigo não dispara.** Ela daria `ε1 = 0,033` (um décimo da maior norma média), mas a norma média estaciona perto de 0,049 (ajuste `a + b·q^r` nas rodadas 20 a 39). Provavelmente é porque o modelo global, que puxa o modelo do cluster pelo termo proximal, continua treinando.
+  - **Valores escolhidos,** como na D-015:
+    - `ε1` é o menor valor, na grade de 0,01, que todo cluster encadeado cruza até a rodada 20 (os mínimos foram de 0,084 a 0,089): **0,09**;
+    - `ε2` é o ponto médio entre a maior norma máxima dos clusters puros a partir da rodada 20 (0,080) e a menor norma máxima dos encadeados (0,212): **0,146**;
+    - `ε2/ε1 = 1,6`, dentro da faixa do artigo.
+- **Referência sem divisão** (acurácia do modelo do cluster de cada cliente no teste da rotação dele, média das rodadas 31 a 40):
+  - controle: 0,89, contra 0,645 do modelo global;
+  - tudo junto: 0,645, igual ao global, ou seja, o encadeamento custa ~25 pontos;
+  - um encadeamento: 0,77 nos clientes do par encadeado, contra 0,89 nos grupos puros.

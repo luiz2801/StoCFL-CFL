@@ -1043,3 +1043,44 @@ Para cada decisão, a entrada segue este modelo:
   - Rodar o script do StoCFL para ter os `Ψ` de outras seeds da rotação: descartada (~1,5 GB por execução, e não foi pedida); fica como limite (seção 7) e como passo da fase 1 (seção 8).
   - Implementar a hipótese: fora do pedido e contra a política 4, porque as decisões de design estão em aberto.
   - Branch nova a partir da `main`: descartada, pelos mesmos motivos do commit na branch atual.
+
+## D-058: Script experimental da divisão pelo CFL e montagem dos smoke tests
+
+- **Data:** 2026-11-12
+- **Decidido por:**
+  - **O usuário** pediu smoke tests sem dropout e sem non-IID, "para verificar se aplicar dessa maneira faz sentido e se os clientes que foram separados pelo CFL retornaram aos mesmos clusters", sugerindo que "utilizar um novo modelo global seja a solução". Perguntado, escolheu:
+    1. o "novo modelo global" é re-ancorar o `Ψ` no modelo global treinado da rodada da divisão;
+    2. o gatilho é o `Ψ` incompatível (algum par ≤ `τ`) mais o critério de norma do CFL, com corte pelo Alg. 1 sobre o cosseno dos `ΔW`, `γ_max = 0.5` e as partes herdando o modelo do pai;
+    3. um script experimental separado;
+    4. quando a regra do artigo para `ε1` se mostrou inatingível, "o menor `ε` que divide", como na D-015.
+  - **Claude** decidiu o resto, por ser trivial e reversível ou parâmetro de smoke test, sem mudar o comportamento do StoCFL.
+- **Situação:** vigente. Resolve, só para os smoke tests, as decisões 1 a 8 da seção 9 da [hipótese](hipotese-stocfl-divisao-cfl.md).
+- **Contexto:** a D-057 deixou em aberto o desenho da versão dinâmica (H2). O cenário pedido, sem dropout e sem Dirichlet, é o Rotated MNIST.
+- **Decisão (de Claude):**
+  - **Script:** `projetos/StoCFL/StoCFL-FCC+CFL-split.py`, no padrão de nome dos outros, com flags em inglês como as do script principal: `--split`, `--after_split none|reanchor|cannot_link`, `--eps1`, `--eps2` e `--gamma_max`.
+    - Carrega o `StoCFL-FCC+CFL.py` com `importlib` e herda o servidor.
+    - Reescreve `main`: o mesmo laço, mais o `ΔW`, as normas, a acurácia por cliente e o passo de divisão.
+    - Reescreve `inter_cluster_union`: registra as refusões e, com `cannot_link`, pula as uniões proibidas.
+    - A parte que contém o cliente de mesmo id do pai mantém o id; a outra recebe o menor id dos seus membros (invariante 1).
+    - Com `reanchor`, depois de uma divisão aceita, a âncora vira o `gmodel` da rodada, e o `Ψ` de todos os clientes observados é recalculado.
+  - **Saídas:** o script não grava o `psi.pkl` (~6,5 MB por cliente a cada rodada) e guarda os cossenos entre os `Ψ` em `psi_cos.pkl`. A pasta de logs traz `τ`, a variante e os segundos no nome, para não misturar execuções.
+  - **Participação:** exige `--num_per_round` = `--n` e `--drop 0` com `--split 1` (decisão 7).
+  - **Regressão:** com `--split 0` (`n = 40`, `k = 4`, 4 rodadas, `τ = 0.5`, seed 0), o `cluster.pkl`, o `accuracy.pkl` e o log saíram idênticos aos do `StoCFL-FCC+CFL.py`, fora a hora e a linha de argumentos.
+  - **Cenários dos smoke tests:** Rotated MNIST, `n = 40`, `k = 4` (10 clientes por rotação, 6.000 amostras cada), `m = 100%`, 40 rodadas, lr 0.1, 5 épocas, batch cheio, `μ = 0.05`, seeds 0 e 1. O `τ` de cada cenário saiu da matriz de cossenos de cada seed e foi conferido no simulador da D-046:
+    - "tudo junto" (`τ = 0.25`): 0°+180° e 90°+270° se encadeiam na rodada 0, e os dois se fundem pelo centro na rodada 1;
+    - "um encadeamento" (`τ = 0.28` na seed 0 e `0.26` na seed 1): só 0°+180°, ou só 90°+270°, se encadeiam;
+    - controle (`τ = 0.6`): os 4 grupos certos.
+  - **Variantes:** sem divisão (`--split 0`, que serve de base e de calibração) e as três de depois da divisão. O `cannot_link` entra para comparação. No controle roda só o `none`: o pré-filtro do `Ψ` não dispara (menor cosseno 0,96 > 0,6), então as três variantes seriam iguais à base, e o `none` é conferido contra ela.
+  - **Calibração de `ε1` e `ε2`,** nas 6 execuções sem divisão:
+    - A norma média do cluster encadeado cai e estaciona perto de 0,049 (ajuste `a + b·q^r` nas rodadas 20 a 39 da seed 0), acima dos 0,033 da regra do artigo.
+    - `ε1` é o menor valor, na grade de 0,01, que todo cluster encadeado cruza até a rodada 20 (os mínimos foram de 0,084 a 0,089): **0,09**.
+    - `ε2` é o ponto médio entre a maior norma máxima dos clusters puros a partir da rodada 20 (0,080) e a menor norma máxima dos encadeados (0,212): **0,146**.
+    - `ε2/ε1 = 1,6`, dentro da faixa `[1, 10]` do artigo.
+- **Alternativas consideradas:**
+  - Flag no `StoCFL-FCC+CFL.py`: descartada pelo usuário, porque mudaria o script principal e os diagramas dele.
+  - Para o "novo modelo global", um global por ramo ou partes que partem do global: descartadas pelo usuário. Nenhuma das duas muda o `Ψ`, que é o que decide a volta.
+  - Só o critério do CFL, sem o pré-filtro, ou o corte numa rodada fixa, sem `ε1` e `ε2`: descartados pelo usuário.
+  - Para `ε`, o critério pela razão `‖média‖/max < 0,5` e a regra do artigo com mais rodadas: descartados pelo usuário.
+  - `n = 240`, como nas grades, ou `k = 8`: descartados para o smoke test. Cada execução levaria bem mais, e com `n = 40` e `k = 4` os dois tipos de encadeamento já aparecem.
+  - Uma seed só: descartada; foram duas, como nos smoke tests anteriores (D-048).
+  - As três variantes no controle: descartadas, porque seriam iguais à base por construção.
