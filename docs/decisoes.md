@@ -1117,3 +1117,16 @@ Para cada decisão, a entrada segue este modelo:
   - Versionar os scripts de execução e de análise: descartada por ora (D-013, D-057). O JSON guarda os dados brutos, e a seção 13 da hipótese descreve o método.
   - Um notebook no molde dos `teste-*.ipynb`: descartado, por ser um smoke test. Fica para a fase 2 da seção 8 da hipótese.
   - Apagar também as partições de `n = 40`: descartada sem pedido do usuário (política 7).
+
+## D-060: Notebook dos smoke tests da divisão pelo CFL
+
+- **Data:** 2026-11-12
+- **Decidido por:** o usuário pediu um notebook para ver os gráficos, "inclusive um gráfico de evolução dos clusters: os clientes sendo agrupados com o StoCFL e desagrupados com o CFL". Claude decidiu a forma, por ser trivial e reversível.
+- **Situação:** vigente. Substitui, nesse ponto, a alternativa descartada na [D-059](#d-059-execução-e-resultado-dos-smoke-tests-da-divisão-pelo-cfl-e-exclusão-dos-logs) ("um notebook no molde dos `teste-*.ipynb`").
+- **Decisão (de Claude):**
+  - `projetos/StoCFL/teste-divisao-cfl.ipynb`, versionado sem saídas, no molde dos outros e da política 7: `DADOS_JSON = True` (padrão) lê `logs/resultados-divisao-cfl-smoke.json.gz`; `DADOS_JSON = False` roda as execuções que faltarem (o código dos scripts de execução e análise da D-059 passou para o notebook), grava o JSON e apaga os logs; sem os logs e com o JSON gravado, para com `RuntimeError` (`REEXECUTAR = True` força).
+  - **Evolução dos clusters:** um mapa clientes × rodadas por execução, com a cor dada pelo **conteúdo** do cluster (as rotações dos membros, por exemplo "0°+180°"), e não pelo id, para a mesma cor significar a mesma coisa em todos os painéis; linhas verdes nas divisões do CFL e vermelhas nas voltas. Também: nº de clusters e acurácia por rodada, normas do critério do CFL com `ε1` e `ε2`, cossenos entre os `Ψ` antes e depois da reancoragem e a tabela das divisões.
+  - **Conferência:** executado no modo JSON, sem erro, com 17 figuras e 2 tabelas; a cópia executada está em `logs/teste-divisao-cfl-executado.ipynb` (fora do git). O modo de execução não foi rodado de novo (~1 h de GPU) e as figuras foram conferidas pela estrutura, não visualmente (sem `kaleido`).
+- **Alternativas consideradas:**
+  - Cor pelo id do cluster: descartada; o id muda de significado entre execuções e não mostra a mistura de rotações.
+  - Diagrama Sankey/aluvial da evolução: descartado; com 40 rodadas e divisões repetidas ficaria ilegível, e o mapa mostra cada cliente.

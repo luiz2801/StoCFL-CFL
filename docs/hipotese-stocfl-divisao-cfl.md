@@ -462,6 +462,8 @@ Rodados em 2026-11-12 com o [StoCFL-FCC+CFL-split.py](../projetos/StoCFL/StoCFL-
 
 ### 13.2 Resultados
 
+Os gráficos, inclusive a evolução dos clusters de cada execução (clientes agrupados pelo StoCFL e separados pelo CFL), estão no notebook [teste-divisao-cfl.ipynb](../projetos/StoCFL/teste-divisao-cfl.ipynb), que lê o JSON ([D-060](decisoes.md)).
+
 Acurácia = a do modelo do cluster de cada cliente no teste da rotação dele, média dos 40 clientes na última rodada (39), seed 0 / seed 1. Os resultados estão em `projetos/StoCFL/logs/resultados-divisao-cfl-smoke.json.gz` ([D-059](decisoes.md)).
 
 | Cenário | Variante | Divisões aceitas (rodada) e cortes | As partes voltaram? | Partição final | Acurácia |

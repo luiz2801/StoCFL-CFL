@@ -898,7 +898,7 @@ Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% do
 - **Com o `Ψ` recalculado no modelo global treinado (`reanchor`) ou com *cannot-link*,** a partição chegou aos 4 grupos certos, e a acurácia do modelo do cluster de cada cliente subiu de 0,655 para 0,86 (tudo fundido) e de 0,835 para 0,89 (par encadeado), contra 0,894 no controle.
 - **Na âncora treinada, os cossenos entre rotações ficaram negativos** (de −0,09 a −0,24), e o `reanchor` deu o mesmo resultado que o *cannot-link*.
 - **A regra do artigo para `ε1` (0,033) não dispara:** a norma média estaciona em ~0,049.
-- **Onde estão os dados:** números, cortes e a leitura na [hipótese da divisão](hipotese-stocfl-divisao-cfl.md), seção 13. Os resultados estão em `logs/resultados-divisao-cfl-smoke.json.gz` (fora do git). Os logs (24 pastas, 499 MB) foram apagados.
+- **Onde estão os dados:** números, cortes e a leitura na [hipótese da divisão](hipotese-stocfl-divisao-cfl.md), seção 13. Os resultados estão em `logs/resultados-divisao-cfl-smoke.json.gz` (fora do git). Os logs (24 pastas, 499 MB) foram apagados. O notebook [teste-divisao-cfl.ipynb](StoCFL/teste-divisao-cfl.ipynb) replota tudo a partir do JSON, inclusive a evolução dos clusters rodada a rodada (D-060).
 
 ### 4.12 Bugs e limitações conhecidos (StoCFL)
 
