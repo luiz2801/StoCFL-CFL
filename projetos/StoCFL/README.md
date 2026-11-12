@@ -186,6 +186,15 @@ A seção 5 do mesmo notebook procura o `τ` que melhor recupera os `k` grupos r
 - **Os logs do teste de `m` e da busca de `τ` foram apagados** em 2026-11-10 (153 execuções, ~222 GB; D-040). Os dados importantes estão em `logs/resultados-fracao-clientes.json` (~23 MB; cópia versionada compactada em `docs/resultados/resultados-fracao-clientes.json.gz`, D-041): por execução, os parâmetros, as métricas finais e por rodada, o cluster de cada cliente e os sorteados por rodada e os cossenos; e a matriz de cossenos entre clientes da rodada 0 para cada `n` e `k`, com a qual a janela de `τ` se calcula sem rodar nada. **O notebook ainda não lê esse JSON**, então executar suas células de execução roda tudo de novo (~25 GB o teste de `m`, até ~160 GB a busca de `τ`), e o `logs/busca-tau.json` só tem nomes de pastas que não existem mais.
 - Só a primeira seed (`SEEDS[0]`) é usada. A varredura e a bisseção supõem que o ARI varia de forma razoavelmente suave em `τ`, o que vale para uma seed, mas pode não valer entre seeds.
 
+### Smoke tests da divisão pelo CFL
+
+Em 2026-11-12, o [StoCFL-FCC+CFL-split.py](StoCFL-FCC+CFL-split.py) rodou em Rotated MNIST com `n = 40`, `k = 4`, `m = 100%`, 40 rodadas e seeds 0 e 1, sem dropout e sem Dirichlet (D-058, D-059). Foram 20 execuções, com `ε1 = 0.09`, `ε2 = 0.146` e `γ_max = 0.5`, em três cenários: tudo fundido (`τ = 0.25`), um par encadeado (`τ` = 0.28 na seed 0 e 0.26 na seed 1) e controle (`τ = 0.6`).
+
+- **O CFL dividiu os clusters encadeados exatamente entre as rotações.** Com `reanchor` ou `cannot_link`, chegou aos 4 grupos certos. A acurácia do modelo do cluster de cada cliente subiu de 0,655 para 0,86 (tudo fundido) e de 0,835 para 0,89 (par encadeado), contra 0,894 no controle.
+- **Com `none`, os clientes separados voltaram ao mesmo cluster na rodada seguinte, todas as vezes,** quando o cosseno entre os centros das partes passava de `τ` (tudo fundido). Nesse caso, a acurácia ficou idêntica à da execução sem divisão. No par encadeado, os centros ficavam abaixo de `τ`, e as partes não voltaram.
+- **Com `reanchor`, os cossenos entre rotações no `Ψ` recalculado ficaram negativos,** e as partes não voltaram. O resultado foi idêntico ao do `cannot_link`.
+- **Onde estão os dados:** números e leitura na [hipótese](../../docs/hipotese-stocfl-divisao-cfl.md), seção 13. Os resultados estão em `logs/resultados-divisao-cfl-smoke.json.gz` (fora do git, política 7), e os logs foram apagados. Não há notebook para esses testes: a análise foi feita por scripts fora do repositório, e o JSON guarda os dados brutos de cada rodada.
+
 ## Citation
 
 If you find this repo helpful to your research, please cite our paper:

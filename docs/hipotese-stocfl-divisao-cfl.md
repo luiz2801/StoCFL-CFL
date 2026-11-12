@@ -13,10 +13,15 @@ Neste documento, **CFL** é o algoritmo de Sattler et al. ([guia](guia.md), seç
   - **Divisões erradas:** com o gatilho literal ("algum par ≤ `τ`"), ela também divide clusters corretos (em `k = 4` e `τ = 0.9`, o ARI cai de 1,0 para 0,07) e, no Dirichlet, deixa de 70 a 138 dos 240 clientes sozinhos.
   - **Bloqueio:** com a aceitação do próprio CFL (`γ_max = 0.5`), ela não age em `k = 16` nem no Dirichlet.
 - **Na versão estática, dividir equivale a trocar a regra de fusão.** O servidor já guarda o `Ψ` de todo cliente observado, então a mesma checagem pode ser feita **antes** da fusão. Fundir por *complete linkage* dá as mesmas janelas de `τ` que a divisão com memória, sem nenhuma divisão. Recalcular o centro depois de cada fusão desfaz o gigante (ARI contra o gabarito de 0,03 para 0,41), com bem menos singletons que a divisão (42 contra 105).
-- **A versão que traz informação nova é a dinâmica:** o CFL completo, que treina o modelo do cluster até perto de um ponto estacionário e divide pelo cosseno das **atualizações**. Ela mede incongruência, que o `Ψ` na âncora não mede diretamente, e ataca a limitação registrada no guia (4.12 #9: fusões irreversíveis). É plausível, mas não foi testada e depende de memória contra a refusão, da participação dos membros, de limiares do CFL calibrados e de mais rodadas.
+- **A versão que traz informação nova é a dinâmica:** o CFL completo, que treina o modelo do cluster até perto de um ponto estacionário e divide pelo cosseno das **atualizações**. Ela mede incongruência, que o `Ψ` na âncora não mede diretamente, e ataca a limitação registrada no guia (4.12 #9: fusões irreversíveis).
+- **Nos smoke tests da versão dinâmica (seção 13),** em Rotated MNIST com `n = 40`, `k = 4`, `m = 100%` e 40 rodadas:
+  - o CFL dividiu os clusters encadeados exatamente entre as rotações e chegou aos 4 grupos certos, com a acurácia subindo de 0,655 para 0,86 no cenário em que tudo se fundia e de 0,835 para 0,89 no de um par encadeado (o teto é 0,894);
+  - **sem memória, os clientes separados voltaram ao mesmo cluster na rodada seguinte, todas as vezes,** sempre que o cosseno entre os centros das partes no `Ψ` da âncora inicial passava de `τ`;
+  - **o "novo modelo global" resolveu a volta:** com o `Ψ` recalculado no global treinado, os cossenos entre rotações ficaram negativos (de −0,09 a −0,24), e o resultado foi idêntico ao do *cannot-link*;
+  - a regra do artigo para `ε1` não dispara nesse cenário, e os limiares tiveram de ser calibrados (D-058).
 - **Recomendação:** separar a ideia em duas hipóteses e testá-las contra baselines simples (seção 8):
   - **H1**, estática: uma mudança da regra de fusão, testável no simulador em minutos;
-  - **H2**, dinâmica: a hipótese do CFL de fato, que exige treino.
+  - **H2**, dinâmica: a hipótese do CFL de fato. Depois dos smoke tests, o próximo passo é testá-la em escala (`n = 240`, mais seeds, rótulos Dirichlet e participação parcial), com a nova âncora ou o *cannot-link*.
 
 ## 2. A ideia
 
@@ -158,6 +163,8 @@ Por isso, "continuar com o StoCFL" depois de dividir só é estável com memóri
 
 A literatura conhece o problema. O FedDAG agrupa uma vez só e registra que "oscillations due to re-clustering invalidate the descent decomposition" da sua análise. O FedAC só funde abaixo de um limiar e só divide acima de outro (seção 11).
 
+Os smoke tests com treino (seção 13) confirmaram a volta e mostraram uma terceira forma de evitá-la: recalcular o `Ψ` no modelo global treinado. Nessa âncora, os cossenos entre grupos diferentes ficam negativos, e as partes não voltam a se fundir.
+
 ### 5.3 O gatilho literal dispara quase sempre
 
 "Algum par de membros com cosseno ≤ `τ`" é o mínimo de `n(n−1)/2` cossenos ruidosos, então dispara mesmo em clusters corretos:
@@ -204,6 +211,8 @@ O CFL só divide perto de um ponto estacionário. No artigo, as divisões saem n
 As grades do StoCFL deste repositório têm 50 rodadas, e a partição do Dirichlet estabiliza até 33 rodadas depois da cobertura total ([relatório do dropout](relatorio-dropout.md)). Sobra pouco tempo para o CFL agir.
 
 `ε1` e `ε2` são normas absolutas, difíceis de calibrar (D-015). Um mesmo `ε1` serve mal a clusters de 2 e de 192 clientes, porque a média de poucos `ΔW` é mais ruidosa. A H2 acrescenta três hiperparâmetros (`ε1`, `ε2`, `γ_max`) aos dois do StoCFL (`τ`, `μ`).
+
+Os smoke tests confirmaram as duas coisas (seção 13). A norma média estaciona acima do `ε1` da regra do artigo, provavelmente porque o modelo global, alvo do termo proximal, continua treinando, e foi preciso calibrar os limiares. Mesmo calibrada, a divisão só veio nas rodadas 19 a 35 de 40.
 
 ### 5.9 Custo de manutenção
 
@@ -450,3 +459,73 @@ Rodados em 2026-11-12 com o [StoCFL-FCC+CFL-split.py](../projetos/StoCFL/StoCFL-
   - controle: 0,89, contra 0,645 do modelo global;
   - tudo junto: 0,645, igual ao global, ou seja, o encadeamento custa ~25 pontos;
   - um encadeamento: 0,77 nos clientes do par encadeado, contra 0,89 nos grupos puros.
+
+### 13.2 Resultados
+
+Acurácia = a do modelo do cluster de cada cliente no teste da rotação dele, média dos 40 clientes na última rodada (39), seed 0 / seed 1. Os resultados estão em `projetos/StoCFL/logs/resultados-divisao-cfl-smoke.json.gz` ([D-059](decisoes.md)).
+
+| Cenário | Variante | Divisões aceitas (rodada) e cortes | As partes voltaram? | Partição final | Acurácia |
+|---|---|---|---|---|---|
+| Tudo junto | sem divisão | — | — | 1 cluster | 0,657 / 0,653 |
+| Tudo junto | `none` | 20 por seed, uma em cada rodada de 20 a 39, sempre o mesmo corte: {0°, 90°} \| {180°, 270°} (seed 0) e {270°} \| {0°, 90°, 180°} (seed 1) | **Sim, na rodada seguinte, todas as vezes** (19 refusões por seed) | 1 cluster | 0,657 / 0,653, idêntica à sem divisão |
+| Tudo junto | `reanchor` | Seed 0: {0°, 90°} \| {180°, 270°} na rodada 20; {0°} \| {90°} e {180°} \| {270°} na 31. Seed 1: {270°} \| resto na 20; {180°} \| {0°, 90°} na 27; {90°} \| {0°} na 35 | Não | Os 4 grupos certos (ARI 1), estáveis desde a rodada 32 / 36 | 0,861 / 0,855 |
+| Tudo junto | `cannot_link` | As mesmas do `reanchor` | Não (19 / 23 fusões bloqueadas) | Os 4 grupos certos | 0,861 / 0,855, idêntica à do `reanchor` |
+| Um encadeamento | sem divisão | — | — | 3 clusters, com o par encadeado junto | 0,835 / 0,835 (clientes do par: 0,775) |
+| Um encadeamento | `none`, `reanchor` e `cannot_link` | Uma, na rodada 19, exatamente entre os dois grupos do par (0° \| 180°, ou 90° \| 270°) | Não | Os 4 grupos certos (ARI 1) | 0,890 / 0,891 (clientes do par: 0,886 / 0,887) |
+| Controle | sem divisão e `none` | Nenhuma | — | Os 4 grupos certos | 0,894 / 0,895 |
+
+- **Conferências:**
+  - no controle, o `none` deu partição e acurácias idênticas às da execução sem divisão, rodada a rodada;
+  - no "tudo junto", o `reanchor` e o `cannot_link` deram resultados idênticos;
+  - no "um encadeamento", as três variantes deram resultados idênticos.
+- **Aceitação do CFL:** todas as divisões foram aceitas, com `α_cross^max` negativo: de −0,14 a −0,24 nos cortes que deixam mais de uma rotação num lado e de −0,55 a −0,67 nos cortes entre duas rotações. Estão longe do limite de 0,5 que o `γ_max = 0.5` impõe (5.4).
+- **Média das rodadas 31 a 40,** em vez da última: 0,820 / 0,814 no "tudo junto" com `reanchor` e `cannot_link`, porque os 4 grupos só se separam nas rodadas 31 a 35.
+
+### 13.3 Os clientes separados pelo CFL voltaram?
+
+Voltaram só quando o cosseno entre os centros das partes, no `Ψ` da âncora inicial, passava de `τ`, como a seção 3.3 prevê.
+
+- **"Tudo junto", `none`: voltaram sempre,** na rodada seguinte, e ao mesmo cluster de antes (os 40 clientes). O cosseno entre os centros das partes era 0,367 (seed 0) e 0,292 (seed 1), contra `τ = 0.25`.
+  - A fusão acontece antes do treino, então as partes nunca treinaram separadas, e as acurácias ficaram idênticas às da execução sem divisão.
+  - Sem memória, a divisão só registrou 20 divisões e 19 refusões, sem mudar nada.
+- **"Um encadeamento": não voltaram,** em nenhuma variante. Os centros dos dois grupos ficam em 0,263 e 0,243 na âncora inicial, abaixo de `τ`, então mesmo o `none` funcionou.
+
+### 13.4 O novo modelo global (`reanchor`)
+
+Recalcular o `Ψ` no modelo global treinado **inverteu o sinal dos cossenos entre grupos**:
+
+| Âncora | Cosseno médio entre grupos | Maior cosseno entre grupos | Menor cosseno dentro de um grupo |
+|---|---|---|---|
+| Inicial (`ω₀`, aleatória) | +0,20 | +0,26 a +0,29 | 0,96 a 0,97 |
+| Modelo global nas rodadas 19 a 35 | −0,19 a −0,24 | −0,09 a −0,12 | 0,90 a 0,94 |
+
+- **O par mais encadeado virou o mais oposto.** Os grupos de 0° e 180°, com cosseno médio de +0,23 a +0,26 na âncora aleatória, ficaram com −0,29 na âncora treinada.
+- **É o Teorema da Separação do CFL (guia 3.9.2) aparecendo no `Ψ`:** perto de um ponto estacionário do objetivo conjunto, os gradientes de distribuições diferentes apontam em direções opostas.
+- **Depois da primeira reancoragem, não houve mais nenhuma fusão,** nem refusão nem outra. Com a nova âncora, qualquer `τ` entre −0,09 e 0,90 separa os quatro grupos.
+- **Neste cenário, a nova âncora fez exatamente o que a memória faz** (o `cannot_link` deu o mesmo resultado), sem guardar restrições. A diferença é de alcance:
+  - o `reanchor` troca o `Ψ` de todos os clientes, então muda também as fusões futuras de quem não foi dividido;
+  - ele custa um gradiente por cliente a cada divisão;
+  - com participação parcial, ele não funcionaria assim, porque `Ψ` calculados em âncoras diferentes não são comparáveis, e só com `m = 100%` dá para recalcular todos de uma vez.
+
+### 13.5 Leitura e limites
+
+**Fatos medidos neste cenário:**
+
+- **Aplicar a divisão dessa maneira faz sentido.** O CFL dividiu os dois tipos de encadeamento exatamente entre as rotações e chegou aos 4 grupos certos. Na rodada 39, a acurácia subiu:
+  - de 0,655 para 0,86 no "tudo junto";
+  - de 0,835 para 0,89 no "um encadeamento" (de 0,775 para 0,886–0,887 nos clientes do par);
+  - o teto, no controle, é 0,894.
+- **O corte do CFL não segue o histórico de fusões,** como no esboço da seção 2.2. Na seed 0, ele separou {0°, 90°} de {180°, 270°}, embora o `Ψ` tivesse encadeado 0° com 180°.
+- **"Continuar com o StoCFL" exige memória ou nova âncora.** Sem nenhuma das duas, as partes voltam sempre que o cosseno entre os centros na âncora inicial passa de `τ`.
+- **A divisão chega tarde:** nas rodadas 19 a 35, porque o critério do CFL espera o modelo do cluster convergir.
+
+**Limites:**
+
+- `n = 40` e `k = 4`, com `Ψ` quase sem ruído (6.000 amostras por cliente, contra 1.000 com `n = 240`).
+- `m = 100%`, sem dropout, 40 rodadas, 2 seeds, só rotação.
+- `ε1` e `ε2` foram calibrados nas mesmas execuções, então isto não é uma validação independente.
+- Com rótulos Dirichlet, em que as classes são quase separáveis e os clientes quase congruentes, o resultado pode ser outro (5.6).
+- O efeito da nova âncora com participação parcial não foi testado.
+- O ganho sobre o StoCFL vale contra um `τ` abaixo da janela. Com `τ` dentro da janela (o controle), o StoCFL já acerta e a divisão não faz nada.
+
+**Hipótese nova, não testada:** calcular o `Ψ` no modelo global depois de algumas rodadas de aquecimento, em vez da âncora aleatória, poderia separar melhor os grupos já na clusterização do StoCFL, sem divisão. Neste cenário, a âncora treinada alargou a janela de `τ` de (0,29; 0,98) para (−0,09; 0,90).

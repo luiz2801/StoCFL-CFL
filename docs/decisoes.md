@@ -1084,3 +1084,36 @@ Para cada decisão, a entrada segue este modelo:
   - `n = 240`, como nas grades, ou `k = 8`: descartados para o smoke test. Cada execução levaria bem mais, e com `n = 40` e `k = 4` os dois tipos de encadeamento já aparecem.
   - Uma seed só: descartada; foram duas, como nos smoke tests anteriores (D-048).
   - As três variantes no controle: descartadas, porque seriam iguais à base por construção.
+
+## D-059: Execução e resultado dos smoke tests da divisão pelo CFL, e exclusão dos logs
+
+- **Data:** 2026-11-12
+- **Decidido por:** Claude, por serem escolhas triviais e reversíveis da execução, da análise e do JSON, que não mudam nenhum resultado. A execução foi pedida pelo usuário, e a montagem está na [D-058](#d-058-script-experimental-da-divisão-pelo-cfl-e-montagem-dos-smoke-tests).
+- **Situação:** vigente.
+- **Contexto:** as 20 execuções da D-058 (6 sem divisão e 14 com divisão) rodaram em 2026-11-12, das 17:13 às 18:36, 3 em paralelo na GPU (~10 min cada; ~5 min sozinha). Pela política 7, os resultados vão para um JSON e os logs são apagados depois da verificação.
+- **Decisão (de Claude):**
+  - **Análise e JSON:** a análise foi feita por scripts fora do repositório (critério da D-013 e da D-057). Os resultados foram para `projetos/StoCFL/logs/resultados-divisao-cfl-smoke.json.gz` (231 KB; gzip nível 9, sem data, gravado num arquivo temporário e renomeado; fora do git, D-054). O JSON guarda:
+    - por execução: os parâmetros, a pasta e a duração; a partição de cada rodada; por rodada, a acurácia do modelo do cluster de cada cliente e a do global por grupo, e as normas do critério do CFL de cada cluster de 2+;
+    - também por execução: as divisões (lados, `α_cross^max`, normas, aceita ou não), as refusões, as fusões bloqueadas, as reancoragens, os cossenos entre os `Ψ` na observação e depois de cada reancoragem, e a linha de argumentos do log;
+    - fora das execuções: a regressão do `--split 0`, a calibração de `ε1` e `ε2` (com o ajuste do piso), os cossenos entre os centros na âncora inicial e as conferências de identidade.
+  - **Verificação:**
+    - o resumo recalculado só do JSON foi igual ao recalculado dos logs (78 linhas);
+    - no controle, o `none` foi idêntico à execução sem divisão, na partição e nas acurácias, rodada a rodada;
+    - no "tudo junto", o `reanchor` foi idêntico ao `cannot_link`;
+    - no "um encadeamento", as três variantes foram idênticas;
+    - o `none` do "tudo junto" teve as mesmas acurácias da execução sem divisão;
+    - a saída padrão das execuções só tinha barras de progresso, o aviso do `pynvml` e linhas que também estão no log.
+  - **Logs apagados:** 24 pastas, 499 MB, quase tudo nos dois `psi.pkl` do script principal. As saídas padrão também foram apagadas. Eram elas:
+    - as 20 pastas das execuções;
+    - as 2 da regressão, registrada no JSON;
+    - as 2 que só calcularam o `Ψ` ao gerar os dados das seeds 0 e 1, cujos cossenos são iguais aos do JSON (diferença de até 5e-7).
+  - **Partições mantidas:** `datasets/rotated_mnist_40_0` e `_1` (910 MB cada) não foram apagadas, pela política 7.
+  - **Sem trava:** não há notebook versionado que rode esses testes, então não há o que travar. O JSON é a única cópia dos resultados.
+- **Resultado** (números na seção 13 da [hipótese](hipotese-stocfl-divisao-cfl.md)):
+  - **O CFL dividiu os clusters encadeados exatamente entre as rotações,** sempre com `α_cross^max` negativo (−0,14 a −0,67).
+  - **Sem memória, os clientes separados voltaram ao mesmo cluster na rodada seguinte, todas as vezes,** quando o cosseno entre os centros das partes na âncora inicial passava de `τ` ("tudo junto": 20 divisões e 19 refusões por seed, com acurácia idêntica à sem divisão). No "um encadeamento" não voltaram, porque esse cosseno ficava abaixo de `τ`.
+  - **Com o `Ψ` recalculado no modelo global treinado,** os cossenos entre rotações ficaram negativos (−0,09 a −0,24), nenhuma fusão aconteceu depois, e o resultado foi idêntico ao do *cannot-link*. A partição chegou aos 4 grupos certos, e a acurácia subiu de 0,655 para 0,86 ("tudo junto") e de 0,835 para 0,89 ("um encadeamento"); o controle fica em 0,894.
+- **Alternativas consideradas:**
+  - Versionar os scripts de execução e de análise: descartada por ora (D-013, D-057). O JSON guarda os dados brutos, e a seção 13 da hipótese descreve o método.
+  - Um notebook no molde dos `teste-*.ipynb`: descartado, por ser um smoke test. Fica para a fase 2 da seção 8 da hipótese.
+  - Apagar também as partições de `n = 40`: descartada sem pedido do usuário (política 7).
