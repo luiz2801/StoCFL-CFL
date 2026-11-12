@@ -116,7 +116,7 @@ Saída: uma tabela de nº de clusters, maior cluster e singletons por `τ`, e a 
 | `ganho` | `acc_cluster − acc_global` |
 | `rodada_limiar` | Primeira rodada com `acc_cluster ≥ LIMIAR_ACC` (padrão 0,90; ajustar depois de ver as curvas) |
 
-**Atenção:** no teste global balanceado, um modelo de cluster especializado em poucas classes mede **pior** do que o global, por construção (D-PRIDE, guia §7.5). O `ganho` pode sair negativo sem que isso seja defeito. A avaliação mais justa, com o recall por classe ponderado pela distribuição de rótulos do cluster, exige mudar o script (pendência da seção 10).
+**Atenção:** no teste global balanceado, um modelo de cluster especializado em poucas classes mede **pior** do que o global, por construção (D-PRIDE, guia §7.5). O `ganho` pode sair negativo sem que isso seja defeito. A avaliação mais justa, com o recall por classe ponderado pela distribuição de rótulos do cluster, exigia mudar o script (P1 da seção 10) e foi feita na [D-045](decisoes.md): é a acurácia "ponderada" do notebook.
 
 Comparação dropout − sem dropout por seed, com Wilcoxon (sem correção para comparações múltiplas), para `acc_cluster_final`, `acc_global_final`, `ganho`, `rodada_limiar`, rodada estável e nº de clusters.
 
@@ -129,9 +129,9 @@ Cada etapa é um commit atômico (política 6), com a documentação e o registr
 1. **Plano e decisões** (este documento, D-043, D-044 e os índices). Feito em 2026-11-10.
 2. **Particionador Dirichlet e flag** no script, com os testes e a regressão da seção 5. Resolve antes as pendências da seção 10.
 3. **Varredura de `τ`** (seção 6) e escolha do `τ` com você.
-4. **Notebook `teste-dropout-treino.ipynb`**, versionado sem saídas. Parte das funções do `teste-dropout.ipynb` (copiadas, sem editar o original) e acrescenta a leitura da acurácia, as métricas e os gráficos da seção 7. Inclui a política 7 desde o início: `DADOS_JSON`, a trava que recusa relançar a grade quando faltam os logs e o JSON já existe, e a célula que grava `logs/resultados-dropout-treino.json` (estrito, via arquivo temporário), com os dados brutos de cada execução: o cluster de cada cliente por rodada, os sorteados e os indisponíveis por rodada, os cossenos da última rodada, o histograma de rótulos por cliente e a acurácia de cada cluster por rodada (id, participantes, acurácia do cluster e do global). O notebook também captura a saída padrão de cada execução e a confere antes de apagar os logs.
+4. **Notebook `teste-dropout-treino.ipynb`**, versionado sem saídas. Parte das funções do `teste-dropout.ipynb` (copiadas, sem editar o original) e acrescenta a leitura da acurácia, as métricas e os gráficos da seção 7. Inclui a política 7 desde o início: `DADOS_JSON`, a trava que recusa relançar a grade quando faltam os logs e o JSON já existe, e a célula que grava `logs/resultados-dropout-treino.json.gz` (estrito, compactado com gzip, via arquivo temporário; D-053), com os dados brutos de cada execução: o cluster de cada cliente por rodada, os sorteados e os indisponíveis por rodada, os cossenos da última rodada, o histograma de rótulos por cliente e a acurácia de cada cluster por rodada (id, participantes, acurácia do cluster e do global). O notebook também captura a saída padrão de cada execução e a confere antes de apagar os logs.
 5. **Smoke test** com uma cópia reduzida (`n = 48`, 6 rodadas, seeds 0 e 1, os 3 cenários de dropout, os 2 `m` e os 2 `α`). Verifica as células, a segunda execução reaproveitando tudo, a igualdade da partição e do sorteio entre `--train 0` e `--train 1` e a cobertura do log igual às chaves do `psi.pkl` (I5 do [plano do dropout](plano-dropout-stocfl.md)). Mede também o tempo real por execução.
-6. **Grade completa** (120 execuções), em segundo plano e só **depois da sua autorização**. Com `APAGAR_PSI = True`, o `psi.pkl` de cada execução concluída é apagado. O notebook reaproveita execuções concluídas, então uma interrupção se retoma reexecutando.
+6. **Grade completa** (240 execuções com os dois `τ`, D-050; eram 120 com um `τ`), em segundo plano e só **depois da sua autorização**. Com `APAGAR_PSI = True`, o `psi.pkl` de cada execução concluída é apagado. O notebook reaproveita execuções concluídas, então uma interrupção se retoma reexecutando.
 7. **Verificação e limpeza (política 7).** O notebook em modo `DADOS_JSON` tem de gerar os mesmos gráficos e tabelas que o modo com logs, e o JSON tem de bater com os logs. Listar os caminhos dos logs da grade, conferir que cada um consta no JSON e só então apagá-los. O JSON fica **compactado em `logs/resultados-dropout-treino.json.gz`, fora do repositório** (D-053, substitui a cópia em `docs/resultados/`).
 8. **Relato** (feito em 2026-11-12). Os números no [guia](guia.md), seção 4.11, e a atualização das notas "o efeito sobre o ARI e o nº de clusters não foi medido" (guia 4.9 e 4.12 #13) para o que a grade mostrar com treino.
 
@@ -143,12 +143,12 @@ Cada etapa é um commit atômico (política 6), com a documentação e o registr
 | V2 | Cobertura | a do log igual às chaves de `psi.pkl` (I5) |
 | V3 | Acurácia lida do log | igual à do `accuracy.pkl` em todas as rodadas, com o nº de clusters e de valores batendo |
 | V4 | Uma entrada por rodada | `cluster.pkl` e `accuracy.pkl` com 50 entradas, inclusive em rodada sem participantes |
-| V5 | JSON | estrito (sem `NaN`), 120 execuções, 50 linhas por rodada por execução, métricas recalculáveis dos dados brutos |
+| V5 | JSON | estrito (sem `NaN`), 240 execuções, 50 linhas por rodada por execução, métricas recalculáveis dos dados brutos |
 | V6 | Modo `DADOS_JSON` | mesmas figuras e tabelas que o modo com logs, comparadas campo a campo, sem alterar o JSON |
 | V7 | Regressão do script | sem a flag nova, `cluster.pkl`, `psi.pkl` e os sorteados iguais aos de antes da mudança (como o I1 do plano do dropout) |
 | V8 | Particionador | 20 partições geradas (10 seeds × 2 `α`), determinísticas por seed, sem falha, com tamanhos registrados |
 
-## 10. Pendências (decisões que ainda faltam, a perguntar antes de implementar)
+## 10. Pendências (todas respondidas em 2026-11-10)
 
 **Respondidas em 2026-11-10:** P1, acrescentar o recall por classe e manter a acurácia global (gravado sempre, em chaves novas do `accuracy.pkl`); P2, manter o FedAvg sem ponderação; P4, os nomes propostos (D-045). P3: Monte Carlo sobre `τ`, maior ARI médio contra o agrupamento das distribuições de rótulos (D-046).
 
@@ -166,8 +166,8 @@ Cada etapa é um commit atômico (política 6), com a documentação e o registr
 - **Acurácia por cluster tem viés de composição.** Só clusters sorteados são avaliados. Com `τ` alto, muitos clusters são singletons, e a média ponderada reflete modelos de um só cliente. Leia a acurácia junto com o nº e o tamanho dos clusters.
 - **Pareamento só pela seed.** A seed fixa a partição dos dados e (pelo código, não verificado) o modelo inicial, que é igual entre os cenários. O sorteio só é igual quando `m` = 100% e `d = 0`. Com 10 seeds o Wilcoxon tem pouco poder.
 - **`cos_rec.log` só guarda a última rodada**, então a matriz de cossenos entre clientes só fica disponível nas execuções de 1 rodada da etapa A.
-- **Alterações que não são deste plano:** `docs/clusterizacao-ao-longo-do-tempo.ipynb`, `projetos/StoCFL/teste-fracao-clientes.ipynb`, `projetos/StoCFL/teste-fracao-clientes copy.ipynb` e `mimic_codes/` estão sem commit e não fazem parte deste trabalho. Adicione arquivos ao commit por nome.
-- **Só o `StoCFL-FCC+CFL.py`** tem `--drop` (passo 5 do plano do dropout segue pendente), e a flag do Dirichlet também ficará só nele.
+- **Alterações que não são deste plano:** `docs/clusterizacao-ao-longo-do-tempo.ipynb`, `projetos/StoCFL/teste-fracao-clientes.ipynb`, `projetos/StoCFL/teste-fracao-clientes copy.ipynb` e `mimic_codes/` não fazem parte deste trabalho; estavam sem commit durante a implementação e entraram no commit `4c153d5`, do usuário, em 2026-11-11. Adicione arquivos ao commit por nome.
+- **Só o `StoCFL-FCC+CFL.py`** tem `--drop` (passo 5 do plano do dropout segue pendente), e a flag do Dirichlet também ficou só nele.
 
 ## 12. Documentação a atualizar na implementação
 

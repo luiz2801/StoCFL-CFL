@@ -189,7 +189,7 @@ Os testes unitários usam `unittest` (o `pytest` não está no `.venv`). A parti
 
 ## 9. Cuidados
 
-- **Alterações que não são deste plano:** `docs/clusterizacao-ao-longo-do-tempo.ipynb`, `projetos/StoCFL/teste-fracao-clientes.ipynb`, `projetos/StoCFL/teste-fracao-clientes copy.ipynb` e `mimic_codes/` estão sem commit e **não** fazem parte desta branch. Adicione arquivos ao commit por nome.
+- **Alterações que não são deste plano:** `docs/clusterizacao-ao-longo-do-tempo.ipynb`, `projetos/StoCFL/teste-fracao-clientes.ipynb`, `projetos/StoCFL/teste-fracao-clientes copy.ipynb` e `mimic_codes/` **não** fazem parte deste plano; estavam sem commit durante a implementação e entraram no commit `4c153d5`, do usuário, em 2026-11-11. Adicione arquivos ao commit por nome.
 - **Licença:** `mimic_codes/` não tem arquivo de licença. O processo da seção 5 é novo e foi escrito a partir do artigo, sem copiar o código do MimiC.
 - **Várias seeds:** sem pareamento (seção 2), uma só seed não separa o efeito do `drop` do ruído do sorteio. Cada seed gera uma nova partição dos dados (~750 MB), então planeje o disco. Os valores sugeridos para a grade, a confirmar na tarefa do relatório: `m` = 100%, 50% e 10%, `d` = 0,1 e 0,2, `L_max` = 10, `n = 240`, 50 rodadas, `τ = 0,9`, comparando com execuções sem `drop` da mesma seed. **Para o notebook, o usuário escolheu outra grade ([D-035](decisoes.md)):** `m` = 100% e 50%, `d` = 0,05 e 0,1, `L_max` = 10, `k` = 8 e 16, `n = 240`, 50 rodadas, `τ = 0,75`, 10 seeds.
 - **Três cópias do servidor:** ao replicar nos outros scripts, aplicar o mesmo bloco da seção 5.3 e as mesmas flags. O módulo `availability.py` é único. Até lá, o guia (4.2) documenta que só o `StoCFL-FCC+CFL.py` tem `--drop`, como já acontece com o `--k` (D-029).
