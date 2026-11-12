@@ -609,7 +609,7 @@ Para cada decisão, a entrada segue este modelo:
 
 - **Data:** 2026-11-09
 - **Decidido por:** o usuário pediu a execução ("Agora roda com aqueles valores decididos") e o JSON ("quando acabar salva os resultados em um json"). Claude decidiu, por serem triviais e reversíveis, os detalhes de execução listados abaixo.
-- **Situação:** vigente. Cumpre as execuções do passo 6 do plano (o relatório continua pendente) e substitui só a parte de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test) que deixava a grade completa sem executar.
+- **Situação:** vigente. Cumpre as execuções do passo 6 do plano (o relatório foi escrito depois, na [D-056](#d-056-relatório-das-duas-grades-do-dropout-em-docsrelatorio-dropoutmd)) e substitui só a parte de [D-035](#d-035-notebook-teste-dropoutipynb-cenários-matrizes-de-confusão-e-smoke-test) que deixava a grade completa sem executar.
 - **Contexto:** depois do smoke test e da célula do JSON (D-036), o usuário quis a grade completa com os valores já decididos em D-035, sem mudar nenhum.
 - **Decisão (do usuário):** rodar a grade com os valores de D-035 (`n = 240`, `k` = 8 e 16, `m` = 100% e 50%, `d` = 0, 0,05 e 0,1, `L` em 1..10, `τ = 0,75`, 50 rodadas, seeds 0 a 9) e gravar o JSON ao terminar.
 - **Decisão (de Claude, trivial e reversível):**
@@ -1005,3 +1005,20 @@ Para cada decisão, a entrada segue este modelo:
   - Guardar a lista completa de cossenos de cada rodada: descartada; com ~100 clusters sorteados são ~5.000 pares por rodada, e o simulador os refaz.
   - Rodar de novo as 232 execuções para refazer a conferência da cobertura: descartada (~22 h), porque a conferência pelo simulador é mais forte (todas as rodadas da partição) e a cobertura bateu em todas as execuções em que foi registrada (8 aqui e as dos smoke tests).
   - Marcar como `True` a cobertura das 232, por ter passado na execução: descartada; o JSON registraria uma conferência que não pode ser mostrada.
+
+## D-056: Relatório das duas grades do dropout em `docs/relatorio-dropout.md`
+
+- **Data:** 2026-11-12
+- **Decidido por:** o usuário ("preciso que você atualize a documentação para os testes de dropout") e, perguntado, escolheu o escopo: um relatório **e** a correção dos trechos desatualizados, com as **duas grades** num só documento. Claude decidiu o nome, o local e a estrutura, por serem triviais e reversíveis.
+- **Situação:** vigente. Fecha o relatório pendente do passo 6 do [plano do dropout](plano-dropout-stocfl.md) e da [D-037](#d-037-execução-da-grade-completa-do-teste-dropoutipynb-e-geração-do-json).
+- **Contexto:** os números das duas grades (D-037 e D-055) estavam só no guia, 4.11, em seções separadas, e o plano do dropout ainda dava o relatório como pendente. O plano do dropout com treino tinha trechos que ficaram obsoletos (120 execuções, JSON sem compactar, pendências já respondidas, arquivos "sem commit"); eles foram corrigidos num commit à parte (`994299a`).
+- **Decisão (de Claude):**
+  - Markdown em `docs/relatorio-dropout.md`, no molde do [relatório de m, k e τ](relatorio-m-k-tau.md) (D-030): fontes, o que o dropout faz, uma seção por grade, a comparação, um resumo operacional e os limites, com fatos medidos separados de hipóteses.
+  - Base: os dois JSONs de resultados (`logs/resultados-dropout.json` e `logs/resultados-dropout-treino.json.gz`), **sem rodar nada**. Além dos números já no guia, o relatório mede nos JSONs dois fatos novos: os sorteados e os indisponíveis são idênticos nas duas grades para a mesma seed, `m` e `d` (480 pares, todas as rodadas), e na grade com treino a rodada estável fica de −9 a +33 rodadas da 1ª rodada de cobertura total (na outra grade, sempre igual). Esses dois fatos também foram para o guia, 4.11. Também mede a tendência do modelo global entre as rodadas 40 e 50 (ainda sobe ~0,5 ponto), que entra nos limites.
+  - Links para o relatório no guia (4.11), no README de `docs/`, no README do StoCFL, no README da raiz e no plano do dropout.
+- **Alternativas consideradas:**
+  - Só corrigir os trechos desatualizados, sem relatório: descartada pelo usuário.
+  - Só o relatório, sem as correções: descartada pelo usuário.
+  - Um relatório só para a grade com treino, ou dois relatórios: descartadas pelo usuário; o sorteio igual nas duas grades torna a comparação direta.
+  - Copiar o relatório para dentro do guia: descartada pelo mesmo motivo da D-030 (o guia ficaria longo; ele só referencia o relatório).
+  - Novas execuções para testar as hipóteses do relatório (por exemplo, com o simulador da fusão): não feitas, por não terem sido pedidas; ficam listadas como limite.
