@@ -1022,3 +1022,24 @@ Para cada decisão, a entrada segue este modelo:
   - Um relatório só para a grade com treino, ou dois relatórios: descartadas pelo usuário; o sorteio igual nas duas grades torna a comparação direta.
   - Copiar o relatório para dentro do guia: descartada pelo mesmo motivo da D-030 (o guia ficaria longo; ele só referencia o relatório).
   - Novas execuções para testar as hipóteses do relatório (por exemplo, com o simulador da fusão): não feitas, por não terem sido pedidas; ficam listadas como limite.
+
+## D-057: Documento da hipótese de dividir com o CFL os clusters encadeados do StoCFL
+
+- **Data:** 2026-11-12
+- **Decidido por:** o usuário pediu o documento ("estruture essa hipótese e crie um artefato markdown nesse projeto explicando isso"), com os contrapontos, a validade e as limitações da ideia. Claude decidiu o nome, o local, a estrutura e o método de verificação, por serem escolhas triviais e reversíveis que não mudam nenhum algoritmo (política 4). As escolhas de design da hipótese **não** foram decididas: ficam em aberto na seção 9 do documento, para perguntar antes de implementar.
+- **Situação:** vigente.
+- **Contexto:** a ideia do usuário é começar com os clientes separados, agrupar com o StoCFL e, quando um cluster tiver cosseno incompatível entre membros (A~B e B~C, mas A≁C, e mesmo assim {A, B} se funde com C), aplicar o CFL de Sattler nesse cluster e depois continuar o StoCFL. O guia já registrava que a fusão equivale a *single linkage* (4.1, 4.16) e que as fusões são irreversíveis (4.12 #9), e os JSONs guardam a matriz de cossenos entre os `Ψ`, com que a fusão se refaz sem rodar o script (D-046).
+- **Decisão (de Claude):**
+  - Markdown em `docs/hipotese-stocfl-divisao-cfl.md`, ao lado dos planos e relatórios, no molde deles (D-030, D-056): fatos medidos separados de hipóteses, a ideia com o exemplo do esboço do usuário, por que o StoCFL encadeia (transitividade na rodada e amplificação do cosseno entre centros por `1/√(ρ_A·ρ_B)`), duas leituras da ideia (H1 estática, sobre o `Ψ`; H2 dinâmica, sobre as atualizações no ponto estacionário), contrapontos, verificação, limitações, como testar, decisões em aberto, impacto no código e trabalhos relacionados.
+  - **Verificação sem treino:** o simulador da fusão do `varredura-tau-dirichlet.ipynb` foi reimplementado fora do repositório e conferido contra as partições guardadas (9 de 9 execuções reais do Dirichlet; 112 de 114 da rotação com `n = 240`, e as 2 restantes divergem por um cosseno a 1,5e-5 de `τ`). Sobre os `Ψ` dos dois JSONs (`resultados-varredura-tau-dirichlet.json`, 20 matrizes; `resultados-fracao-clientes.json`, seed 0 com `k` = 4, 8 e 16), foram simuladas 9 variantes (o StoCFL; a divisão pelo Alg. 1 com dois gatilhos, com e sem memória e com a aceitação de `γ_max = 0.5`; e três regras de fusão alternativas): 2.610 simulações, 34 s de CPU. Nenhum log foi gerado e nada foi apagado; a política 7 não se aplica, porque não é um notebook de simulação.
+  - O script da análise **não foi versionado**, pelo mesmo critério da D-013; o documento descreve o método (seção 6.1).
+  - Busca rápida de trabalhos relacionados (FedDAG, FedAC, SOFA-FL, FL+HC), com leitura dos artigos no arXiv.
+  - Links no README de `docs/` e no guia (4.1, 4.12 #9 e seção 6), com os fatos medidos sobre o encadeamento do StoCFL atual.
+  - Commit na branch atual, `dropout-stocfl`, porque o documento usa resultados e decisões (D-042 a D-056) que a `main` não tem.
+- **Alternativas consideradas:**
+  - `docs/implementar/`: descartada, porque é o diretório de planejamento do ISODATA-FL.
+  - Claude Docs ou artefato publicado: descartada, porque o pedido foi um markdown "nesse projeto", e a documentação do repositório fica em `docs/` (D-030).
+  - Versionar o script da análise em `projetos/StoCFL/`: descartada por ora (D-013). Pode ser revista se o usuário quiser a análise reexecutável.
+  - Rodar o script do StoCFL para ter os `Ψ` de outras seeds da rotação: descartada (~1,5 GB por execução, e não foi pedida); fica como limite (seção 7) e como passo da fase 1 (seção 8).
+  - Implementar a hipótese: fora do pedido e contra a política 4, porque as decisões de design estão em aberto.
+  - Branch nova a partir da `main`: descartada, pelos mesmos motivos do commit na branch atual.
