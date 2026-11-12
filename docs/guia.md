@@ -900,6 +900,8 @@ Nenhum cluster misturou grupos reais (pureza 1.0 em todos). Com `m = 10%`, 1% do
 - **A regra do artigo para `ε1` (0,033) não dispara:** a norma média estaciona em ~0,049.
 - **Onde estão os dados:** números, cortes e a leitura na [hipótese da divisão](hipotese-stocfl-divisao-cfl.md), seção 13. Os resultados estão em `logs/resultados-divisao-cfl-smoke.json.gz` (fora do git). Os logs (24 pastas, 499 MB) foram apagados. O notebook [teste-divisao-cfl.ipynb](StoCFL/teste-divisao-cfl.ipynb) replota tudo a partir do JSON, inclusive a evolução dos clusters rodada a rodada (D-060).
 
+**Os mesmos smoke tests em MNIST sem rotação, com grupos de classes** (`--label_groups 1`, padrão de testes desde a D-061). Foram 20 execuções com `τ` = −0.3, −0.22 e 0.5, `ε1 = 0.07` e `ε2 = 0.378`. O CFL separou sempre grupos inteiros de classes. Com *cannot-link*, a acurácia do cenário tudo fundido subiu de 0,865 para 0,957, contra 0,978 do controle; o `reanchor` não impediu a volta numa seed, porque com `τ` negativo os cossenos entre grupos continuam acima dele. No par encadeado, o pré-filtro do `Ψ` não disparou. Detalhes na seção 14 da [hipótese da divisão](hipotese-stocfl-divisao-cfl.md); resultados em `logs/resultados-divisao-cfl-classes.json.gz`; os logs foram apagados.
+
 ### 4.12 Bugs e limitações conhecidos (StoCFL)
 
 1. **Corrigido em 2026-11-04.** `StoCFL-FCC.py` e `StoCFL-FEMNIST.py` não importavam, porque pediam `femnist` de `settings.py`, onde ele está comentado.

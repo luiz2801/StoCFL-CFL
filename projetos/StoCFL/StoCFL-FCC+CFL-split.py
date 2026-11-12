@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from fedlab.utils import SerializationTool, Aggregators, Logger
 
-from datasets import RotatedMNIST, RotatedCIFAR10Partitioner
+from datasets import BaseDataset, RotatedMNIST, RotatedCIFAR10Partitioner
 from functional import cluster_center, dt_matrix, parse_matrix, evaluate_recall, setup_seed
 from models.cnn import CNN_CIFAR10
 from models.linear import SimpleLinear
@@ -33,6 +33,35 @@ _spec = importlib.util.spec_from_file_location(
     "stocfl_fcc_cfl", os.path.join(os.path.dirname(os.path.abspath(__file__)), "StoCFL-FCC+CFL.py"))
 _base = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_base)
+
+
+LABEL_GROUPS = [[0, 1, 2], [3, 4], [5, 6], [7, 8, 9]] # the pathological label skew of the StoCFL paper
+
+
+def pre_process_label_groups(root, save_dir, n, seed):
+    # MNIST without rotation; client cid belongs to group cid * k // n and gets an IID shard of the training samples of
+    # that group's classes; test set g = the MNIST test samples of group g's classes (same file layout as RotatedMNIST)
+    from torchvision import datasets, transforms
+    k = len(LABEL_GROUPS)
+    rng = np.random.RandomState(seed)
+    to_tensor = transforms.ToTensor()
+    for split in ("train", "test"):
+        os.makedirs(os.path.join(save_dir, split), exist_ok=True)
+    mnist = datasets.MNIST(root, train=True, download=True)
+    targets = mnist.targets.numpy()
+    for g, classes in enumerate(LABEL_GROUPS):
+        idx = np.where(np.isin(targets, classes))[0]
+        rng.shuffle(idx)
+        for j, part in enumerate(np.array_split(idx, n // k)):
+            data = [to_tensor(mnist[i][0]) for i in part]
+            torch.save(BaseDataset(data, [int(targets[i]) for i in part]),
+                       os.path.join(save_dir, "train", "data{}.pkl".format(g * (n // k) + j)))
+    mnist_test = datasets.MNIST(root, train=False)
+    test_targets = mnist_test.targets.numpy()
+    for g, classes in enumerate(LABEL_GROUPS):
+        idx = np.where(np.isin(test_targets, classes))[0]
+        torch.save(BaseDataset([to_tensor(mnist_test[i][0]) for i in idx], [int(test_targets[i]) for i in idx]),
+                   os.path.join(save_dir, "test", "data{}.pkl".format(g)))
 
 
 def bipartition(S):
@@ -306,6 +335,8 @@ if __name__ == "__main__":
     parser.add_argument("--drop", type=float, default=0.0)
     parser.add_argument("--drop_rounds", type=int, default=1)
     parser.add_argument("--process", type=int, default=0)
+    # MNIST without rotation, label skew by groups of classes (LABEL_GROUPS; k = 4)
+    parser.add_argument("--label_groups", type=int, default=0)
     # split
     parser.add_argument("--split", type=int, default=1) # 0 = no split (StoCFL-FCC+CFL.py plus the extra logs)
     parser.add_argument("--after_split", type=str, default="none", choices=["none", "reanchor", "cannot_link"])
@@ -328,14 +359,19 @@ if __name__ == "__main__":
     assert args.train or not args.split, "the split needs --train 1 (the CFL signal is the update of the cluster model)"
     assert not args.split or (args.eps1 is not None and args.eps2 is not None), "the split needs --eps1 and --eps2"
     assert not args.split or (args.num_per_round == args.n and args.drop == 0), "the split needs every client in every round"
+    assert not args.label_groups or (args.dataset == "mnist" and args.k == len(LABEL_GROUPS)), "label_groups needs mnist and k = 4"
     k_tag = "" if args.k == default_k else "_k{}".format(args.k)
+    if args.label_groups:
+        k_tag += "_lg"
 
     args.root = "./datasets/{}/".format(args.dataset)
     args.save_dir = "./datasets/rotated_{}_{}_{}{}/".format(args.dataset, args.n, args.seed, k_tag)
 
     if args.process:
         print("Preprocessing datasets...")
-        if args.dataset == "mnist":
+        if args.label_groups:
+            pre_process_label_groups(args.root, args.save_dir, args.n, args.seed)
+        elif args.dataset == "mnist":
             RotatedMNIST(args.root, args.save_dir).pre_process(thetas=[360 * i / args.k for i in range(args.k)], shards=args.n // args.k)
         if args.dataset == "cifar":
             RotatedCIFAR10Partitioner(args.root, args.save_dir).pre_process(shards=int(args.n/2))

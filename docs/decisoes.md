@@ -1130,3 +1130,19 @@ Para cada decisão, a entrada segue este modelo:
 - **Alternativas consideradas:**
   - Cor pelo id do cluster: descartada; o id muda de significado entre execuções e não mostra a mistura de rotações.
   - Diagrama Sankey/aluvial da evolução: descartado; com 40 rodadas e divisões repetidas ficaria ilegível, e o mapa mostra cada cliente.
+
+## D-061: MNIST sem rotação, com grupos de classes, como padrão de testes, e smoke tests da divisão nele
+
+- **Data:** 2026-11-12
+- **Decidido por:** o usuário: "a partir de agora o MNIST tradicional, sem rotação, será o dataset padrão de testes, e os clusters serão definidos com base na distribuição de dados, já que o objetivo é atingir bons resultados com clientes non-IID". Perguntado, escolheu a partição por grupos de classes ({0,1,2}, {3,4}, {5,6}, {7,8,9}) e o tamanho de smoke test (`n = 40`). Claude decidiu o resto, por ser trivial e reversível ou parâmetro de smoke test.
+- **Situação:** vigente. Vale para os testes daqui em diante; o Rotated MNIST fica só quando pedido.
+- **Decisão (de Claude):**
+  - **Partição:** `--label_groups 1` no `StoCFL-FCC+CFL-split.py`, com a função `pre_process_label_groups` dentro dele (o `datasets.py` e o script principal não mudaram). Cada cliente recebe uma fatia IID das amostras de treino das classes do seu grupo, sorteada pela `--seed`; o teste de cada grupo é o MNIST de teste dessas classes. Pastas `datasets/rotated_mnist_40_<seed>_lg` (227 MB cada) e logs com `-lg`.
+  - **Cenários e calibração:** `τ` = −0.3 (tudo fundido), −0.22 ({3,4} com {5,6}) e 0.5 (controle), escolhidos pela matriz de cossenos e conferidos no simulador da D-046. `ε1 = 0.07` e `ε2 = 0.378`, pelo método da D-058, nas 6 execuções sem divisão.
+  - **Notebook:** o `teste-divisao-cfl.ipynb` ganhou `PARTICAO` (`"classes"`, padrão, ou `"rotacao"`), com um JSON por conjunto (`logs/resultados-divisao-cfl-classes.json.gz` e o da rotação). As 14 execuções com divisão rodaram pelo próprio notebook (`DADOS_JSON = False`), que gravou o JSON e apagou os logs. Também foram apagadas as 2 pastas que só calcularam o `Ψ` ao gerar os dados (iguais ao JSON) e as saídas padrão. A cópia executada está em `logs/teste-divisao-cfl-classes-executado.ipynb` (17 figuras, sem erro).
+- **Resultado** (seção 14 da [hipótese](hipotese-stocfl-divisao-cfl.md)): o CFL separou grupos inteiros; com *cannot-link*, de 0,865 para 0,957 (teto 0,978); o `reanchor` não impediu a volta na seed 0, porque com `τ` negativo os cossenos entre grupos na âncora treinada seguem acima dele; no par encadeado o pré-filtro do `Ψ` não disparou.
+- **Alternativas consideradas:**
+  - Dirichlet nos rótulos (gabarito construído, fraco) e Dirichlet por grupo: descartadas pelo usuário.
+  - Grade com `n = 240`: descartada pelo usuário, para agora.
+  - Colocar a partição em `datasets.py`: descartada, para não mudar o código compartilhado com as grades.
+  - Escolher um `τ` mais baixo no par encadeado, para o pré-filtro disparar: descartada; o caso em que ele não dispara é um resultado.

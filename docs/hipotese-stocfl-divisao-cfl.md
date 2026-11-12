@@ -531,3 +531,42 @@ Recalcular o `Ψ` no modelo global treinado **inverteu o sinal dos cossenos entr
 - O ganho sobre o StoCFL vale contra um `τ` abaixo da janela. Com `τ` dentro da janela (o controle), o StoCFL já acerta e a divisão não faz nada.
 
 **Hipótese nova, não testada:** calcular o `Ψ` no modelo global depois de algumas rodadas de aquecimento, em vez da âncora aleatória, poderia separar melhor os grupos já na clusterização do StoCFL, sem divisão. Neste cenário, a âncora treinada alargou a janela de `τ` de (0,29; 0,98) para (−0,09; 0,90).
+
+## 14. Smoke tests em MNIST sem rotação, com grupos de classes
+
+Desde a [D-061](decisoes.md), o conjunto padrão de testes é o MNIST sem rotação com clientes non-IID, e os grupos vêm da distribuição de dados. Os smoke tests da seção 13 foram repetidos nesse conjunto, com o mesmo método e o notebook [teste-divisao-cfl.ipynb](../projetos/StoCFL/teste-divisao-cfl.ipynb) (`PARTICAO = "classes"`).
+
+### 14.1 Montagem
+
+- **Dados:** `--label_groups 1` no `StoCFL-FCC+CFL-split.py`. Os 40 clientes formam 4 grupos de 10, cada grupo só com as classes {0,1,2}, {3,4}, {5,6} ou {7,8,9} (o cenário patológico do artigo do StoCFL). Cada cliente recebe uma fatia IID das amostras do seu grupo, e o teste de cada grupo é o MNIST de teste restrito às classes dele. O gabarito é o grupo de cada cliente.
+- **O `Ψ` já separa os grupos com cosseno negativo** (−0,19 a −0,33 entre grupos, ≥ 0,99 dentro), porque as classes não se sobrepõem. A janela de `τ` vai de ~−0,19 a 0,99, e para haver encadeamento o `τ` precisa ser negativo:
+
+| Cenário | `τ` | Partição do StoCFL |
+|---|---|---|
+| Tudo fundido | −0.3 | Os 4 grupos num cluster, já na rodada 0 (transitividade) |
+| Um encadeamento | −0.22 | {3,4} com {5,6}; os outros dois certos |
+| Controle | 0.5 | Os 4 grupos certos |
+
+- **Calibração,** pelo método da D-058: `ε1 = 0.07` e `ε2 = 0.378`, com `γ_max = 0.5`.
+
+### 14.2 Resultados
+
+Acurácia do modelo do cluster de cada cliente no teste do grupo dele, na rodada 39, seed 0 / seed 1. O modelo global fica em 0,866 / 0,864, e o teto (controle) em 0,978.
+
+| Cenário | Sem divisão | `none` | `reanchor` | `cannot_link` |
+|---|---|---|---|---|
+| Tudo fundido | 0,866 / 0,864 (1 cluster) | 0,935 / 0,929 (2 clusters) | 0,935 / 0,955 (2 / 3 clusters) | 0,959 / 0,955 (3 clusters) |
+| Um encadeamento | 0,955 / 0,954 | igual | igual | igual |
+| Controle | 0,978 / 0,978 | igual, sem divisões | — | — |
+
+- **Tudo fundido:** o CFL dividiu na rodada 19 (isolou {5,6}, `α_cross^max` ≈ −0,25) e na 23 (isolou {7,8,9} na seed 0 e {3,4} na seed 1, −0,33). Os cortes sempre separaram grupos inteiros, nunca clientes do mesmo grupo. Em 40 rodadas a partição não chegou aos 4 grupos: sobrou um cluster misto ({0,1,2}+{3,4} ou {0,1,2}+{7,8,9}).
+- **As partes voltaram sem memória:** uma volta por seed, na rodada 24, quando o cosseno entre os centros (−0,27 e −0,21) passava de `τ = −0.3`.
+- **O novo modelo global não resolveu aqui.** Na seed 0 as partes voltaram também com `reanchor` (cosseno −0,29 > −0,30). Na âncora treinada os cossenos entre grupos seguem negativos (−0,17 a −0,48), mas o `τ` também é negativo, então eles não ficam abaixo dele. Na rotação funcionou porque a reancoragem trocou o sinal dos cossenos, e o `τ` era positivo. Só o *cannot-link* impediu a volta nas duas seeds.
+- **Um encadeamento: o pré-filtro do `Ψ` nunca disparou.** Todos os cossenos entre clientes de {3,4} e de {5,6} ficam entre −0,22 e −0,19, acima de `τ`, então nenhum par é "incompatível" e o CFL nem foi consultado. As quatro variantes são idênticas. É o caso em que a ideia original (só checar clusters com par incompatível) deixa passar uma fusão errada, que custa 2,3 pontos (0,955 contra 0,978).
+
+### 14.3 Leitura
+
+- O CFL acerta os cortes também com grupos de classes, e com *cannot-link* a acurácia do cenário "tudo fundido" sobe de 0,865 para 0,957, a 2 pontos do teto.
+- A reancoragem só funciona como memória quando muda o lado de `τ` em que ficam os cossenos entre grupos. Com `τ` negativo, não muda, e o *cannot-link* é a opção robusta.
+- O pré-filtro pelo par incompatível depende de `τ`: com grupos pouco separados no `Ψ` em relação a `τ`, ele não vê o encadeamento.
+- **Limites:** os mesmos da seção 13.5 (`n = 40`, `m = 100%`, 2 seeds, 40 rodadas, `ε` calibrados nas mesmas execuções), mais o fato de os `τ` serem negativos, fora da faixa usual (0.5 a 0.85). Com grupos de classes, o StoCFL só erra com `τ` muito baixo.
